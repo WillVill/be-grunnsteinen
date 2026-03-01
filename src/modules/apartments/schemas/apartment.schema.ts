@@ -53,11 +53,10 @@ export class Apartment {
   description?: string;
 
   @Prop({
-    type: Types.ObjectId,
-    ref: "User",
-    index: true,
+    type: [{ type: Types.ObjectId, ref: "User" }],
+    default: [],
   })
-  tenantId?: Types.ObjectId;
+  tenantIds: Types.ObjectId[];
 
   @Prop({ default: true, index: true })
   isActive: boolean;

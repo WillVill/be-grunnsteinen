@@ -94,12 +94,13 @@ export class ApartmentsController {
     );
   }
 
-  @Delete(":id/tenant")
+  @Delete(":id/tenant/:userId")
   @Roles(UserRole.ADMIN)
   removeTenant(
     @CurrentUser() user: CurrentUserData,
     @Param("id") id: string,
+    @Param("userId") userId: string,
   ) {
-    return this.apartmentsService.removeTenant(user.organizationId, id);
+    return this.apartmentsService.removeTenant(user.organizationId, id, userId);
   }
 }

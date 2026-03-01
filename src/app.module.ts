@@ -22,6 +22,7 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { GroupsModule } from './modules/groups/groups.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
+import { TenantProfilesModule } from './modules/tenant-profiles/tenant-profiles.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -54,6 +55,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     DocumentsModule,
     GroupsModule,
     InvitationsModule,
+    TenantProfilesModule,
   ],
   controllers: [AppController],
   providers: [

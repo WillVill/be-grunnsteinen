@@ -60,6 +60,7 @@ export class EmailService {
     subject: string,
     html: string,
     text?: string,
+    attachments?: { content: string; filename: string; type: string }[],
   ): Promise<void> {
     try {
       await sgMail.send({
@@ -71,6 +72,14 @@ export class EmailService {
         subject,
         html,
         text: text || this.stripHtml(html),
+        ...(attachments?.length && {
+          attachments: attachments.map((a) => ({
+            content: a.content,
+            filename: a.filename,
+            type: a.type,
+            disposition: 'attachment' as const,
+          })),
+        }),
       });
       this.logger.log(`Email sent to ${to}: ${subject}`);
     } catch (error) {

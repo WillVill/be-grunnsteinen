@@ -13,6 +13,7 @@ import { Invitation, InvitationDocument, InvitationStatus } from './schemas/invi
 import { Building, BuildingDocument } from '../buildings/schemas/building.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Apartment, ApartmentDocument } from '../apartments/schemas/apartment.schema';
 import { CreateInvitationDto } from './dto';
 import { EmailService } from '../../shared/services/email.service';
 
@@ -20,12 +21,17 @@ const TOKEN_BYTES = 32;
 const EXPIRY_DAYS = 7;
 
 export interface ValidateInvitationResult {
+  invitationId: string;
   organizationId: string;
   organizationName: string;
   buildingId: string;
   buildingName: string;
   email: string;
   unitNumber?: string;
+  apartmentId?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
 }
 
 @Injectable()
@@ -41,6 +47,8 @@ export class InvitationsService {
     private readonly organizationModel: Model<OrganizationDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Apartment.name)
+    private readonly apartmentModel: Model<ApartmentDocument>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
   ) {}
@@ -77,6 +85,17 @@ export class InvitationsService {
       throw new ConflictException('A pending invitation for this email and building already exists');
     }
 
+    if (dto.apartmentId) {
+      const apartment = await this.apartmentModel.findOne({
+        _id: new Types.ObjectId(dto.apartmentId),
+        buildingId: new Types.ObjectId(dto.buildingId),
+        organizationId: new Types.ObjectId(organizationId),
+      });
+      if (!apartment) {
+        throw new NotFoundException(`Apartment with ID "${dto.apartmentId}" not found`);
+      }
+    }
+
     const token = crypto.randomBytes(TOKEN_BYTES).toString('hex');
     const expiresAt = new Date(Date.now() + EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
@@ -85,6 +104,10 @@ export class InvitationsService {
       buildingId: new Types.ObjectId(dto.buildingId),
       organizationId: new Types.ObjectId(organizationId),
       unitNumber: dto.unitNumber?.trim(),
+      apartmentId: dto.apartmentId ? new Types.ObjectId(dto.apartmentId) : undefined,
+      firstName: dto.firstName?.trim(),
+      lastName: dto.lastName?.trim(),
+      phone: dto.phone?.trim(),
       token,
       expiresAt,
       createdBy: new Types.ObjectId(userId),
@@ -125,12 +148,17 @@ export class InvitationsService {
     ]);
 
     return {
+      invitationId: invitation._id.toString(),
       organizationId: invitation.organizationId.toString(),
       organizationName: organization?.name ?? '',
       buildingId: invitation.buildingId.toString(),
       buildingName: building?.name ?? '',
       email: invitation.email,
       unitNumber: invitation.unitNumber,
+      apartmentId: invitation.apartmentId?.toString(),
+      firstName: invitation.firstName,
+      lastName: invitation.lastName,
+      phone: invitation.phone,
     };
   }
 

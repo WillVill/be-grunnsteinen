@@ -8,9 +8,12 @@ import { AuthService } from './auth.service';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from '../users/users.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { InvitationsModule } from '../invitations/invitations.module';
+import { TenantProfilesModule } from '../tenant-profiles/tenant-profiles.module';
+import { Apartment, ApartmentSchema } from '../apartments/schemas/apartment.schema';
 import { EmailModule } from '../../shared/services/email.module';
 
 @Module({
@@ -25,9 +28,13 @@ import { EmailModule } from '../../shared/services/email.module';
       }),
       inject: [ConfigService],
     }),
+    MongooseModule.forFeature([
+      { name: Apartment.name, schema: ApartmentSchema },
+    ]),
     UsersModule,
     OrganizationsModule,
     InvitationsModule,
+    TenantProfilesModule,
     EmailModule,
   ],
   controllers: [AuthController],

@@ -9,6 +9,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Building, BuildingDocument } from "./schemas/building.schema";
 import { User, UserDocument } from "../users/schemas/user.schema";
+import { TenantProfile, TenantProfileDocument, TenantProfileStatus } from "../tenant-profiles/schemas/tenant-profile.schema";
 import {
   CreateBuildingDto,
   UpdateBuildingDto,
@@ -35,6 +36,8 @@ export class BuildingsService {
     private buildingModel: Model<BuildingDocument>,
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    @InjectModel(TenantProfile.name)
+    private tenantProfileModel: Model<TenantProfileDocument>,
     private readonly emailService: EmailService,
     private readonly twilioService: TwilioService,
   ) {}
@@ -352,6 +355,24 @@ export class BuildingsService {
       });
     }
 
+    // Resolve tenant profiles to include
+    let profiles: TenantProfileDocument[] = [];
+    const sendAll = !dto.recipientIds?.length && !dto.tenantProfileIds?.length;
+    if (dto.tenantProfileIds && dto.tenantProfileIds.length > 0) {
+      profiles = await this.tenantProfileModel.find({
+        organizationId: new Types.ObjectId(organizationId),
+        buildingId: new Types.ObjectId(buildingId),
+        status: { $ne: TenantProfileStatus.REGISTERED },
+        _id: { $in: dto.tenantProfileIds.map((id) => new Types.ObjectId(id)) },
+      }).exec();
+    } else if (sendAll) {
+      profiles = await this.tenantProfileModel.find({
+        organizationId: new Types.ObjectId(organizationId),
+        buildingId: new Types.ObjectId(buildingId),
+        status: { $ne: TenantProfileStatus.REGISTERED },
+      }).exec();
+    }
+
     const result: SendMessageResult = { sentEmail: 0, sentSms: 0, skippedSms: 0 };
     const subject =
       dto.subject ||
@@ -364,6 +385,8 @@ export class BuildingsService {
             user.email,
             subject!,
             dto.body.replace(/\n/g, "<br/>"),
+            undefined,
+            dto.attachments,
           );
           result.sentEmail++;
         } catch (err) {
@@ -386,6 +409,42 @@ export class BuildingsService {
           result.sentSms++;
         } catch (err) {
           this.logger.warn(`Failed to send SMS to ${user.phone}`, err);
+        }
+      }
+    }
+
+    for (const profile of profiles) {
+      if (dto.type === "email" || dto.type === "both") {
+        if (!profile.email) continue;
+        try {
+          await this.emailService.sendEmail(
+            profile.email,
+            subject!,
+            dto.body.replace(/\n/g, "<br/>"),
+            undefined,
+            dto.attachments,
+          );
+          result.sentEmail++;
+        } catch (err) {
+          this.logger.warn(`Failed to send email to profile ${profile.email}`, err);
+        }
+      }
+
+      if (dto.type === "sms" || dto.type === "both") {
+        const to = this.twilioService.normalizeE164(profile.phone);
+        if (!to) {
+          result.skippedSms++;
+          continue;
+        }
+        if (!this.twilioService.isConfigured()) {
+          this.logger.warn("SMS not configured; skipping SMS send");
+          break;
+        }
+        try {
+          await this.twilioService.sendSms(to, dto.body);
+          result.sentSms++;
+        } catch (err) {
+          this.logger.warn(`Failed to send SMS to profile ${profile.phone}`, err);
         }
       }
     }

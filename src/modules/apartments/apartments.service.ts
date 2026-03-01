@@ -94,7 +94,7 @@ export class ApartmentsService {
     const [apartments, total] = await Promise.all([
       this.apartmentModel
         .find(filter)
-        .populate("tenantId", "-password -passwordResetToken -passwordResetExpires")
+        .populate("tenantIds", "-password -passwordResetToken -passwordResetExpires")
         .sort({ unitNumber: 1 })
         .skip(skip)
         .limit(limit)
@@ -111,7 +111,7 @@ export class ApartmentsService {
         _id: new Types.ObjectId(apartmentId),
         organizationId: new Types.ObjectId(organizationId),
       })
-      .populate("tenantId", "-password -passwordResetToken -passwordResetExpires");
+      .populate("tenantIds", "-password -passwordResetToken -passwordResetExpires");
 
     if (!apartment) {
       throw new NotFoundException(
@@ -165,7 +165,7 @@ export class ApartmentsService {
         { $set: updateData },
         { new: true },
       )
-      .populate("tenantId", "-password -passwordResetToken -passwordResetExpires");
+      .populate("tenantIds", "-password -passwordResetToken -passwordResetExpires");
 
     if (!apartment) {
       throw new NotFoundException(
@@ -188,9 +188,9 @@ export class ApartmentsService {
       );
     }
 
-    if (apartment.tenantId) {
+    if (apartment.tenantIds?.length) {
       throw new BadRequestException(
-        "Cannot deactivate apartment with an assigned tenant. Remove the tenant first.",
+        "Cannot deactivate apartment with assigned tenants. Remove all tenants first.",
       );
     }
 
@@ -214,14 +214,16 @@ export class ApartmentsService {
       );
     }
 
-    if (apartment.tenantId) {
+    const userObjectId = new Types.ObjectId(assignTenantDto.userId);
+
+    if (apartment.tenantIds?.some((id) => id.equals(userObjectId))) {
       throw new BadRequestException(
-        "Apartment already has a tenant. Remove the current tenant first.",
+        "This user is already a tenant of this apartment.",
       );
     }
 
     const user = await this.userModel.findOne({
-      _id: new Types.ObjectId(assignTenantDto.userId),
+      _id: userObjectId,
       organizationId: new Types.ObjectId(organizationId),
     });
 
@@ -246,9 +248,10 @@ export class ApartmentsService {
       await this.userModel.findByIdAndUpdate(assignTenantDto.userId, updateOps);
     }
 
-    // Assign tenant to apartment
-    apartment.tenantId = new Types.ObjectId(assignTenantDto.userId);
-    await apartment.save();
+    // Add tenant to apartment
+    await this.apartmentModel.findByIdAndUpdate(apartmentId, {
+      $addToSet: { tenantIds: userObjectId },
+    });
 
     // Return populated apartment
     return this.findOne(organizationId, apartmentId);
@@ -257,6 +260,7 @@ export class ApartmentsService {
   async removeTenant(
     organizationId: string,
     apartmentId: string,
+    userId: string,
   ): Promise<Apartment> {
     const apartment = await this.apartmentModel.findOne({
       _id: new Types.ObjectId(apartmentId),
@@ -269,12 +273,15 @@ export class ApartmentsService {
       );
     }
 
-    if (!apartment.tenantId) {
-      throw new BadRequestException("Apartment has no tenant to remove.");
+    const userObjectId = new Types.ObjectId(userId);
+
+    if (!apartment.tenantIds?.some((id) => id.equals(userObjectId))) {
+      throw new BadRequestException("This user is not a tenant of this apartment.");
     }
 
-    apartment.tenantId = undefined;
-    await apartment.save();
+    await this.apartmentModel.findByIdAndUpdate(apartmentId, {
+      $pull: { tenantIds: userObjectId },
+    });
 
     // Return populated apartment
     return this.findOne(organizationId, apartmentId);

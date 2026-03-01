@@ -14,8 +14,10 @@ import * as crypto from 'crypto';
 import { Types } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
+import { Apartment, ApartmentDocument } from '../apartments/schemas/apartment.schema';
 import { EmailService } from '../../shared/services/email.service';
 import { InvitationsService } from '../invitations/invitations.service';
+import { TenantProfilesService } from '../tenant-profiles/tenant-profiles.service';
 import {
   RegisterDto,
   LoginDto,
@@ -53,10 +55,13 @@ export class AuthService {
     private readonly userModel: Model<UserDocument>,
     @InjectModel(Organization.name)
     private readonly organizationModel: Model<OrganizationDocument>,
+    @InjectModel(Apartment.name)
+    private readonly apartmentModel: Model<ApartmentDocument>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly invitationsService: InvitationsService,
+    private readonly tenantProfilesService: TenantProfilesService,
   ) {}
 
   /**
@@ -71,6 +76,11 @@ export class AuthService {
     const emailLower = email.toLowerCase();
 
     let inviteUnitNumber: string | undefined;
+    let inviteApartmentId: string | undefined;
+    let inviteFirstName: string | undefined;
+    let inviteLastName: string | undefined;
+    let invitePhone: string | undefined;
+    let inviteInvitationId: string | undefined;
     if (inviteToken) {
       const invite = await this.invitationsService.validate(inviteToken);
       if (invite.email.toLowerCase() !== emailLower) {
@@ -82,6 +92,11 @@ export class AuthService {
       }
       buildingId = new Types.ObjectId(invite.buildingId);
       inviteUnitNumber = invite.unitNumber;
+      inviteApartmentId = invite.apartmentId;
+      inviteFirstName = invite.firstName;
+      inviteLastName = invite.lastName;
+      invitePhone = invite.phone;
+      inviteInvitationId = invite.invitationId;
     } else {
       if (!organizationCode) {
         throw new BadRequestException('Organization code is required');
@@ -100,11 +115,12 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
+    const inviteFullName = [inviteFirstName, inviteLastName].filter(Boolean).join(' ');
     const userPayload: Record<string, unknown> = {
       email: emailLower,
       password,
-      name,
-      phone,
+      name: name || inviteFullName || emailLower,
+      phone: phone || invitePhone,
       organizationId: organization._id,
       unitNumber: unitNumber || inviteUnitNumber || '-',
       building,
@@ -119,6 +135,26 @@ export class AuthService {
 
     if (inviteToken) {
       await this.invitationsService.markAccepted(inviteToken);
+
+      // Sync TenantProfile lifecycle if one exists for this invitation
+      if (inviteInvitationId) {
+        await this.tenantProfilesService.markRegistered(inviteInvitationId, user._id.toString());
+      }
+
+      if (inviteApartmentId) {
+        try {
+          await this.apartmentModel.findOneAndUpdate(
+            {
+              _id: new Types.ObjectId(inviteApartmentId),
+              organizationId: organization._id,
+            },
+            { $addToSet: { tenantIds: user._id } },
+          );
+          this.logger.log(`Auto-assigned user ${user.email} as tenant of apartment ${inviteApartmentId}`);
+        } catch (err) {
+          this.logger.error(`Failed to auto-assign tenant to apartment ${inviteApartmentId}`, err);
+        }
+      }
     }
 
     const tokens = this.generateTokens(user);

@@ -24,6 +24,18 @@ export class Invitation {
   @Prop({ trim: true })
   unitNumber?: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'Apartment' })
+  apartmentId?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  firstName?: string;
+
+  @Prop({ trim: true })
+  lastName?: string;
+
+  @Prop({ trim: true })
+  phone?: string;
+
   @Prop({ required: true, unique: true, index: true })
   token: string;
 
