@@ -205,9 +205,14 @@ export class EventsService {
   /**
    * Find event by ID with populated organizer and participants
    */
-  async findById(eventId: string): Promise<EventDocument> {
+  async findById(eventId: string, organizationId?: string): Promise<EventDocument> {
+    const filter: Record<string, unknown> = { _id: eventId };
+    if (organizationId) {
+      filter.organizationId = new Types.ObjectId(organizationId);
+    }
+
     const event = await this.eventModel
-      .findById(eventId)
+      .findOne(filter)
       .populate("organizerId", "name avatarUrl avatarColor role")
       .populate("participants", "name avatarUrl avatarColor email role")
       .exec();
@@ -493,17 +498,28 @@ export class EventsService {
   }
 
   /**
-   * Get participants for an event
+   * Get participants for an event (paginated)
    */
-  async getParticipants(eventId: string): Promise<UserDocument[]> {
+  async getParticipants(
+    eventId: string,
+    page: number = 1,
+    limit: number = 50,
+  ): Promise<PaginatedResponseDto<UserDocument>> {
     const event = await this.findById(eventId);
 
-    return this.userModel
-      .find({
-        _id: { $in: event.participants },
-      })
-      .select("name email avatarUrl avatarColor")
-      .exec();
+    const skip = (page - 1) * limit;
+
+    const [participants, total] = await Promise.all([
+      this.userModel
+        .find({ _id: { $in: event.participants } })
+        .select("name email avatarUrl avatarColor")
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments({ _id: { $in: event.participants } }),
+    ]);
+
+    return new PaginatedResponseDto(participants, total, page, limit);
   }
 
   /**
@@ -529,6 +545,7 @@ export class EventsService {
 
   /**
    * Send reminders for events starting in 24 hours
+   * Batches participant lookups and email sends for efficiency
    */
   async sendReminders(): Promise<void> {
     const now = new Date();
@@ -542,20 +559,43 @@ export class EventsService {
           $lte: tomorrow,
         },
       })
-      .populate("participants", "name email")
       .exec();
 
     this.logger.log(`Sending reminders for ${upcomingEvents.length} events`);
+
+    if (upcomingEvents.length === 0) return;
+
+    // Batch: collect all unique participant IDs across all events
+    const allParticipantIds = new Set<string>();
+    for (const event of upcomingEvents) {
+      for (const p of event.participants) {
+        allParticipantIds.add(p.toString());
+      }
+    }
+
+    // Single DB query for all participants
+    const allParticipants = await this.userModel
+      .find({ _id: { $in: [...allParticipantIds].map((id) => new Types.ObjectId(id)) } })
+      .select("name email")
+      .lean()
+      .exec();
+
+    const participantMap = new Map(
+      allParticipants.map((p) => [p._id.toString(), p]),
+    );
+
+    // Send notifications and emails per event
+    const emailPromises: Promise<void>[] = [];
 
     for (const event of upcomingEvents) {
       if (event.participants.length === 0) continue;
 
       const participantIds = event.participants.map((p) => p.toString());
-      const participants = await this.userModel.find({
-        _id: { $in: participantIds },
-      });
+      const eventParticipants = participantIds
+        .map((id) => participantMap.get(id))
+        .filter(Boolean);
 
-      // Send notifications
+      // Send bulk notifications
       await this.notificationService
         .createBulkNotifications(
           participantIds,
@@ -564,7 +604,7 @@ export class EventsService {
           `Reminder: "${event.title}" starts tomorrow`,
           `/events/${event._id}`,
           true,
-          participants.map((p) => ({
+          eventParticipants.map((p) => ({
             _id: p._id.toString(),
             email: p.email,
             firstName: p.name.split(" ")[0],
@@ -578,30 +618,35 @@ export class EventsService {
           );
         });
 
-      // Send email reminders
-      for (const participant of participants) {
-        await this.emailService
-          .sendEventReminder(
-            {
-              _id: participant._id.toString(),
-              email: participant.email,
-              firstName: participant.name.split(" ")[0],
-              lastName: participant.name.split(" ").slice(1).join(" "),
-            },
-            {
-              _id: event._id.toString(),
-              title: event.title,
-              startDate: event.startDate,
-              location: event.location,
-            },
-          )
-          .catch((error) => {
-            this.logger.error(
-              `Failed to send email reminder to ${participant.email}`,
-              error,
-            );
-          });
+      // Queue email reminders (send concurrently)
+      for (const participant of eventParticipants) {
+        emailPromises.push(
+          this.emailService
+            .sendEventReminder(
+              {
+                _id: participant._id.toString(),
+                email: participant.email,
+                firstName: participant.name.split(" ")[0],
+                lastName: participant.name.split(" ").slice(1).join(" "),
+              },
+              {
+                _id: event._id.toString(),
+                title: event.title,
+                startDate: event.startDate,
+                location: event.location,
+              },
+            )
+            .catch((error) => {
+              this.logger.error(
+                `Failed to send email reminder to ${participant.email}`,
+                error,
+              );
+            }),
+        );
       }
     }
+
+    // Send all emails concurrently
+    await Promise.allSettled(emailPromises);
   }
 }

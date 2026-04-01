@@ -9,7 +9,11 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Building, BuildingDocument } from "./schemas/building.schema";
 import { User, UserDocument } from "../users/schemas/user.schema";
-import { TenantProfile, TenantProfileDocument, TenantProfileStatus } from "../tenant-profiles/schemas/tenant-profile.schema";
+import {
+  TenantProfile,
+  TenantProfileDocument,
+  TenantProfileStatus,
+} from "../tenant-profiles/schemas/tenant-profile.schema";
 import {
   CreateBuildingDto,
   UpdateBuildingDto,
@@ -213,7 +217,9 @@ export class BuildingsService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID "${assignDto.userId}" not found`);
+      throw new NotFoundException(
+        `User with ID "${assignDto.userId}" not found`,
+      );
     }
 
     const buildingObjectId = new Types.ObjectId(buildingId);
@@ -359,21 +365,31 @@ export class BuildingsService {
     let profiles: TenantProfileDocument[] = [];
     const sendAll = !dto.recipientIds?.length && !dto.tenantProfileIds?.length;
     if (dto.tenantProfileIds && dto.tenantProfileIds.length > 0) {
-      profiles = await this.tenantProfileModel.find({
-        organizationId: new Types.ObjectId(organizationId),
-        buildingId: new Types.ObjectId(buildingId),
-        status: { $ne: TenantProfileStatus.REGISTERED },
-        _id: { $in: dto.tenantProfileIds.map((id) => new Types.ObjectId(id)) },
-      }).exec();
+      profiles = await this.tenantProfileModel
+        .find({
+          organizationId: new Types.ObjectId(organizationId),
+          buildingId: new Types.ObjectId(buildingId),
+          status: { $ne: TenantProfileStatus.REGISTERED },
+          _id: {
+            $in: dto.tenantProfileIds.map((id) => new Types.ObjectId(id)),
+          },
+        })
+        .exec();
     } else if (sendAll) {
-      profiles = await this.tenantProfileModel.find({
-        organizationId: new Types.ObjectId(organizationId),
-        buildingId: new Types.ObjectId(buildingId),
-        status: { $ne: TenantProfileStatus.REGISTERED },
-      }).exec();
+      profiles = await this.tenantProfileModel
+        .find({
+          organizationId: new Types.ObjectId(organizationId),
+          buildingId: new Types.ObjectId(buildingId),
+          status: { $ne: TenantProfileStatus.REGISTERED },
+        })
+        .exec();
     }
 
-    const result: SendMessageResult = { sentEmail: 0, sentSms: 0, skippedSms: 0 };
+    const result: SendMessageResult = {
+      sentEmail: 0,
+      sentSms: 0,
+      skippedSms: 0,
+    };
     const subject =
       dto.subject ||
       (dto.type !== "sms" ? `Message from ${building.name}` : undefined);
@@ -426,7 +442,10 @@ export class BuildingsService {
           );
           result.sentEmail++;
         } catch (err) {
-          this.logger.warn(`Failed to send email to profile ${profile.email}`, err);
+          this.logger.warn(
+            `Failed to send email to profile ${profile.email}`,
+            err,
+          );
         }
       }
 
@@ -444,7 +463,10 @@ export class BuildingsService {
           await this.twilioService.sendSms(to, dto.body);
           result.sentSms++;
         } catch (err) {
-          this.logger.warn(`Failed to send SMS to profile ${profile.phone}`, err);
+          this.logger.warn(
+            `Failed to send SMS to profile ${profile.phone}`,
+            err,
+          );
         }
       }
     }

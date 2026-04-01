@@ -2016,35 +2016,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sendgrid/client@npm:^8.1.5":
-  version: 8.1.6
-  resolution: "@sendgrid/client@npm:8.1.6"
-  dependencies:
-    "@sendgrid/helpers": "npm:^8.0.0"
-    axios: "npm:^1.12.0"
-  checksum: 10c0/2d17a9e50828e71d62a38364d2ec711bf1fa0313dec181daf455ae324f83e223a6cd53514b29ed13a3265051781cba1516a8cab468d4d2b389c517dbd663026b
-  languageName: node
-  linkType: hard
-
-"@sendgrid/helpers@npm:^8.0.0":
-  version: 8.0.0
-  resolution: "@sendgrid/helpers@npm:8.0.0"
-  dependencies:
-    deepmerge: "npm:^4.2.2"
-  checksum: 10c0/e7f341099c63915eb095102f8c7ec220a8f2fb66a0cd836ab91e7424005e7c5fd27b65e3a5ed43654f5b2b3608fa7d14ebba924ff86e5d0bdfeaf0248f836a50
-  languageName: node
-  linkType: hard
-
-"@sendgrid/mail@npm:^8.1.6":
-  version: 8.1.6
-  resolution: "@sendgrid/mail@npm:8.1.6"
-  dependencies:
-    "@sendgrid/client": "npm:^8.1.5"
-    "@sendgrid/helpers": "npm:^8.0.0"
-  checksum: 10c0/593d69074abf3f3397457664721cab5052b59ecbff35c93140f5e246012f0f1037771ad11bd9037391059cf6f0621ecd8c5394344a937c2c8fcafe66a58418e7
-  languageName: node
-  linkType: hard
-
 "@sinclair/typebox@npm:^0.27.8":
   version: 0.27.8
   resolution: "@sinclair/typebox@npm:0.27.8"
@@ -3754,6 +3725,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"axios@npm:^1.13.5":
+  version: 1.13.6
+  resolution: "axios@npm:1.13.6"
+  dependencies:
+    follow-redirects: "npm:^1.15.11"
+    form-data: "npm:^4.0.5"
+    proxy-from-env: "npm:^1.1.0"
+  checksum: 10c0/51fb5af055c3b85662fa97df17d986ae2c37d13bf86d50b6bb36b6b3a2dec6966a1d3a14ab3774b71707b155ae3597ed9b7babdf1a1a863d1a31840cb8e7ec71
+  languageName: node
+  linkType: hard
+
 "babel-jest@npm:^29.7.0":
   version: 29.7.0
   resolution: "babel-jest@npm:29.7.0"
@@ -5314,7 +5296,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"follow-redirects@npm:^1.15.6":
+"follow-redirects@npm:^1.15.11, follow-redirects@npm:^1.15.6":
   version: 1.15.11
   resolution: "follow-redirects@npm:1.15.11"
   peerDependenciesMeta:
@@ -5357,7 +5339,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"form-data@npm:^4.0.0, form-data@npm:^4.0.4":
+"form-data@npm:^4.0.0, form-data@npm:^4.0.4, form-data@npm:^4.0.5":
   version: 4.0.5
   resolution: "form-data@npm:4.0.5"
   dependencies:
@@ -5718,7 +5700,6 @@ __metadata:
     "@nestjs/terminus": "npm:^11.0.0"
     "@nestjs/testing": "npm:^10.0.0"
     "@nestjs/throttler": "npm:^6.5.0"
-    "@sendgrid/mail": "npm:^8.1.6"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/express": "npm:^4.17.17"
     "@types/jest": "npm:^29.5.2"
@@ -5745,6 +5726,7 @@ __metadata:
     passport: "npm:^0.7.0"
     passport-jwt: "npm:^4.0.1"
     passport-local: "npm:^1.0.0"
+    postmark: "npm:^4.0.5"
     prettier: "npm:^3.0.0"
     reflect-metadata: "npm:^0.1.13"
     rxjs: "npm:^7.8.1"
@@ -7835,6 +7817,15 @@ __metadata:
   version: 8.0.0
   resolution: "pluralize@npm:8.0.0"
   checksum: 10c0/2044cfc34b2e8c88b73379ea4a36fc577db04f651c2909041b054c981cd863dd5373ebd030123ab058d194ae615d3a97cfdac653991e499d10caf592e8b3dc33
+  languageName: node
+  linkType: hard
+
+"postmark@npm:^4.0.5":
+  version: 4.0.7
+  resolution: "postmark@npm:4.0.7"
+  dependencies:
+    axios: "npm:^1.13.5"
+  checksum: 10c0/c846d5dd24ba8c6fb33c42b137e1c09d07d1a90816cf0c29504ce94e24ae8f1405debe802ef14ddd9698014d6c00cb303b5a56e21292886ba15ccdfd4fedddff
   languageName: node
   linkType: hard
 

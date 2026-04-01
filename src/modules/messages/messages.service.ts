@@ -377,20 +377,23 @@ export class MessagesService {
   }
 
   /**
-   * Get total unread count across all conversations
+   * Get total unread count across all conversations using aggregation.
+   * unreadCount is stored as a Map<userId, number> (object in MongoDB).
    */
   async getUnreadCount(userId: string): Promise<number> {
-    const conversations = await this.conversationModel.find({
-      participants: new Types.ObjectId(userId),
-    });
+    const unreadField = `unreadCount.${userId}`;
 
-    let totalUnread = 0;
-    for (const conversation of conversations) {
-      const unread = conversation.unreadCount.get(userId) || 0;
-      totalUnread += unread;
-    }
+    const result = await this.conversationModel.aggregate([
+      { $match: { participants: new Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $ifNull: [`$${unreadField}`, 0] } },
+        },
+      },
+    ]);
 
-    return totalUnread;
+    return result.length > 0 ? result[0].total : 0;
   }
 
   /**

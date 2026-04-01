@@ -144,8 +144,11 @@ export class SharingController {
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not Found - Help request not found' })
-  async findHelpRequestById(@Param('id') id: string) {
-    return this.sharingService.findHelpRequestById(id);
+  async findHelpRequestById(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.sharingService.findHelpRequestById(id, user.organizationId);
   }
 
   @Post('help-requests/:id/accept')
@@ -271,8 +274,11 @@ export class SharingController {
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not Found - Shared item not found' })
-  async findSharedItemById(@Param('id') id: string) {
-    return this.sharingService.findSharedItemById(id);
+  async findSharedItemById(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.sharingService.findSharedItemById(id, user.organizationId);
   }
 
   @Patch('items/:id')

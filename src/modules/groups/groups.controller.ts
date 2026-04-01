@@ -15,6 +15,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -263,8 +264,12 @@ export class GroupsController {
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not Found - Group not found' })
-  async getMembers(@Param('id') id: string) {
-    return this.groupsService.getMembers(id);
+  async getMembers(
+    @Param('id') id: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    return this.groupsService.getMembers(id, page || 1, limit || 50);
   }
 
   @Delete(':id')

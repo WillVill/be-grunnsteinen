@@ -131,9 +131,14 @@ export class SharingService {
   /**
    * Find help request by ID
    */
-  async findHelpRequestById(id: string): Promise<HelpRequestDocument> {
+  async findHelpRequestById(id: string, organizationId?: string): Promise<HelpRequestDocument> {
+    const filter: Record<string, unknown> = { _id: id };
+    if (organizationId) {
+      filter.organizationId = new Types.ObjectId(organizationId);
+    }
+
     const helpRequest = await this.helpRequestModel
-      .findById(id)
+      .findOne(filter)
       .populate('requesterId', 'name avatarUrl avatarColor email')
       .populate('helperId', 'name avatarUrl avatarColor email')
       .exec();
@@ -438,9 +443,14 @@ export class SharingService {
   /**
    * Find shared item by ID
    */
-  async findSharedItemById(id: string): Promise<SharedItemDocument> {
+  async findSharedItemById(id: string, organizationId?: string): Promise<SharedItemDocument> {
+    const filter: Record<string, unknown> = { _id: id };
+    if (organizationId) {
+      filter.organizationId = new Types.ObjectId(organizationId);
+    }
+
     const sharedItem = await this.sharedItemModel
-      .findById(id)
+      .findOne(filter)
       .populate('ownerId', 'name avatarUrl avatarColor email')
       .populate('borrowedBy', 'name avatarUrl avatarColor email')
       .exec();

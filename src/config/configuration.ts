@@ -22,11 +22,11 @@ export default () => ({
     s3Bucket: process.env.AWS_S3_BUCKET,
   },
 
-  // SendGrid
-  sendgrid: {
-    apiKey: process.env.SENDGRID_API_KEY,
-    fromEmail: process.env.SENDGRID_FROM_EMAIL,
-    fromName: process.env.SENDGRID_FROM_NAME,
+  // Postmark
+  postmark: {
+    serverToken: process.env.POSTMARK_SERVER_TOKEN,
+    fromEmail: process.env.POSTMARK_FROM_EMAIL,
+    fromName: process.env.POSTMARK_FROM_NAME,
   },
 
   // Twilio (SMS)

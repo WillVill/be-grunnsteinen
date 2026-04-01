@@ -356,17 +356,28 @@ export class GroupsService {
   }
 
   /**
-   * Get group members
+   * Get group members (paginated)
    */
-  async getMembers(groupId: string): Promise<UserDocument[]> {
+  async getMembers(
+    groupId: string,
+    page: number = 1,
+    limit: number = 50,
+  ): Promise<PaginatedResponseDto<UserDocument>> {
     const group = await this.findById(groupId);
 
-    return this.userModel
-      .find({
-        _id: { $in: group.members },
-      })
-      .select('name email avatarUrl avatarColor')
-      .exec();
+    const skip = (page - 1) * limit;
+
+    const [members, total] = await Promise.all([
+      this.userModel
+        .find({ _id: { $in: group.members } })
+        .select('name email avatarUrl avatarColor')
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments({ _id: { $in: group.members } }),
+    ]);
+
+    return new PaginatedResponseDto(members, total, page, limit);
   }
 
   /**

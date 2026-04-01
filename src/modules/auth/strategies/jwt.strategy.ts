@@ -28,13 +28,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('User not found or inactive');
     }
 
+    // Return fresh DB values instead of (potentially stale) token payload values
     return {
-      userId: payload.sub,
-      email: payload.email,
-      role: payload.role,
-      organizationId: payload.organizationId,
-      buildingIds: payload.buildingIds || [],
-      primaryBuildingId: payload.primaryBuildingId,
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      organizationId: user.organizationId.toString(),
+      buildingIds: user.buildingIds?.map((id) => id.toString()) || [],
+      primaryBuildingId: user.primaryBuildingId?.toString(),
     };
   }
 }

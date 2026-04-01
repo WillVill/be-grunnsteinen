@@ -103,8 +103,11 @@ export class EventsController {
     type: EventResponseDto,
   })
   @ApiResponse({ status: 404, description: "Event not found" })
-  async findOne(@ObjectIdParam("id") id: Types.ObjectId) {
-    return this.eventsService.findById(id.toString());
+  async findOne(
+    @CurrentUser() user: CurrentUserData,
+    @ObjectIdParam("id") id: Types.ObjectId,
+  ) {
+    return this.eventsService.findById(id.toString(), user.organizationId);
   }
 
   @Patch(":id")
@@ -198,8 +201,12 @@ export class EventsController {
     description: "List of participants",
   })
   @ApiResponse({ status: 404, description: "Event not found" })
-  async getParticipants(@ObjectIdParam("id") id: Types.ObjectId) {
-    return this.eventsService.getParticipants(id.toString());
+  async getParticipants(
+    @ObjectIdParam("id") id: Types.ObjectId,
+    @Query("page", new ParseIntPipe({ optional: true })) page?: number,
+    @Query("limit", new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    return this.eventsService.getParticipants(id.toString(), page || 1, limit || 50);
   }
 
   @Post(":id/image")

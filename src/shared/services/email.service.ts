@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as sgMail from '@sendgrid/mail';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as postmark from "postmark";
 
 // Interfaces for email context (will be replaced with actual types later)
 export interface EmailUser {
@@ -38,22 +38,23 @@ export interface EmailPost {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private readonly client: postmark.ServerClient | null = null;
   private readonly fromEmail: string;
   private readonly fromName: string;
   private readonly frontendUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('sendgrid.apiKey');
-    if (apiKey) {
-      sgMail.setApiKey(apiKey);
+    const serverToken = this.configService.get<string>("postmark.serverToken");
+    if (serverToken) {
+      this.client = new postmark.ServerClient(serverToken);
     }
-    this.fromEmail = this.configService.get<string>('sendgrid.fromEmail');
-    this.fromName = this.configService.get<string>('sendgrid.fromName');
-    this.frontendUrl = this.configService.get<string>('frontendUrl');
+    this.fromEmail = this.configService.get<string>("postmark.fromEmail");
+    this.fromName = this.configService.get<string>("postmark.fromName");
+    this.frontendUrl = this.configService.get<string>("frontendUrl");
   }
 
   /**
-   * Send a single email via SendGrid
+   * Send a single email via Postmark
    */
   async sendEmail(
     to: string,
@@ -62,22 +63,29 @@ export class EmailService {
     text?: string,
     attachments?: { content: string; filename: string; type: string }[],
   ): Promise<void> {
+    if (!this.client) {
+      this.logger.warn(
+        `Email not sent to ${to}: Postmark client not configured`,
+      );
+      return;
+    }
     try {
-      await sgMail.send({
-        to,
-        from: {
-          email: this.fromEmail,
-          name: this.fromName,
-        },
-        subject,
-        html,
-        text: text || this.stripHtml(html),
+      const from = this.fromName
+        ? `${this.fromName} <${this.fromEmail}>`
+        : this.fromEmail;
+
+      await this.client.sendEmail({
+        To: to,
+        From: from,
+        Subject: subject,
+        HtmlBody: html,
+        TextBody: text || this.stripHtml(html),
         ...(attachments?.length && {
-          attachments: attachments.map((a) => ({
-            content: a.content,
-            filename: a.filename,
-            type: a.type,
-            disposition: 'attachment' as const,
+          Attachments: attachments.map((a) => ({
+            Name: a.filename,
+            Content: a.content,
+            ContentType: a.type,
+            ContentID: null,
           })),
         }),
       });
@@ -89,22 +97,29 @@ export class EmailService {
   }
 
   /**
-   * Send email using SendGrid dynamic template
+   * Send email using Postmark template
    */
   async sendTemplateEmail(
     to: string,
     templateId: string,
     dynamicData: Record<string, unknown>,
   ): Promise<void> {
+    if (!this.client) {
+      this.logger.warn(
+        `Template email not sent to ${to}: Postmark client not configured`,
+      );
+      return;
+    }
     try {
-      await sgMail.send({
-        to,
-        from: {
-          email: this.fromEmail,
-          name: this.fromName,
-        },
-        templateId,
-        dynamicTemplateData: dynamicData,
+      const from = this.fromName
+        ? `${this.fromName} <${this.fromEmail}>`
+        : this.fromEmail;
+
+      await this.client.sendEmailWithTemplate({
+        To: to,
+        From: from,
+        TemplateAlias: templateId,
+        TemplateModel: dynamicData,
       });
       this.logger.log(`Template email sent to ${to}: ${templateId}`);
     } catch (error) {
@@ -121,7 +136,8 @@ export class EmailService {
     organization: EmailOrganization,
   ): Promise<void> {
     const subject = `Welcome to ${organization.name} on Heime!`;
-    const html = this.getEmailTemplate(`
+    const html = this.getEmailTemplate(
+      `
       <h1>Welcome to Heime, ${user.firstName}!</h1>
       <p>You've successfully joined <strong>${organization.name}</strong>.</p>
       <p>With Heime, you can:</p>
@@ -135,7 +151,9 @@ export class EmailService {
         <a href="${this.frontendUrl}/dashboard" class="button">Go to Dashboard</a>
       </p>
       <p>If you have any questions, feel free to reach out to your community administrators.</p>
-    `, user);
+    `,
+      user,
+    );
 
     await this.sendEmail(user.email, subject, html);
   }
@@ -148,8 +166,9 @@ export class EmailService {
     resetToken: string,
   ): Promise<void> {
     const resetLink = `${this.frontendUrl}/auth/reset-password?token=${resetToken}`;
-    const subject = 'Reset Your Heime Password';
-    const html = this.getEmailTemplate(`
+    const subject = "Reset Your Heime Password";
+    const html = this.getEmailTemplate(
+      `
       <h1>Password Reset Request</h1>
       <p>Hi ${user.firstName},</p>
       <p>We received a request to reset your password. Click the button below to create a new password:</p>
@@ -162,7 +181,9 @@ export class EmailService {
         If the button doesn't work, copy and paste this link into your browser:<br>
         <a href="${resetLink}">${resetLink}</a>
       </p>
-    `, user);
+    `,
+      user,
+    );
 
     await this.sendEmail(user.email, subject, html);
   }
@@ -175,7 +196,8 @@ export class EmailService {
     booking: EmailBooking,
   ): Promise<void> {
     const subject = `Booking Confirmed: ${booking.resource.name}`;
-    const html = this.getEmailTemplate(`
+    const html = this.getEmailTemplate(
+      `
       <h1>Booking Confirmed!</h1>
       <p>Hi ${user.firstName},</p>
       <p>Your booking has been confirmed:</p>
@@ -188,7 +210,9 @@ export class EmailService {
         <a href="${this.frontendUrl}/bookings/${booking._id}" class="button">View Booking</a>
       </p>
       <p>Need to make changes? You can manage your booking from the link above.</p>
-    `, user);
+    `,
+      user,
+    );
 
     await this.sendEmail(user.email, subject, html);
   }
@@ -201,7 +225,8 @@ export class EmailService {
     booking: EmailBooking,
   ): Promise<void> {
     const subject = `Booking Cancelled: ${booking.resource.name}`;
-    const html = this.getEmailTemplate(`
+    const html = this.getEmailTemplate(
+      `
       <h1>Booking Cancelled</h1>
       <p>Hi ${user.firstName},</p>
       <p>Your booking has been cancelled:</p>
@@ -213,7 +238,9 @@ export class EmailService {
       <p>
         <a href="${this.frontendUrl}/resources" class="button">Book Another Time</a>
       </p>
-    `, user);
+    `,
+      user,
+    );
 
     await this.sendEmail(user.email, subject, html);
   }
@@ -223,7 +250,8 @@ export class EmailService {
    */
   async sendEventReminder(user: EmailUser, event: EmailEvent): Promise<void> {
     const subject = `Reminder: ${event.title} is coming up!`;
-    const html = this.getEmailTemplate(`
+    const html = this.getEmailTemplate(
+      `
       <h1>Event Reminder</h1>
       <p>Hi ${user.firstName},</p>
       <p>Don't forget about the upcoming event:</p>
@@ -231,12 +259,14 @@ export class EmailService {
         <p><strong>Event:</strong> ${event.title}</p>
         <p><strong>Date:</strong> ${this.formatDate(event.startDate)}</p>
         <p><strong>Time:</strong> ${this.formatTime(event.startDate)}</p>
-        ${event.location ? `<p><strong>Location:</strong> ${event.location}</p>` : ''}
+        ${event.location ? `<p><strong>Location:</strong> ${event.location}</p>` : ""}
       </div>
       <p>
         <a href="${this.frontendUrl}/events/${event._id}" class="button">View Event Details</a>
       </p>
-    `, user);
+    `,
+      user,
+    );
 
     await this.sendEmail(user.email, subject, html);
   }
@@ -249,14 +279,17 @@ export class EmailService {
     sender: EmailUser,
   ): Promise<void> {
     const subject = `New message from ${sender.firstName} ${sender.lastName}`;
-    const html = this.getEmailTemplate(`
+    const html = this.getEmailTemplate(
+      `
       <h1>You've Got a New Message</h1>
       <p>Hi ${user.firstName},</p>
       <p><strong>${sender.firstName} ${sender.lastName}</strong> sent you a message.</p>
       <p>
         <a href="${this.frontendUrl}/messages" class="button">Read Message</a>
       </p>
-    `, user);
+    `,
+      user,
+    );
 
     await this.sendEmail(user.email, subject, html);
   }
@@ -272,10 +305,10 @@ export class EmailService {
   ): Promise<void> {
     const subject = `You're invited to join ${organizationName} – ${buildingName}`;
     const fakeUser: EmailUser = {
-      _id: '',
+      _id: "",
       email: toEmail,
-      firstName: '',
-      lastName: '',
+      firstName: "",
+      lastName: "",
     };
     const html = this.getEmailTemplate(
       `
@@ -306,7 +339,8 @@ export class EmailService {
     const subject = `New Announcement: ${post.title}`;
 
     const sendPromises = users.map((user) => {
-      const html = this.getEmailTemplate(`
+      const html = this.getEmailTemplate(
+        `
         <h1>New Board Announcement</h1>
         <p>Hi ${user.firstName},</p>
         <p>A new announcement has been posted:</p>
@@ -317,10 +351,15 @@ export class EmailService {
         <p>
           <a href="${this.frontendUrl}/posts/${post._id}" class="button">Read Full Announcement</a>
         </p>
-      `, user);
+      `,
+        user,
+      );
 
       return this.sendEmail(user.email, subject, html).catch((error) => {
-        this.logger.error(`Failed to send announcement to ${user.email}`, error);
+        this.logger.error(
+          `Failed to send announcement to ${user.email}`,
+          error,
+        );
       });
     });
 
@@ -442,18 +481,21 @@ export class EmailService {
    * Strip HTML tags from content
    */
   private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    return html
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   /**
    * Format date for display
    */
   private formatDate(date: Date): string {
-    return new Date(date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return new Date(date).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   }
 
@@ -461,9 +503,9 @@ export class EmailService {
    * Format time for display
    */
   private formatTime(date: Date): string {
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(date).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   }
 
@@ -472,7 +514,6 @@ export class EmailService {
    */
   private truncateContent(content: string, maxLength: number): string {
     if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength).trim() + '...';
+    return content.substring(0, maxLength).trim() + "...";
   }
 }
-

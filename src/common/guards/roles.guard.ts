@@ -29,11 +29,15 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    // SUPER_ADMIN inherits all ADMIN permissions automatically
+    // Role hierarchy: SUPER_ADMIN > ADMIN > BOARD > RESIDENT
     const hasRole = requiredRoles.some((role) => {
       if (user.role === role) return true;
-      // If ADMIN is required, SUPER_ADMIN also qualifies
-      if (role === UserRole.ADMIN && user.role === UserRole.SUPER_ADMIN) return true;
+      // SUPER_ADMIN inherits all roles
+      if (user.role === UserRole.SUPER_ADMIN) return true;
+      // ADMIN inherits BOARD and RESIDENT permissions
+      if (user.role === UserRole.ADMIN && (role === UserRole.BOARD || role === UserRole.RESIDENT)) return true;
+      // BOARD inherits RESIDENT permissions
+      if (user.role === UserRole.BOARD && role === UserRole.RESIDENT) return true;
       return false;
     });
 

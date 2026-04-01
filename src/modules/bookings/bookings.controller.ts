@@ -108,7 +108,7 @@ export class BookingsController {
     @CurrentUser() user: CurrentUserData,
     @Query() query: BookingQueryDto,
   ) {
-    return this.bookingsService.findUserBookings(user.userId, query);
+    return this.bookingsService.findUserBookings(user.userId, user.organizationId, query);
   }
 
   @Get(':id')
@@ -131,7 +131,7 @@ export class BookingsController {
     @Param('id') id: string,
   ) {
     const isBoard = ['board', 'admin'].includes(user.role);
-    return this.bookingsService.findById(id, user.userId, isBoard);
+    return this.bookingsService.findById(id, user.userId, isBoard, user.organizationId);
   }
 
   @Patch(':id')

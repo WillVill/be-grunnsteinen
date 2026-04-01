@@ -241,15 +241,21 @@ export class BookingsService {
   }
 
   /**
-   * Find booking by ID with access verification
+   * Find booking by ID with access verification and org scope
    */
   async findById(
     bookingId: string,
     userId: string,
     isBoard: boolean,
+    orgId?: string,
   ): Promise<BookingDocument> {
+    const filter: Record<string, unknown> = { _id: bookingId };
+    if (orgId) {
+      filter.organizationId = new Types.ObjectId(orgId);
+    }
+
     const booking = await this.bookingModel
-      .findById(bookingId)
+      .findOne(filter)
       .populate('resourceId', 'name type description imageUrls')
       .populate('userId', 'name email avatarUrl avatarColor')
       .populate('cancelledBy', 'name email')
@@ -273,6 +279,7 @@ export class BookingsService {
    */
   async findUserBookings(
     userId: string,
+    orgId: string,
     query: BookingQueryDto,
   ): Promise<PaginatedResponseDto<BookingDocument>> {
     const {
@@ -288,8 +295,9 @@ export class BookingsService {
 
     const skip = (page - 1) * limit;
 
-    // Build filter query
+    // Build filter query — scope by org + user
     const filter: QueryFilter<BookingDocument> = {
+      organizationId: new Types.ObjectId(orgId),
       userId: new Types.ObjectId(userId),
     };
 
