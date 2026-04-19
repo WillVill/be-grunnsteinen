@@ -5,7 +5,6 @@ import {
   Patch,
   Delete,
   Body,
-  Param,
   Query,
   UseInterceptors,
   UploadedFile,
@@ -206,7 +205,11 @@ export class EventsController {
     @Query("page", new ParseIntPipe({ optional: true })) page?: number,
     @Query("limit", new ParseIntPipe({ optional: true })) limit?: number,
   ) {
-    return this.eventsService.getParticipants(id.toString(), page || 1, limit || 50);
+    return this.eventsService.getParticipants(
+      id.toString(),
+      page || 1,
+      limit || 50,
+    );
   }
 
   @Post(":id/image")
