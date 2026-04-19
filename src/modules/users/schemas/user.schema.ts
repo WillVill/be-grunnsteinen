@@ -103,8 +103,8 @@ export class User {
   })
   email: string;
 
-  @Prop({ required: true, select: false })
-  password: string;
+  @Prop({ select: false })
+  password?: string;
 
   @Prop({ required: true, trim: true })
   name: string;
@@ -180,6 +180,12 @@ export class User {
 
   @Prop({ select: false })
   passwordResetExpires?: Date;
+
+  @Prop({ select: false })
+  setupToken?: string;
+
+  @Prop({ select: false })
+  setupTokenExpires?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -207,6 +213,7 @@ UserSchema.methods.comparePassword = async function (
   candidatePassword: string,
 ): Promise<boolean> {
   const user = this as UserDocument;
+  if (!user.password) return false;
   return bcrypt.compare(candidatePassword, user.password);
 };
 
@@ -218,4 +225,11 @@ UserSchema.virtual("firstName").get(function () {
 UserSchema.virtual("lastName").get(function () {
   const parts = this.name.split(" ");
   return parts.length > 1 ? parts.slice(1).join(" ") : "";
+});
+
+// True when the user has been invited but has not yet completed setup.
+// Requires setupTokenExpires to be selected (see users.service findByOrganization).
+UserSchema.virtual('isPendingSetup').get(function () {
+  const doc = this as unknown as { isActive?: boolean; setupTokenExpires?: Date };
+  return !doc.isActive && !!doc.setupTokenExpires;
 });
