@@ -122,7 +122,7 @@ export class OrganizationsService {
     }
 
     // Upload new logo
-    const logoUrl = await this.s3Service.uploadFile(file, `organizations/${id}/logos`);
+    const logoUrl = await this.s3Service.uploadFile(file, `public/organizations/${id}/logos`);
 
     // Update organization
     organization.logoUrl = logoUrl;

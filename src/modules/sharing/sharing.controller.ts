@@ -413,7 +413,7 @@ export class SharingController {
     // Upload to S3
     const imageUrl = await this.s3Service.uploadFile(
       file,
-      `sharing/items/${id}/images`,
+      `public/sharing/items/${id}/images`,
     );
 
     // Update item with image URL

@@ -250,7 +250,7 @@ export class EventsController {
     const idStr = id.toString();
     const imageUrl = await this.s3Service.uploadFile(
       file,
-      `events/${idStr}/images`,
+      `public/events/${idStr}/images`,
     );
 
     // Update event with image URL

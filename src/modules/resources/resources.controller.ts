@@ -198,7 +198,7 @@ export class ResourcesController {
   ) {
     const imageUrl = await this.s3Service.uploadFile(
       file,
-      `resources/${id}/images`,
+      `public/resources/${id}/images`,
     );
     return this.resourcesService.addImages(id, [imageUrl]);
   }

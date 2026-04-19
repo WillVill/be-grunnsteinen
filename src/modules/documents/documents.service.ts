@@ -35,11 +35,12 @@ export class DocumentsService {
     dto: UploadDocumentDto,
   ): Promise<DocumentDocument> {
     // Upload file to S3
-    const fileKey = this.s3Service.generateKey('documents', file.originalname);
+    const fileKey = this.s3Service.generateKey('private/documents', file.originalname);
     const fileUrl = await this.s3Service.uploadBuffer(
       file.buffer,
       fileKey,
       file.mimetype,
+      'private',
     );
 
     if (!dto.isOrganizationWide && !dto.buildingId) {

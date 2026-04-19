@@ -165,7 +165,7 @@ export class UsersController {
     // Upload to S3
     const avatarUrl = await this.s3Service.uploadFile(
       file,
-      `avatars/${userId}`,
+      `public/avatars/${userId}`,
     );
 
     // Update user with new avatar URL

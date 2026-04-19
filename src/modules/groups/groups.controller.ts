@@ -180,7 +180,7 @@ export class GroupsController {
     // Upload to S3
     const imageUrl = await this.s3Service.uploadFile(
       file,
-      `groups/${id}/images`,
+      `public/groups/${id}/images`,
     );
 
     // Update group with image URL
