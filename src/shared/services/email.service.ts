@@ -331,6 +331,42 @@ export class EmailService {
   }
 
   /**
+   * Send admin setup email (for inviting a new admin who will set their own password)
+   */
+  async sendAdminSetupEmail(
+    toEmail: string,
+    organizationName: string,
+    inviterName: string,
+    roleLabel: string,
+    setupLink: string,
+  ): Promise<void> {
+    const subject = `Du er invitert som ${roleLabel} i ${organizationName}`;
+    const fakeUser: EmailUser = {
+      _id: "",
+      email: toEmail,
+      firstName: "",
+      lastName: "",
+    };
+    const html = this.getEmailTemplate(
+      `
+      <h1>Du er invitert som ${roleLabel}</h1>
+      <p><strong>${inviterName}</strong> har invitert deg til å bli ${roleLabel} i <strong>${organizationName}</strong> på Heime.</p>
+      <p>Klikk på knappen under for å fullføre oppsettet av kontoen din. Du velger ditt eget passord.</p>
+      <p>
+        <a href="${setupLink}" class="button">Fullfør oppsett</a>
+      </p>
+      <p>Lenken utløper om 72 timer.</p>
+      <p style="font-size: 12px; color: #666;">
+        Hvis knappen ikke fungerer, kopier og lim inn denne lenken i nettleseren din:<br>
+        <a href="${setupLink}">${setupLink}</a>
+      </p>
+    `,
+      fakeUser,
+    );
+    await this.sendEmail(toEmail, subject, html);
+  }
+
+  /**
    * Send board announcement to multiple users
    */
   async sendBoardAnnouncement(
