@@ -110,10 +110,13 @@ export class EventsService {
     }
     const uniqueRecipientIds = [...new Set(recipientIds)];
     if (uniqueRecipientIds.length > 0) {
-      const startDateStr = new Date(event.startDate).toLocaleDateString("nb-NO", {
-        dateStyle: "short",
-        timeStyle: "short",
-      });
+      const startDateStr = new Date(event.startDate).toLocaleDateString(
+        "nb-NO",
+        {
+          dateStyle: "short",
+          timeStyle: "short",
+        },
+      );
       await this.notificationService
         .createBulkNotifications(
           uniqueRecipientIds,
@@ -124,7 +127,9 @@ export class EventsService {
           true,
         )
         .catch((err) =>
-          this.logger.warn(`Failed to send new event notifications: ${err.message}`),
+          this.logger.warn(
+            `Failed to send new event notifications: ${err.message}`,
+          ),
         );
     }
 
@@ -214,7 +219,10 @@ export class EventsService {
   /**
    * Find event by ID with populated organizer and participants
    */
-  async findById(eventId: string, organizationId?: string): Promise<EventDocument> {
+  async findById(
+    eventId: string,
+    organizationId?: string,
+  ): Promise<EventDocument> {
     const filter: Record<string, unknown> = { _id: eventId };
     if (organizationId) {
       filter.organizationId = new Types.ObjectId(organizationId);
@@ -584,7 +592,11 @@ export class EventsService {
 
     // Single DB query for all participants
     const allParticipants = await this.userModel
-      .find({ _id: { $in: [...allParticipantIds].map((id) => new Types.ObjectId(id)) } })
+      .find({
+        _id: {
+          $in: [...allParticipantIds].map((id) => new Types.ObjectId(id)),
+        },
+      })
       .select("name email")
       .lean()
       .exec();

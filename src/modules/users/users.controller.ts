@@ -29,7 +29,6 @@ import { UsersService } from "./users.service";
 import {
   UpdateUserDto,
   UserQueryDto,
-  UserResponseDto,
   CreateAdminUserDto,
   UpdateAdminUserDto,
   UpdateRoleDto,
@@ -92,7 +91,10 @@ export class UsersController {
     status: 200,
     description: "User profile",
   })
-  @ApiResponse({ status: 403, description: "User not in same organization or profile is private" })
+  @ApiResponse({
+    status: 403,
+    description: "User not in same organization or profile is private",
+  })
   @ApiResponse({ status: 404, description: "User not found" })
   async findOne(
     @CurrentUser() currentUser: CurrentUserData,
@@ -108,7 +110,11 @@ export class UsersController {
     }
 
     // If profile is private, only the user themselves or an admin can view it
-    if (user.isProfilePrivate && currentUser.userId !== id && currentUser.role !== "admin") {
+    if (
+      user.isProfilePrivate &&
+      currentUser.userId !== id &&
+      currentUser.role !== "admin"
+    ) {
       throw new ForbiddenException("Profile is private");
     }
 
@@ -202,8 +208,13 @@ export class UsersController {
     @Body() dto: CreateAdminUserDto,
   ) {
     // Only super_admin can create super_admin users
-    if (dto.role === UserRole.SUPER_ADMIN && user.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException("Only a super_admin can create super_admin users");
+    if (
+      dto.role === UserRole.SUPER_ADMIN &&
+      user.role !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException(
+        "Only a super_admin can create super_admin users",
+      );
     }
     return this.usersService.createAdminUser(user.organizationId, dto);
   }
@@ -218,8 +229,13 @@ export class UsersController {
     @Body() dto: UpdateAdminUserDto,
   ) {
     // Only super_admin can set super_admin role
-    if (dto.role === UserRole.SUPER_ADMIN && user.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException("Only a super_admin can assign the super_admin role");
+    if (
+      dto.role === UserRole.SUPER_ADMIN &&
+      user.role !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException(
+        "Only a super_admin can assign the super_admin role",
+      );
     }
     return this.usersService.updateAdminUser(user.organizationId, id, dto);
   }
@@ -233,7 +249,12 @@ export class UsersController {
     @Param("id") id: string,
     @Body() dto: UpdateRoleDto,
   ) {
-    return this.usersService.updateRole(user.organizationId, id, dto, user.role);
+    return this.usersService.updateRole(
+      user.organizationId,
+      id,
+      dto,
+      user.role,
+    );
   }
 
   @Delete(":id")
