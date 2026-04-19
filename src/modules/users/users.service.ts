@@ -98,12 +98,21 @@ export class UsersService {
 
     const skip = (page - 1) * limit;
 
+    const adminOnlyQuery =
+      query.onlyRoles &&
+      query.onlyRoles
+        .split(",")
+        .map((r) => r.trim())
+        .every((r) => r === UserRole.ADMIN || r === UserRole.SUPER_ADMIN);
+
     // Build filter query (exclude private profiles from neighbors list)
     const filter: QueryFilter<UserDocument> = {
       organizationId: new Types.ObjectId(organizationId),
-      isActive: true,
       isProfilePrivate: { $ne: true },
     };
+    if (!adminOnlyQuery) {
+      filter.isActive = true;
+    }
 
     // Search by name or email
     if (search) {
@@ -141,13 +150,17 @@ export class UsersService {
     }
 
     // Execute query with pagination
+    const query2 = this.userModel
+      .find(filter)
+      .sort({ [sortBy]: sortOrder === "desc" ? -1 : 1 })
+      .skip(skip)
+      .limit(limit);
+    if (adminOnlyQuery) {
+      query2.select("+setupTokenExpires");
+    }
+
     const [users, total] = await Promise.all([
-      this.userModel
-        .find(filter)
-        .sort({ [sortBy]: sortOrder === "desc" ? -1 : 1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
+      query2.exec(),
       this.userModel.countDocuments(filter),
     ]);
 
