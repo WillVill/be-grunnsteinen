@@ -16,8 +16,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm ci
-      - run: npm run build
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - run: yarn install --immutable
+      - run: yarn build
 
       # Package only what EB needs. Exclude dev files, tests, .git, etc.
       - name: Create deployment package
