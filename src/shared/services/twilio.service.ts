@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import twilio from 'twilio';
+import type { Twilio } from 'twilio';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const twilio = require('twilio');
 
 /** E.164 regex: optional +, digits, 10-15 length */
 const E164_REGEX = /^\+?[1-9]\d{1,14}$/;
@@ -8,7 +10,7 @@ const E164_REGEX = /^\+?[1-9]\d{1,14}$/;
 @Injectable()
 export class TwilioService {
   private readonly logger = new Logger(TwilioService.name);
-  private readonly client: twilio.Twilio | null = null;
+  private readonly client: Twilio | null = null;
   private readonly phoneNumber: string | undefined;
 
   constructor(private readonly configService: ConfigService) {
