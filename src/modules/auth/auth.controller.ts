@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { ThrottleAuth } from '../../common/decorators/throttle-auth.decorator';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -131,6 +132,7 @@ export class AuthController {
     return { message: 'Password reset successful' };
   }
 
+  @SkipThrottle()
   @Public()
   @Get('validate-setup-token/:token')
   @ApiOperation({ summary: 'Validate an admin setup token' })
@@ -150,6 +152,7 @@ export class AuthController {
     return this.authService.validateSetupToken(token);
   }
 
+  @SkipThrottle()
   @Public()
   @Post('complete-setup')
   @HttpCode(HttpStatus.OK)
