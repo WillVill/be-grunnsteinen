@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -41,10 +42,15 @@ export class DocumentsService {
       file.mimetype,
     );
 
-    // Create document record
+    if (!dto.isOrganizationWide && !dto.buildingId) {
+      throw new BadRequestException(
+        'Either a building must be selected or the document must be marked as organization-wide.',
+      );
+    }
+
     const document = await this.documentModel.create({
       ...dto,
-      buildingId: new Types.ObjectId(dto.buildingId),
+      ...(dto.buildingId ? { buildingId: new Types.ObjectId(dto.buildingId) } : {}),
       ...(dto.apartmentId ? { apartmentId: new Types.ObjectId(dto.apartmentId) } : {}),
       organizationId: new Types.ObjectId(orgId),
       uploadedById: new Types.ObjectId(userId),
@@ -54,6 +60,7 @@ export class DocumentsService {
       fileSize: file.size,
       mimeType: file.mimetype,
       isPublic: dto.isPublic ?? true,
+      isOrganizationWide: dto.isOrganizationWide ?? false,
     });
 
     this.logger.log(`Document uploaded: ${document.title} (${document._id}) by user ${userId}`);

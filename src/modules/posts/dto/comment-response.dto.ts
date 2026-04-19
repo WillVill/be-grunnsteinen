@@ -28,6 +28,10 @@ export class CommentResponseDto {
   @Expose()
   postId: string;
 
+  @ApiProperty({ example: '507f1f77bcf86cd799439011', nullable: true, required: false })
+  @Expose()
+  parentCommentId?: string | null;
+
   @ApiProperty({ type: AuthorResponse })
   @Expose()
   @Type(() => AuthorResponse)

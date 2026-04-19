@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as postmark from "postmark";
+import * as sgMail from "@sendgrid/mail";
 
 // Interfaces for email context (will be replaced with actual types later)
 export interface EmailUser {
@@ -38,23 +38,24 @@ export interface EmailPost {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly client: postmark.ServerClient | null = null;
+  private readonly isConfigured: boolean = false;
   private readonly fromEmail: string;
   private readonly fromName: string;
   private readonly frontendUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    const serverToken = this.configService.get<string>("postmark.serverToken");
-    if (serverToken) {
-      this.client = new postmark.ServerClient(serverToken);
+    const apiKey = this.configService.get<string>("sendgrid.apiKey");
+    if (apiKey) {
+      sgMail.setApiKey(apiKey);
+      this.isConfigured = true;
     }
-    this.fromEmail = this.configService.get<string>("postmark.fromEmail");
-    this.fromName = this.configService.get<string>("postmark.fromName");
+    this.fromEmail = this.configService.get<string>("sendgrid.fromEmail");
+    this.fromName = this.configService.get<string>("sendgrid.fromName");
     this.frontendUrl = this.configService.get<string>("frontendUrl");
   }
 
   /**
-   * Send a single email via Postmark
+   * Send a single email via SendGrid
    */
   async sendEmail(
     to: string,
@@ -63,29 +64,29 @@ export class EmailService {
     text?: string,
     attachments?: { content: string; filename: string; type: string }[],
   ): Promise<void> {
-    if (!this.client) {
+    if (!this.isConfigured) {
       this.logger.warn(
-        `Email not sent to ${to}: Postmark client not configured`,
+        `Email not sent to ${to}: SendGrid client not configured`,
       );
       return;
     }
     try {
       const from = this.fromName
-        ? `${this.fromName} <${this.fromEmail}>`
+        ? { name: this.fromName, email: this.fromEmail }
         : this.fromEmail;
 
-      await this.client.sendEmail({
-        To: to,
-        From: from,
-        Subject: subject,
-        HtmlBody: html,
-        TextBody: text || this.stripHtml(html),
+      await sgMail.send({
+        to,
+        from,
+        subject,
+        html,
+        text: text || this.stripHtml(html),
         ...(attachments?.length && {
-          Attachments: attachments.map((a) => ({
-            Name: a.filename,
-            Content: a.content,
-            ContentType: a.type,
-            ContentID: null,
+          attachments: attachments.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+            type: a.type,
+            disposition: "attachment" as const,
           })),
         }),
       });
@@ -97,29 +98,29 @@ export class EmailService {
   }
 
   /**
-   * Send email using Postmark template
+   * Send email using SendGrid dynamic template
    */
   async sendTemplateEmail(
     to: string,
     templateId: string,
     dynamicData: Record<string, unknown>,
   ): Promise<void> {
-    if (!this.client) {
+    if (!this.isConfigured) {
       this.logger.warn(
-        `Template email not sent to ${to}: Postmark client not configured`,
+        `Template email not sent to ${to}: SendGrid client not configured`,
       );
       return;
     }
     try {
       const from = this.fromName
-        ? `${this.fromName} <${this.fromEmail}>`
+        ? { name: this.fromName, email: this.fromEmail }
         : this.fromEmail;
 
-      await this.client.sendEmailWithTemplate({
-        To: to,
-        From: from,
-        TemplateAlias: templateId,
-        TemplateModel: dynamicData,
+      await sgMail.send({
+        to,
+        from,
+        templateId,
+        dynamicTemplateData: dynamicData,
       });
       this.logger.log(`Template email sent to ${to}: ${templateId}`);
     } catch (error) {
@@ -465,7 +466,7 @@ export class EmailService {
     </div>
     ${content}
     <div class="footer">
-      <p>© ${new Date().getFullYear()} Heime. All rights reserved.</p>
+      <p>&copy; ${new Date().getFullYear()} Heime. All rights reserved.</p>
       <p>
         <a href="${unsubscribeUrl}">Manage notification preferences</a> |
         <a href="${this.frontendUrl}">Visit Heime</a>

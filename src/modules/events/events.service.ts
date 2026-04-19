@@ -48,14 +48,23 @@ export class EventsService {
       throw new BadRequestException("End date must be after start date");
     }
 
+    if (!createDto.isOrganizationWide && !createDto.buildingId) {
+      throw new BadRequestException(
+        "Either a building must be selected or the event must be marked as organization-wide.",
+      );
+    }
+
     // Create event
     const event = await this.eventModel.create({
       ...createDto,
-      buildingId: new Types.ObjectId(createDto.buildingId),
+      ...(createDto.buildingId
+        ? { buildingId: new Types.ObjectId(createDto.buildingId) }
+        : {}),
       organizerId: new Types.ObjectId(userId),
       organizationId: new Types.ObjectId(organizationId),
       participants: [new Types.ObjectId(userId)],
       participantsCount: 1,
+      isOrganizationWide: createDto.isOrganizationWide ?? false,
     });
 
     this.logger.log(`Event created: ${event._id} by user ${userId}`);

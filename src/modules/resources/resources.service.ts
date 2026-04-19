@@ -32,10 +32,19 @@ export class ResourcesService {
     organizationId: string,
     createDto: CreateResourceDto,
   ): Promise<ResourceDocument> {
+    if (!createDto.isOrganizationWide && !createDto.buildingId) {
+      throw new BadRequestException(
+        'Either a building must be selected or the resource must be marked as organization-wide.',
+      );
+    }
+
     const resource = await this.resourceModel.create({
       ...createDto,
-      buildingId: new Types.ObjectId(createDto.buildingId),
+      ...(createDto.buildingId
+        ? { buildingId: new Types.ObjectId(createDto.buildingId) }
+        : {}),
       organizationId: new Types.ObjectId(organizationId),
+      isOrganizationWide: createDto.isOrganizationWide ?? false,
     });
 
     this.logger.log(`Resource created: ${resource.name} (${resource._id})`);

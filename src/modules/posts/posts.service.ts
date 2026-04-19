@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -51,15 +52,24 @@ export class PostsService {
 
     const isFromBoard = ['board', 'admin'].includes(user.role);
 
+    if (!createDto.isOrganizationWide && !createDto.buildingId) {
+      throw new BadRequestException(
+        'Either a building must be selected or the post must be marked as organization-wide.',
+      );
+    }
+
     const postData: Record<string, unknown> = {
       title: createDto.title,
       content: createDto.content,
       category: createDto.category,
       authorId: new Types.ObjectId(userId),
       organizationId: new Types.ObjectId(organizationId),
-      buildingId: new Types.ObjectId(createDto.buildingId),
       isFromBoard,
+      isOrganizationWide: createDto.isOrganizationWide ?? false,
     };
+    if (createDto.buildingId) {
+      postData.buildingId = new Types.ObjectId(createDto.buildingId);
+    }
     if (createDto.groupId) {
       postData.groupId = new Types.ObjectId(createDto.groupId);
     }
@@ -247,6 +257,9 @@ export class PostsService {
     const formattedComments = comments.map(comment => ({
       ...comment,
       id: comment._id.toString(),
+      parentCommentId: comment.parentCommentId
+        ? comment.parentCommentId.toString()
+        : null,
     }));
 
     // Add isLiked field and convert likes to strings
@@ -382,11 +395,27 @@ export class PostsService {
   ): Promise<CommentDocument> {
     const post = await this.findPostDocument(postId);
 
+    let parentCommentId: Types.ObjectId | null = null;
+    if (createCommentDto.parentCommentId) {
+      const parent = await this.commentModel.findById(createCommentDto.parentCommentId);
+      if (!parent) {
+        throw new NotFoundException('Parent comment not found');
+      }
+      if (parent.postId.toString() !== postId) {
+        throw new BadRequestException('Parent comment does not belong to this post');
+      }
+      if (parent.parentCommentId) {
+        throw new BadRequestException('Replies can only target top-level comments');
+      }
+      parentCommentId = parent._id as Types.ObjectId;
+    }
+
     // Create comment
     const comment = await this.commentModel.create({
       postId: new Types.ObjectId(postId),
       authorId: new Types.ObjectId(userId),
       content: createCommentDto.content,
+      parentCommentId,
     });
 
     // Increment comments count
@@ -445,17 +474,26 @@ export class PostsService {
       );
     }
 
-    // Find post and decrement comments count
+    // If this is a top-level comment, cascade-delete its replies too
+    let repliesDeletedCount = 0;
+    if (!comment.parentCommentId) {
+      const repliesResult = await this.commentModel.deleteMany({
+        parentCommentId: new Types.ObjectId(commentId),
+      });
+      repliesDeletedCount = repliesResult.deletedCount ?? 0;
+    }
+
+    // Find post and decrement comments count by 1 + deleted replies
     const post = await this.postModel.findById(comment.postId);
     if (post) {
-      post.commentsCount = Math.max(0, post.commentsCount - 1);
+      post.commentsCount = Math.max(0, post.commentsCount - 1 - repliesDeletedCount);
       await post.save();
     }
 
     // Delete comment
     await this.commentModel.deleteOne({ _id: commentId });
 
-    this.logger.log(`Comment deleted: ${commentId}`);
+    this.logger.log(`Comment deleted: ${commentId} (cascaded ${repliesDeletedCount} replies)`);
   }
 
   /**

@@ -12,12 +12,23 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ResourceType } from '../schemas/resource.schema';
 
 export class CreateResourceDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
-    description: 'Building ID the resource belongs to',
+    description:
+      'Building ID the resource belongs to. Required unless isOrganizationWide is true.',
   })
+  @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
-  buildingId: string;
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'When true, the resource is bookable by residents of every building in the organization.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOrganizationWide?: boolean;
   @ApiProperty({ example: 'Guest Apartment A' })
   @IsString()
   name: string;

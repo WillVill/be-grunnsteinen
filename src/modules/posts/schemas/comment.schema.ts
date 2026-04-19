@@ -22,6 +22,14 @@ export class Comment {
   })
   authorId: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Comment',
+    default: null,
+    index: true,
+  })
+  parentCommentId?: Types.ObjectId | null;
+
   @Prop({ required: true, trim: true })
   content: string;
 }
@@ -31,4 +39,5 @@ export const CommentSchema = SchemaFactory.createForClass(Comment);
 // Compound indexes
 CommentSchema.index({ postId: 1, createdAt: 1 });
 CommentSchema.index({ authorId: 1, createdAt: -1 });
+CommentSchema.index({ postId: 1, parentCommentId: 1, createdAt: 1 });
 

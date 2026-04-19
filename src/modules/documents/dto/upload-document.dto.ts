@@ -11,12 +11,23 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DocumentCategory } from '../schemas/document.schema';
 
 export class UploadDocumentDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
-    description: 'Building ID the document belongs to',
+    description:
+      'Building ID the document belongs to. Required unless isOrganizationWide is true.',
   })
+  @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
-  buildingId: string;
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'When true, the document is visible to residents of every building in the organization.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOrganizationWide?: boolean;
   @ApiProperty({
     example: 'Building Rules and Regulations',
     minLength: 2,

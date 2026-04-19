@@ -95,8 +95,8 @@ export class TasksService {
           .createNotification(
             booking.userId,
             SharedNotificationType.BOOKING_REMINDER,
-            'Booking reminder',
-            `Your booking for "${resourceName}" starts tomorrow`,
+            "Påminnelse om reservasjon",
+            `Din reservasjon for "${resourceName}" starter i morgen`,
             `/bookings/${booking._id}`,
             true,
             {
@@ -173,8 +173,8 @@ export class TasksService {
           .create({
             userId: request.requesterId,
             type: NotificationType.HELP_REQUEST,
-            title: 'Help Request Reminder',
-            message: `Your help request "${request.title}" is still open after 30 days. Consider updating or closing it.`,
+            title: "Påminnelse om hjelpeforespørsel",
+            message: `Hjelpeforespørselen din "${request.title}" har vært åpen i over 30 dager. Vurder å oppdatere eller lukke den.`,
             linkTo: `/sharing/help-requests/${request._id}`,
             relatedId: request._id,
             relatedType: 'help-request',

@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsString,
   IsOptional,
   IsEnum,
@@ -67,12 +68,23 @@ export class CreateEventDto {
   })
   category: EventCategory;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
-    description: 'Building ID the event belongs to',
+    description:
+      'Building ID the event belongs to. Required unless isOrganizationWide is true.',
   })
+  @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
-  buildingId: string;
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'When true, the event is visible to residents of every building in the organization.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOrganizationWide?: boolean;
 
   @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',

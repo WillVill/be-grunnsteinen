@@ -3,12 +3,14 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Logger,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Building, BuildingDocument } from "./schemas/building.schema";
-import { User, UserDocument } from "../users/schemas/user.schema";
+import { User, UserDocument, UserRole } from "../users/schemas/user.schema";
+import { CurrentUserData } from "../../common/decorators/current-user.decorator";
 import {
   TenantProfile,
   TenantProfileDocument,
@@ -72,16 +74,41 @@ export class BuildingsService {
     return building.save();
   }
 
+  private hasBuildingAccess(
+    user: CurrentUserData,
+    buildingId: string,
+  ): boolean {
+    if (user.role === UserRole.SUPER_ADMIN) return true;
+    return (user.buildingIds || []).includes(buildingId);
+  }
+
+  private assertBuildingAccess(
+    user: CurrentUserData,
+    buildingId: string,
+  ): void {
+    if (!this.hasBuildingAccess(user, buildingId)) {
+      throw new ForbiddenException(
+        `You do not have access to building "${buildingId}"`,
+      );
+    }
+  }
+
   async findAll(
-    organizationId: string,
+    user: CurrentUserData,
     query: BuildingQueryDto,
   ): Promise<PaginatedResponseDto<Building>> {
     const { page = 1, limit = 20, search, isActive } = query;
     const skip = (page - 1) * limit;
 
     const filter: Record<string, unknown> = {
-      organizationId: new Types.ObjectId(organizationId),
+      organizationId: new Types.ObjectId(user.organizationId),
     };
+
+    if (user.role !== UserRole.SUPER_ADMIN) {
+      filter._id = {
+        $in: (user.buildingIds || []).map((id) => new Types.ObjectId(id)),
+      };
+    }
 
     if (typeof isActive === "boolean") {
       filter.isActive = isActive;
@@ -108,28 +135,35 @@ export class BuildingsService {
     return new PaginatedResponseDto(buildings, total, page, limit);
   }
 
-  async findOne(organizationId: string, buildingId: string): Promise<Building> {
+  async findOne(
+    user: CurrentUserData,
+    buildingId: string,
+  ): Promise<Building> {
     const building = await this.buildingModel.findOne({
       _id: new Types.ObjectId(buildingId),
-      organizationId: new Types.ObjectId(organizationId),
+      organizationId: new Types.ObjectId(user.organizationId),
     });
 
     if (!building) {
       throw new NotFoundException(`Building with ID "${buildingId}" not found`);
     }
 
+    this.assertBuildingAccess(user, buildingId);
+
     return building;
   }
 
   async update(
-    organizationId: string,
+    user: CurrentUserData,
     buildingId: string,
     updateBuildingDto: UpdateBuildingDto,
   ): Promise<Building> {
+    this.assertBuildingAccess(user, buildingId);
+
     // Check code uniqueness if updating code
     if (updateBuildingDto.code) {
       const existingBuilding = await this.buildingModel.findOne({
-        organizationId: new Types.ObjectId(organizationId),
+        organizationId: new Types.ObjectId(user.organizationId),
         code: updateBuildingDto.code,
         _id: { $ne: new Types.ObjectId(buildingId) },
       });
@@ -144,7 +178,7 @@ export class BuildingsService {
     const building = await this.buildingModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(buildingId),
-        organizationId: new Types.ObjectId(organizationId),
+        organizationId: new Types.ObjectId(user.organizationId),
       },
       { $set: updateBuildingDto },
       { new: true },
@@ -157,7 +191,9 @@ export class BuildingsService {
     return building;
   }
 
-  async remove(organizationId: string, buildingId: string): Promise<Building> {
+  async remove(user: CurrentUserData, buildingId: string): Promise<Building> {
+    this.assertBuildingAccess(user, buildingId);
+
     // Check if building has users
     const usersInBuilding = await this.userModel.countDocuments({
       buildingIds: new Types.ObjectId(buildingId),
@@ -172,7 +208,7 @@ export class BuildingsService {
     const building = await this.buildingModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(buildingId),
-        organizationId: new Types.ObjectId(organizationId),
+        organizationId: new Types.ObjectId(user.organizationId),
       },
       { $set: { isActive: false } },
       { new: true },
@@ -186,15 +222,15 @@ export class BuildingsService {
   }
 
   async getBuildingUsers(
-    organizationId: string,
+    user: CurrentUserData,
     buildingId: string,
   ): Promise<User[]> {
-    // Verify building exists and belongs to organization
-    await this.findOne(organizationId, buildingId);
+    // Verify building exists, belongs to organization, and user has access
+    await this.findOne(user, buildingId);
 
     return this.userModel
       .find({
-        organizationId: new Types.ObjectId(organizationId),
+        organizationId: new Types.ObjectId(user.organizationId),
         buildingIds: new Types.ObjectId(buildingId),
         isActive: true,
       })
@@ -204,16 +240,16 @@ export class BuildingsService {
   }
 
   async assignUserToBuilding(
-    organizationId: string,
+    currentUser: CurrentUserData,
     buildingId: string,
     assignDto: AssignUserToBuildingDto,
   ): Promise<User> {
-    // Verify building exists and belongs to organization
-    await this.findOne(organizationId, buildingId);
+    // Verify building exists, belongs to organization, and user has access
+    await this.findOne(currentUser, buildingId);
 
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(assignDto.userId),
-      organizationId: new Types.ObjectId(organizationId),
+      organizationId: new Types.ObjectId(currentUser.organizationId),
     });
 
     if (!user) {
@@ -247,16 +283,16 @@ export class BuildingsService {
   }
 
   async removeUserFromBuilding(
-    organizationId: string,
+    currentUser: CurrentUserData,
     buildingId: string,
     userId: string,
   ): Promise<User> {
-    // Verify building exists and belongs to organization
-    await this.findOne(organizationId, buildingId);
+    // Verify building exists, belongs to organization, and user has access
+    await this.findOne(currentUser, buildingId);
 
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(userId),
-      organizationId: new Types.ObjectId(organizationId),
+      organizationId: new Types.ObjectId(currentUser.organizationId),
     });
 
     if (!user) {
@@ -289,15 +325,15 @@ export class BuildingsService {
   }
 
   async getBuildingStats(
-    organizationId: string,
+    user: CurrentUserData,
     buildingId: string,
   ): Promise<{
     totalUsers: number;
     activeUsers: number;
     usersByRole: Record<string, number>;
   }> {
-    // Verify building exists and belongs to organization
-    await this.findOne(organizationId, buildingId);
+    // Verify building exists, belongs to organization, and user has access
+    await this.findOne(user, buildingId);
 
     const buildingObjectId = new Types.ObjectId(buildingId);
 
@@ -346,12 +382,12 @@ export class BuildingsService {
    * Send email and/or SMS to building tenants (admin/board).
    */
   async sendMessageToTenants(
-    organizationId: string,
+    currentUser: CurrentUserData,
     buildingId: string,
     dto: SendBuildingMessageDto,
   ): Promise<SendMessageResult> {
-    const building = await this.findOne(organizationId, buildingId);
-    let users = await this.getBuildingUsers(organizationId, buildingId);
+    const building = await this.findOne(currentUser, buildingId);
+    let users = await this.getBuildingUsers(currentUser, buildingId);
 
     if (dto.recipientIds && dto.recipientIds.length > 0) {
       const idSet = new Set(dto.recipientIds);
@@ -367,7 +403,7 @@ export class BuildingsService {
     if (dto.tenantProfileIds && dto.tenantProfileIds.length > 0) {
       profiles = await this.tenantProfileModel
         .find({
-          organizationId: new Types.ObjectId(organizationId),
+          organizationId: new Types.ObjectId(currentUser.organizationId),
           buildingId: new Types.ObjectId(buildingId),
           status: { $ne: TenantProfileStatus.REGISTERED },
           _id: {
@@ -378,7 +414,7 @@ export class BuildingsService {
     } else if (sendAll) {
       profiles = await this.tenantProfileModel
         .find({
-          organizationId: new Types.ObjectId(organizationId),
+          organizationId: new Types.ObjectId(currentUser.organizationId),
           buildingId: new Types.ObjectId(buildingId),
           status: { $ne: TenantProfileStatus.REGISTERED },
         })

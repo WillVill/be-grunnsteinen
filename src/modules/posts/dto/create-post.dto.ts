@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsString,
   IsOptional,
   IsEnum,
@@ -39,12 +40,23 @@ export class CreatePostDto {
   })
   category: PostCategory;
 
-  @ApiProperty({
-    description: 'Building ID the post belongs to',
+  @ApiPropertyOptional({
+    description:
+      'Building ID the post belongs to. Required unless isOrganizationWide is true.',
     example: '507f1f77bcf86cd799439011',
   })
+  @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
-  buildingId: string;
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'When true, the post is visible in every building in the organization.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOrganizationWide?: boolean;
 
   @ApiPropertyOptional({
     description: 'Group ID when posting in a group',

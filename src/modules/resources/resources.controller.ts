@@ -10,13 +10,22 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
   BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+  ApiParam,
 } from '@nestjs/swagger';
 import { ResourcesService } from './resources.service';
 import {
@@ -28,6 +37,8 @@ import {
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { S3Service } from '../../shared/services/s3.service';
+import { ThrottleUpload } from '../../common/decorators/throttle-upload.decorator';
 import { Type } from 'class-transformer';
 import { IsDate, IsOptional } from 'class-validator';
 
@@ -47,7 +58,10 @@ class AvailabilityQueryDto {
 @ApiBearerAuth('JWT-auth')
 @Controller('resources')
 export class ResourcesController {
-  constructor(private readonly resourcesService: ResourcesService) {}
+  constructor(
+    private readonly resourcesService: ResourcesService,
+    private readonly s3Service: S3Service,
+  ) {}
 
   @Post()
   @UseGuards(RolesGuard)
@@ -140,6 +154,53 @@ export class ResourcesController {
     @Body() updateResourceDto: UpdateResourceDto,
   ) {
     return this.resourcesService.update(id, updateResourceDto);
+  }
+
+  @Post(':id/image')
+  @UseGuards(RolesGuard)
+  @Roles('board', 'admin')
+  @ThrottleUpload()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload image to resource (Board/Admin only)' })
+  @ApiParam({ name: 'id', description: 'Resource ID' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Resource image file (jpg, png, webp)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Image uploaded successfully',
+    type: ResourceResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid file' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Resource not found' })
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    const imageUrl = await this.s3Service.uploadFile(
+      file,
+      `resources/${id}/images`,
+    );
+    return this.resourcesService.addImages(id, [imageUrl]);
   }
 
   @Post(':id/images')

@@ -46,13 +46,13 @@ export class BuildingsController {
     @CurrentUser() user: CurrentUserData,
     @Query() query: BuildingQueryDto,
   ) {
-    return this.buildingsService.findAll(user.organizationId, query);
+    return this.buildingsService.findAll(user, query);
   }
 
   @Get(":id")
   @Roles(UserRole.ADMIN, UserRole.BOARD)
   findOne(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
-    return this.buildingsService.findOne(user.organizationId, id);
+    return this.buildingsService.findOne(user, id);
   }
 
   @Patch(":id")
@@ -62,17 +62,13 @@ export class BuildingsController {
     @Param("id") id: string,
     @Body() updateBuildingDto: UpdateBuildingDto,
   ) {
-    return this.buildingsService.update(
-      user.organizationId,
-      id,
-      updateBuildingDto,
-    );
+    return this.buildingsService.update(user, id, updateBuildingDto);
   }
 
   @Delete(":id")
   @Roles(UserRole.ADMIN)
   remove(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
-    return this.buildingsService.remove(user.organizationId, id);
+    return this.buildingsService.remove(user, id);
   }
 
   @Get(":id/users")
@@ -81,7 +77,7 @@ export class BuildingsController {
     @CurrentUser() user: CurrentUserData,
     @Param("id") id: string,
   ) {
-    return this.buildingsService.getBuildingUsers(user.organizationId, id);
+    return this.buildingsService.getBuildingUsers(user, id);
   }
 
   @Post(":id/users")
@@ -91,11 +87,7 @@ export class BuildingsController {
     @Param("id") id: string,
     @Body() assignDto: AssignUserToBuildingDto,
   ) {
-    return this.buildingsService.assignUserToBuilding(
-      user.organizationId,
-      id,
-      assignDto,
-    );
+    return this.buildingsService.assignUserToBuilding(user, id, assignDto);
   }
 
   @Delete(":id/users/:userId")
@@ -105,17 +97,13 @@ export class BuildingsController {
     @Param("id") id: string,
     @Param("userId") userId: string,
   ) {
-    return this.buildingsService.removeUserFromBuilding(
-      user.organizationId,
-      id,
-      userId,
-    );
+    return this.buildingsService.removeUserFromBuilding(user, id, userId);
   }
 
   @Get(":id/stats")
   @Roles(UserRole.ADMIN, UserRole.BOARD)
   getStats(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
-    return this.buildingsService.getBuildingStats(user.organizationId, id);
+    return this.buildingsService.getBuildingStats(user, id);
   }
 
   @Post(":id/send-message")
@@ -125,6 +113,6 @@ export class BuildingsController {
     @Param("id") id: string,
     @Body() dto: SendBuildingMessageDto,
   ) {
-    return this.buildingsService.sendMessageToTenants(user.organizationId, id, dto);
+    return this.buildingsService.sendMessageToTenants(user, id, dto);
   }
 }
