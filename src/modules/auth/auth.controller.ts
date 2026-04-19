@@ -1,7 +1,9 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Param,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -20,6 +22,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ChangePasswordDto,
+  CompleteSetupDto,
 } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Public } from '../../common/decorators/public.decorator';
@@ -126,6 +129,47 @@ export class AuthController {
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     await this.authService.resetPassword(resetPasswordDto);
     return { message: 'Password reset successful' };
+  }
+
+  @Public()
+  @Get('validate-setup-token/:token')
+  @ApiOperation({ summary: 'Validate an admin setup token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Token is valid',
+    schema: {
+      properties: {
+        email: { type: 'string' },
+        role: { type: 'string' },
+        organizationName: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid or expired setup link' })
+  async validateSetupToken(@Param('token') token: string) {
+    return this.authService.validateSetupToken(token);
+  }
+
+  @Public()
+  @Post('complete-setup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Complete admin setup, activate account, and return login tokens',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Setup completed and user logged in',
+    schema: {
+      properties: {
+        user: { type: 'object' },
+        accessToken: { type: 'string' },
+        refreshToken: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid or expired setup link' })
+  async completeSetup(@Body() dto: CompleteSetupDto) {
+    return this.authService.completeSetup(dto);
   }
 
   @UseGuards(JwtAuthGuard)
