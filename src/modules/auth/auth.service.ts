@@ -24,6 +24,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   ChangePasswordDto,
+  CompleteSetupDto,
 } from './dto';
 
 export interface TokenPayload {
@@ -200,6 +201,16 @@ export class AuthService {
     }
 
     if (!user.isActive) {
+      const pending = await this.userModel
+        .findById(user._id)
+        .select('+setupTokenExpires');
+      if (pending?.setupTokenExpires) {
+        throw new UnauthorizedException({
+          code: 'ACCOUNT_PENDING_SETUP',
+          message:
+            'Din konto er ikke aktivert. Sjekk e-posten din for oppsettslink.',
+        });
+      }
       throw new UnauthorizedException('Account is deactivated');
     }
 
@@ -340,6 +351,80 @@ export class AuthService {
   }
 
   /**
+   * Validate a pending-admin setup token without consuming it.
+   * Returns the email, role, and organization name so the setup page
+   * can pre-fill read-only fields.
+   */
+  async validateSetupToken(
+    token: string,
+  ): Promise<{ email: string; role: string; organizationName: string }> {
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const user = await this.userModel
+      .findOne({
+        setupToken: hashedToken,
+        setupTokenExpires: { $gt: new Date() },
+      })
+      .select('+setupToken +setupTokenExpires');
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired setup link');
+    }
+
+    const organization = await this.organizationModel.findById(
+      user.organizationId,
+    );
+
+    return {
+      email: user.email,
+      role: user.role,
+      organizationName: organization?.name || '',
+    };
+  }
+
+  /**
+   * Complete the admin setup: consume the token, set name/phone/password,
+   * activate the user, and return login tokens for auto-login.
+   */
+  async completeSetup(dto: CompleteSetupDto): Promise<AuthResponse> {
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(dto.token)
+      .digest('hex');
+
+    const user = await this.userModel
+      .findOne({
+        setupToken: hashedToken,
+        setupTokenExpires: { $gt: new Date() },
+      })
+      .select('+setupToken +setupTokenExpires');
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired setup link');
+    }
+
+    user.name = dto.name;
+    user.phone = dto.phone;
+    user.password = dto.password; // bcrypt pre-save hook hashes it
+    user.isActive = true;
+    user.lastLoginAt = new Date();
+    user.setupToken = undefined;
+    user.setupTokenExpires = undefined;
+    await user.save();
+
+    this.logger.log(`Admin setup completed: ${user.email}`);
+
+    const tokens = this.generateTokens(user);
+    return {
+      user: this.sanitizeUser(user),
+      ...tokens,
+    };
+  }
+
+  /**
    * Change password for authenticated user
    */
   async changePassword(
@@ -427,11 +512,13 @@ export class AuthService {
    * Remove sensitive fields from user object
    */
   private sanitizeUser(user: UserDocument): Partial<User> {
-    const userObject = user.toObject();
+    const userObject = user.toObject() as Record<string, unknown>;
     delete userObject.password;
     delete userObject.passwordResetToken;
     delete userObject.passwordResetExpires;
-    return userObject;
+    delete userObject.setupToken;
+    delete userObject.setupTokenExpires;
+    return userObject as Partial<User>;
   }
 }
 
