@@ -199,8 +199,8 @@ UserSchema.index({ organizationId: 1, buildingIds: 1 });
 UserSchema.pre("save", async function () {
   const user = this as unknown as UserDocument;
 
-  // Only hash the password if it has been modified (or is new)
-  if (!user.isModified("password")) {
+  // Skip when the password is unset (e.g., admin invitation) or unchanged
+  if (!user.password || !user.isModified("password")) {
     return;
   }
 
@@ -230,6 +230,6 @@ UserSchema.virtual("lastName").get(function () {
 // True when the user has been invited but has not yet completed setup.
 // Requires setupTokenExpires to be selected (see users.service findByOrganization).
 UserSchema.virtual('isPendingSetup').get(function () {
-  const doc = this as unknown as { isActive?: boolean; setupTokenExpires?: Date };
+  const doc = this as unknown as UserDocument;
   return !doc.isActive && !!doc.setupTokenExpires;
 });
