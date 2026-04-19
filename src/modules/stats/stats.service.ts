@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
@@ -13,7 +13,7 @@ import { Message, MessageDocument } from '../messages/schemas/message.schema';
 import { Conversation, ConversationDocument } from '../messages/schemas/conversation.schema';
 import { Building, BuildingDocument } from '../buildings/schemas/building.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
-import { osloDayBounds, osloDayStart, osloYmd } from './util/oslo-date';
+import { osloDayBounds, osloDayStart, osloYmd, parseOsloYmd, enumerateOsloDays } from './util/oslo-date';
 
 type Counts = {
   newUsers: number;
@@ -301,5 +301,131 @@ export class StatsService {
         },
       },
     ]).exec();
+  }
+
+  async getRange(
+    organizationId: string,
+    fromYmd: string,
+    toYmd: string,
+    buildingId?: string,
+  ): Promise<{ days: any[]; totals: Counts }> {
+    const from = parseOsloYmd(fromYmd);
+    const to = parseOsloYmd(toYmd);
+    if (to.getTime() < from.getTime()) {
+      throw new BadRequestException('to must be >= from');
+    }
+
+    const today = osloDayStart(new Date());
+    const snapshotEnd = to.getTime() < today.getTime() ? to : new Date(today.getTime() - 1);
+
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const buildingFilter = buildingId ? new Types.ObjectId(buildingId) : null;
+
+    const snapshots = snapshotEnd.getTime() >= from.getTime()
+      ? await this.dailyStatModel
+          .find({
+            organizationId: orgObjectId,
+            buildingId: buildingFilter,
+            date: { $gte: from, $lte: snapshotEnd },
+          })
+          .sort({ date: 1 })
+          .lean()
+          .exec()
+      : [];
+
+    const byYmd = new Map<string, Counts & { date: string; isLive?: true }>();
+    for (const s of snapshots) {
+      byYmd.set(osloYmd(s.date), {
+        date: osloYmd(s.date),
+        newUsers: s.newUsers ?? 0,
+        newPosts: s.newPosts ?? 0,
+        newEvents: s.newEvents ?? 0,
+        newBookings: s.newBookings ?? 0,
+        newHelpRequests: s.newHelpRequests ?? 0,
+        newComments: s.newComments ?? 0,
+        newMessages: s.newMessages ?? 0,
+      });
+    }
+
+    // Fill any missing days in the snapshot range with zeros
+    for (const day of enumerateOsloDays(fromYmd, osloYmd(snapshotEnd))) {
+      const ymd = osloYmd(day);
+      if (!byYmd.has(ymd)) {
+        byYmd.set(ymd, { date: ymd, ...ZERO_COUNTS });
+      }
+    }
+
+    // If the requested range includes today, compute live counts
+    if (to.getTime() >= today.getTime()) {
+      const live = await this.computeLiveToday(organizationId, buildingId);
+      byYmd.set(osloYmd(today), { date: osloYmd(today), ...live, isLive: true });
+    }
+
+    const days = Array.from(byYmd.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const totals: Counts = { ...ZERO_COUNTS };
+    for (const d of days) {
+      totals.newUsers += d.newUsers;
+      totals.newPosts += d.newPosts;
+      totals.newEvents += d.newEvents;
+      totals.newBookings += d.newBookings;
+      totals.newHelpRequests += d.newHelpRequests;
+      totals.newComments += d.newComments;
+      totals.newMessages += d.newMessages;
+    }
+
+    return { days, totals };
+  }
+
+  private async computeLiveToday(
+    organizationId: string,
+    buildingId?: string,
+  ): Promise<Counts> {
+    const today = osloDayStart(new Date());
+    const start = today;
+    const end = new Date();
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const buildingObjectId = buildingId ? new Types.ObjectId(buildingId) : null;
+
+    const matchBuilding = (field = 'buildingId') =>
+      buildingObjectId ? { [field]: buildingObjectId } : {};
+    const inOrg = { organizationId: orgObjectId };
+
+    const [u, p, e, b, h, c, m] = await Promise.all([
+      this.userModel.countDocuments({
+        ...inOrg,
+        ...(buildingObjectId ? { primaryBuildingId: buildingObjectId } : {}),
+        createdAt: { $gte: start, $lt: end },
+      }),
+      this.postModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
+      this.eventModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
+      this.bookingModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
+      this.helpRequestModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
+      this.commentModel.aggregate<{ n: number }>([
+        { $match: { createdAt: { $gte: start, $lt: end } } },
+        { $lookup: { from: 'posts', localField: 'postId', foreignField: '_id', as: 'post' } },
+        { $unwind: '$post' },
+        {
+          $match: {
+            'post.organizationId': orgObjectId,
+            ...(buildingObjectId ? { 'post.buildingId': buildingObjectId } : {}),
+          },
+        },
+        { $count: 'n' },
+      ]).exec().then((r) => r[0]?.n ?? 0),
+      buildingObjectId
+        ? 0 // messages aren't building-scoped
+        : this.messageModel.aggregate<{ n: number }>([
+            { $match: { createdAt: { $gte: start, $lt: end } } },
+            { $lookup: { from: 'conversations', localField: 'conversationId', foreignField: '_id', as: 'conv' } },
+            { $unwind: '$conv' },
+            { $match: { 'conv.organizationId': orgObjectId } },
+            { $count: 'n' },
+          ]).exec().then((r) => r[0]?.n ?? 0),
+    ]);
+
+    return {
+      newUsers: u, newPosts: p, newEvents: e, newBookings: b,
+      newHelpRequests: h, newComments: c, newMessages: m,
+    };
   }
 }
