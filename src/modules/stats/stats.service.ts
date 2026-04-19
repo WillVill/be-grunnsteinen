@@ -13,7 +13,7 @@ import { Message, MessageDocument } from '../messages/schemas/message.schema';
 import { Conversation, ConversationDocument } from '../messages/schemas/conversation.schema';
 import { Building, BuildingDocument } from '../buildings/schemas/building.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
-import { osloDayBounds, osloDayStart } from './util/oslo-date';
+import { osloDayBounds, osloDayStart, osloYmd } from './util/oslo-date';
 
 type Counts = {
   newUsers: number;
@@ -54,8 +54,9 @@ export class StatsService {
 
   @Cron('0 1 * * *', { timeZone: 'Europe/Oslo' })
   async handleDailySnapshotCron(): Promise<void> {
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    this.logger.log(`Running daily stats snapshot for ${yesterday.toISOString().slice(0, 10)}`);
+    const todayStart = osloDayStart(new Date());
+    const yesterday = new Date(todayStart.getTime() - 1);
+    this.logger.log(`Running daily stats snapshot for ${osloYmd(yesterday)}`);
     try {
       await this.runDailySnapshot(yesterday);
     } catch (error) {
@@ -63,6 +64,17 @@ export class StatsService {
     }
   }
 
+  /**
+   * Write one daily stat row per (org, building|null) to `dailystats`.
+   *
+   * Contract: the org-wide row (buildingId: null) carries the TOTAL for the
+   * organization for the day. Building rows partition the subset of records
+   * tied to a specific building — they do NOT sum to the org-wide row because
+   * org-wide records (isOrganizationWide: true, or messages, or users with no
+   * primaryBuildingId) land only in the org-wide row.
+   *
+   * Idempotent — re-running for the same targetDate overwrites via upsert.
+   */
   async runDailySnapshot(targetDate: Date): Promise<{ written: number }> {
     const { start, end } = osloDayBounds(targetDate);
     const bucketDate = osloDayStart(targetDate);
