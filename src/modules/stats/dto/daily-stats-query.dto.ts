@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, Matches } from 'class-validator';
+import { IsOptional, IsString, IsMongoId, Matches } from 'class-validator';
 
 export class DailyStatsQueryDto {
   @ApiProperty({ example: '2026-04-01', description: 'Start date (YYYY-MM-DD, Oslo), inclusive' })
@@ -14,6 +14,7 @@ export class DailyStatsQueryDto {
 
   @ApiPropertyOptional({ description: 'Building ID; omit for org-wide totals' })
   @IsOptional()
+  @IsMongoId()
   @IsString()
   buildingId?: string;
 }
