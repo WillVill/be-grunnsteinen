@@ -216,7 +216,7 @@ export class UsersController {
         "Only a super_admin can create super_admin users",
       );
     }
-    return this.usersService.createAdminUser(user.organizationId, dto);
+    return this.usersService.createAdminUser(user.organizationId, dto, user.userId);
   }
 
   @Patch(":id/admin")
@@ -255,6 +255,21 @@ export class UsersController {
       dto,
       user.role,
     );
+  }
+
+  @Post(":id/resend-invite")
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Resend the admin setup invitation email" })
+  @ApiResponse({ status: 200, description: "Invitation re-sent" })
+  @ApiResponse({ status: 400, description: "User is not pending setup" })
+  @ApiResponse({ status: 404, description: "User not found" })
+  async resendAdminInvite(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+  ) {
+    await this.usersService.resendAdminInvite(user.organizationId, id, user.userId);
+    return { message: "Invitation re-sent" };
   }
 
   @Delete(":id")
