@@ -23,14 +23,25 @@ jobs:
       - run: yarn install --immutable
       - run: yarn build
 
-      # Package only what EB needs. Exclude dev files, tests, .git, etc.
+      - name: Prune to production dependencies
+        run: yarn workspaces focus --all --production
+
+      - name: Strip packageManager field from shipped package.json
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));delete p.packageManager;fs.writeFileSync('package.json',JSON.stringify(p,null,2))"
+
+      # Package only what EB needs. node_modules is included so EB skips install.
       - name: Create deployment package
         run: |
           zip -r deploy.zip . \
             -x "*.git*" \
-            -x "node_modules/*" \
-            -x "tests/*" \
-            -x ".github/*"
+            -x "test/*" \
+            -x ".github/*" \
+            -x ".yarn/*" \
+            -x "src/*" \
+            -x "scripts/*" \
+            -x "coverage/*" \
+            -x "*.md"
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
