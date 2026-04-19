@@ -347,11 +347,13 @@ export class StatsService {
       });
     }
 
-    // Fill any missing days in the snapshot range with zeros
-    for (const day of enumerateOsloDays(fromYmd, osloYmd(snapshotEnd))) {
-      const ymd = osloYmd(day);
-      if (!byYmd.has(ymd)) {
-        byYmd.set(ymd, { date: ymd, ...ZERO_COUNTS });
+    // Fill any missing days in the snapshot range with zeros (only when snapshot range is non-empty)
+    if (snapshotEnd.getTime() >= from.getTime()) {
+      for (const day of enumerateOsloDays(fromYmd, osloYmd(snapshotEnd))) {
+        const ymd = osloYmd(day);
+        if (!byYmd.has(ymd)) {
+          byYmd.set(ymd, { date: ymd, ...ZERO_COUNTS });
+        }
       }
     }
 
@@ -388,6 +390,9 @@ export class StatsService {
 
     const matchBuilding = (field = 'buildingId') =>
       buildingObjectId ? { [field]: buildingObjectId } : {};
+    const excludeOrgWideIfBuildingScoped = buildingObjectId
+      ? { isOrganizationWide: { $ne: true } }
+      : {};
     const inOrg = { organizationId: orgObjectId };
 
     const [u, p, e, b, h, c, m] = await Promise.all([
@@ -396,10 +401,10 @@ export class StatsService {
         ...(buildingObjectId ? { primaryBuildingId: buildingObjectId } : {}),
         createdAt: { $gte: start, $lt: end },
       }),
-      this.postModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
-      this.eventModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
-      this.bookingModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
-      this.helpRequestModel.countDocuments({ ...inOrg, ...matchBuilding(), createdAt: { $gte: start, $lt: end } }),
+      this.postModel.countDocuments({ ...inOrg, ...matchBuilding(), ...excludeOrgWideIfBuildingScoped, createdAt: { $gte: start, $lt: end } }),
+      this.eventModel.countDocuments({ ...inOrg, ...matchBuilding(), ...excludeOrgWideIfBuildingScoped, createdAt: { $gte: start, $lt: end } }),
+      this.bookingModel.countDocuments({ ...inOrg, ...matchBuilding(), ...excludeOrgWideIfBuildingScoped, createdAt: { $gte: start, $lt: end } }),
+      this.helpRequestModel.countDocuments({ ...inOrg, ...matchBuilding(), ...excludeOrgWideIfBuildingScoped, createdAt: { $gte: start, $lt: end } }),
       this.commentModel.aggregate<{ n: number }>([
         { $match: { createdAt: { $gte: start, $lt: end } } },
         { $lookup: { from: 'posts', localField: 'postId', foreignField: '_id', as: 'post' } },
@@ -407,7 +412,9 @@ export class StatsService {
         {
           $match: {
             'post.organizationId': orgObjectId,
-            ...(buildingObjectId ? { 'post.buildingId': buildingObjectId } : {}),
+            ...(buildingObjectId
+              ? { 'post.buildingId': buildingObjectId, 'post.isOrganizationWide': { $ne: true } }
+              : {}),
           },
         },
         { $count: 'n' },
