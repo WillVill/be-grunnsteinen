@@ -14,8 +14,6 @@ import {
   NotificationType,
 } from '../notifications/schemas/notification.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { Post, PostDocument } from '../posts/schemas/post.schema';
-import { Comment, CommentDocument } from '../posts/schemas/comment.schema';
 import {
   NotificationService,
   NotificationType as SharedNotificationType,
@@ -35,10 +33,6 @@ export class TasksService {
     private readonly notificationModel: Model<NotificationDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
-    @InjectModel(Post.name)
-    private readonly postModel: Model<PostDocument>,
-    @InjectModel(Comment.name)
-    private readonly commentModel: Model<CommentDocument>,
     private readonly notificationService: NotificationService,
     private readonly eventsService: EventsService,
   ) {}
@@ -220,88 +214,5 @@ export class TasksService {
     }
   }
 
-  /**
-   * Usage Statistics - Daily (at 1 AM)
-   * Calculate daily active users, booking statistics, and post engagement metrics
-   */
-  @Cron('0 1 * * *') // Daily at 1 AM
-  async handleUsageStatistics() {
-    this.logger.log('Running usage statistics task...');
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    try {
-      // Daily active users (users who logged in yesterday)
-      const dailyActiveUsers = await this.userModel.countDocuments({
-        lastLoginAt: {
-          $gte: yesterday,
-          $lt: today,
-        },
-      });
-
-      // Booking statistics
-      const totalBookings = await this.bookingModel.countDocuments({
-        createdAt: {
-          $gte: yesterday,
-          $lt: today,
-        },
-      });
-
-      const confirmedBookings = await this.bookingModel.countDocuments({
-        status: BookingStatus.CONFIRMED,
-        createdAt: {
-          $gte: yesterday,
-          $lt: today,
-        },
-      });
-
-      const completedBookings = await this.bookingModel.countDocuments({
-        status: BookingStatus.COMPLETED,
-        createdAt: {
-          $gte: yesterday,
-          $lt: today,
-        },
-      });
-
-      // Post engagement metrics
-      const totalPosts = await this.postModel.countDocuments({
-        createdAt: {
-          $gte: yesterday,
-          $lt: today,
-        },
-      });
-
-      const totalComments = await this.commentModel.countDocuments({
-        createdAt: {
-          $gte: yesterday,
-          $lt: today,
-        },
-      });
-
-      // Log statistics (can be stored in analytics collection if needed)
-      this.logger.log('Daily Usage Statistics:');
-      this.logger.log(`- Daily Active Users: ${dailyActiveUsers}`);
-      this.logger.log(`- Total Bookings: ${totalBookings}`);
-      this.logger.log(`- Confirmed Bookings: ${confirmedBookings}`);
-      this.logger.log(`- Completed Bookings: ${completedBookings}`);
-      this.logger.log(`- Total Posts: ${totalPosts}`);
-      this.logger.log(`- Total Comments: ${totalComments}`);
-
-      // TODO: Store in analytics collection if needed
-      // await this.analyticsModel.create({
-      //   date: yesterday,
-      //   dailyActiveUsers,
-      //   bookings: { total: totalBookings, confirmed: confirmedBookings, completed: completedBookings },
-      //   posts: { total: totalPosts, comments: totalComments },
-      // });
-
-      this.logger.log('Usage statistics task completed');
-    } catch (error) {
-      this.logger.error('Error in usage statistics task', error);
-    }
-  }
 }
 

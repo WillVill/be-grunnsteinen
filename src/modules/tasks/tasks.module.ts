@@ -13,8 +13,6 @@ import {
   NotificationSchema,
 } from '../notifications/schemas/notification.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
-import { Post, PostSchema } from '../posts/schemas/post.schema';
-import { Comment, CommentSchema } from '../posts/schemas/comment.schema';
 import { NotificationModule } from '../../shared/services/notification.module';
 import { EventsModule } from '../events/events.module';
 
@@ -27,8 +25,6 @@ import { EventsModule } from '../events/events.module';
       { name: HelpRequest.name, schema: HelpRequestSchema },
       { name: Notification.name, schema: NotificationSchema },
       { name: User.name, schema: UserSchema },
-      { name: Post.name, schema: PostSchema },
-      { name: Comment.name, schema: CommentSchema },
     ]),
     NotificationModule,
     EventsModule,
