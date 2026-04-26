@@ -241,7 +241,7 @@ export class MessagesService {
     }
 
     const isParticipant = conversation.participants.some(
-      (p) => p.toString() === userId,
+      (p: any) => (p?._id ?? p).toString() === userId,
     );
     if (!isParticipant) {
       throw new ForbiddenException('You are not a participant in this conversation');

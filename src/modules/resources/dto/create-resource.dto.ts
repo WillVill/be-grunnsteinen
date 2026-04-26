@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsBoolean,
   IsMongoId,
+  Matches,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -107,5 +108,17 @@ export class CreateResourceDto {
   @IsOptional()
   @IsBoolean()
   requiresApproval?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'gallery/gjestehybel.jpg',
+    description:
+      'Reference to a curated gallery image (CloudFront read path). The backend resolves this to a full CloudFront URL and appends it to imageUrls. Mutually exclusive with uploading a file to POST /resources/:id/image.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^gallery\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/i, {
+    message: 'galleryKey must look like "gallery/<name>.<ext>"',
+  })
+  galleryKey?: string;
 }
 

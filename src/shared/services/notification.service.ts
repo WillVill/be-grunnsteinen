@@ -1,7 +1,13 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { EmailService, EmailUser } from './email.service';
+import {
+  renderButton,
+  renderEmailLayout,
+  renderH1,
+} from '../email-templates/base-layout';
 import { PaginationQueryDto, PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { NotificationDocument } from './notification.schema';
 import { UserDocument } from '../../modules/users/schemas/user.schema';
@@ -62,13 +68,18 @@ const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
+  private readonly frontendUrl: string;
+
   constructor(
     @InjectModel('Notification')
     private readonly notificationModel: Model<NotificationDocument>,
     @InjectModel('User')
     private readonly userModel: Model<UserDocument>,
     private readonly emailService: EmailService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.frontendUrl = this.configService.get<string>('frontendUrl');
+  }
 
   /**
    * Create a single notification for a user.
@@ -328,20 +339,20 @@ export class NotificationService {
    */
   private getEmailSubject(type: NotificationType, title: string): string {
     const prefixes: Record<NotificationType, string> = {
-      [NotificationType.BOOKING_CONFIRMED]: '✅ Booking Confirmed',
-      [NotificationType.BOOKING_CANCELLED]: '❌ Booking Cancelled',
-      [NotificationType.BOOKING_REMINDER]: '⏰ Booking Reminder',
-      [NotificationType.EVENT_CREATED]: '📅 New Event',
-      [NotificationType.EVENT_UPDATED]: '📅 Event Updated',
-      [NotificationType.EVENT_REMINDER]: '⏰ Event Reminder',
-      [NotificationType.EVENT_CANCELLED]: '❌ Event Cancelled',
-      [NotificationType.MESSAGE_RECEIVED]: '💬 New Message',
-      [NotificationType.POST_CREATED]: '📝 New Post',
-      [NotificationType.POST_COMMENT]: '💬 New Comment',
-      [NotificationType.DOCUMENT_SHARED]: '📄 Document Shared',
-      [NotificationType.GROUP_INVITATION]: '👥 Group Invitation',
-      [NotificationType.ANNOUNCEMENT]: '📢 Announcement',
-      [NotificationType.SYSTEM]: 'ℹ️ System Notification',
+      [NotificationType.BOOKING_CONFIRMED]: '✅ Booking bekreftet',
+      [NotificationType.BOOKING_CANCELLED]: '❌ Booking avlyst',
+      [NotificationType.BOOKING_REMINDER]: '⏰ Påminnelse om booking',
+      [NotificationType.EVENT_CREATED]: '📅 Nytt arrangement',
+      [NotificationType.EVENT_UPDATED]: '📅 Arrangement oppdatert',
+      [NotificationType.EVENT_REMINDER]: '⏰ Påminnelse om arrangement',
+      [NotificationType.EVENT_CANCELLED]: '❌ Arrangement avlyst',
+      [NotificationType.MESSAGE_RECEIVED]: '💬 Ny melding',
+      [NotificationType.POST_CREATED]: '📝 Nytt innlegg',
+      [NotificationType.POST_COMMENT]: '💬 Ny kommentar',
+      [NotificationType.DOCUMENT_SHARED]: '📄 Dokument delt',
+      [NotificationType.GROUP_INVITATION]: '👥 Gruppeinvitasjon',
+      [NotificationType.ANNOUNCEMENT]: '📢 Kunngjøring',
+      [NotificationType.SYSTEM]: 'ℹ️ Systemvarsling',
     };
 
     return `${prefixes[type] || ''}: ${title}`;
@@ -356,23 +367,18 @@ export class NotificationService {
     message: string,
     linkTo?: string,
   ): string {
-    const buttonHtml = linkTo
-      ? `<p><a href="${linkTo}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;">View Details</a></p>`
-      : '';
-
-    return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-        <h2 style="color:#1f2937;">${title}</h2>
-        <p>Hi ${user.firstName},</p>
-        <p>${message}</p>
-        ${buttonHtml}
-        <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">
-        <p style="font-size:12px;color:#6b7280;">
-          This is an automated notification from Heime. 
-          You can manage your notification preferences in your account settings.
-        </p>
-      </div>
+    const content = `
+      ${renderH1(title)}
+      <p>Hei ${user.firstName},</p>
+      <p>${message}</p>
+      ${linkTo ? renderButton('Se detaljer', linkTo) : ''}
     `;
+
+    return renderEmailLayout(content, {
+      frontendUrl: this.frontendUrl,
+      userId: user._id,
+      preheader: message,
+    });
   }
 }
 

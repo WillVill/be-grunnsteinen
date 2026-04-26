@@ -53,7 +53,7 @@ export class UploadDocumentDto {
     description: 'Document category',
   })
   @IsEnum(DocumentCategory, {
-    message: 'Category must be one of: rules, minutes, fdv, manuals, contracts, other',
+    message: 'Category must be one of: rules, minutes, fdv, manuals, contracts, floor-plan, other',
   })
   category: DocumentCategory;
 

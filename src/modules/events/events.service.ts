@@ -54,17 +54,22 @@ export class EventsService {
       );
     }
 
+    const { galleryKey, ...rest } = createDto;
+
     // Create event
     const event = await this.eventModel.create({
-      ...createDto,
-      ...(createDto.buildingId
-        ? { buildingId: new Types.ObjectId(createDto.buildingId) }
+      ...rest,
+      ...(rest.buildingId
+        ? { buildingId: new Types.ObjectId(rest.buildingId) }
         : {}),
+      ...(galleryKey && {
+        imageUrl: this.s3Service.buildGalleryImageUrl(galleryKey),
+      }),
       organizerId: new Types.ObjectId(userId),
       organizationId: new Types.ObjectId(organizationId),
       participants: [new Types.ObjectId(userId)],
       participantsCount: 1,
-      isOrganizationWide: createDto.isOrganizationWide ?? false,
+      isOrganizationWide: rest.isOrganizationWide ?? false,
     });
 
     this.logger.log(`Event created: ${event._id} by user ${userId}`);
@@ -110,13 +115,10 @@ export class EventsService {
     }
     const uniqueRecipientIds = [...new Set(recipientIds)];
     if (uniqueRecipientIds.length > 0) {
-      const startDateStr = new Date(event.startDate).toLocaleDateString(
-        "nb-NO",
-        {
-          dateStyle: "short",
-          timeStyle: "short",
-        },
-      );
+      const startDateStr = new Date(event.startDate).toLocaleString("nb-NO", {
+        dateStyle: "short",
+        timeStyle: "short",
+      });
       await this.notificationService
         .createBulkNotifications(
           uniqueRecipientIds,

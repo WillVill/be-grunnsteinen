@@ -14,6 +14,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
 import { InvitationsModule } from '../invitations/invitations.module';
 import { TenantProfilesModule } from '../tenant-profiles/tenant-profiles.module';
 import { Apartment, ApartmentSchema } from '../apartments/schemas/apartment.schema';
+import { Building, BuildingSchema } from '../buildings/schemas/building.schema';
 import { EmailModule } from '../../shared/services/email.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { EmailModule } from '../../shared/services/email.module';
     }),
     MongooseModule.forFeature([
       { name: Apartment.name, schema: ApartmentSchema },
+      { name: Building.name, schema: BuildingSchema },
     ]),
     UsersModule,
     OrganizationsModule,

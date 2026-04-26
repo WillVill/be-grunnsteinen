@@ -1,8 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as sgMail from "@sendgrid/mail";
+import {
+  renderButton,
+  renderEmailLayout,
+  renderH1,
+  renderInfoBox,
+  renderLinkFallback,
+} from "../email-templates/base-layout";
 
-// Interfaces for email context (will be replaced with actual types later)
 export interface EmailUser {
   _id: string;
   email: string;
@@ -52,11 +58,12 @@ export class EmailService {
     this.fromEmail = this.configService.get<string>("sendgrid.fromEmail");
     this.fromName = this.configService.get<string>("sendgrid.fromName");
     this.frontendUrl = this.configService.get<string>("frontendUrl");
+
+    this.logger.log(
+      `EmailService initialized: configured=${this.isConfigured}, apiKey=${apiKey ? `present (${apiKey.length} chars)` : "MISSING"}, fromEmail=${this.fromEmail || "MISSING"}, fromName=${this.fromName || "(none)"}, frontendUrl=${this.frontendUrl || "MISSING"}`,
+    );
   }
 
-  /**
-   * Send a single email via SendGrid
-   */
   async sendEmail(
     to: string,
     subject: string,
@@ -64,6 +71,9 @@ export class EmailService {
     text?: string,
     attachments?: { content: string; filename: string; type: string }[],
   ): Promise<void> {
+    this.logger.log(
+      `sendEmail called: to=${to}, subject="${subject}", attachments=${attachments?.length || 0}`,
+    );
     if (!this.isConfigured) {
       this.logger.warn(
         `Email not sent to ${to}: SendGrid client not configured`,
@@ -75,7 +85,10 @@ export class EmailService {
         ? { name: this.fromName, email: this.fromEmail }
         : this.fromEmail;
 
-      await sgMail.send({
+      this.logger.log(
+        `Dispatching to SendGrid: from=${JSON.stringify(from)}, to=${to}`,
+      );
+      const [response] = await sgMail.send({
         to,
         from,
         subject,
@@ -90,21 +103,28 @@ export class EmailService {
           })),
         }),
       });
-      this.logger.log(`Email sent to ${to}: ${subject}`);
+      this.logger.log(
+        `Email sent to ${to}: ${subject} (status=${response?.statusCode}, messageId=${response?.headers?.["x-message-id"] || "n/a"})`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send email to ${to}`, error);
+      const body = (error as { response?: { body?: unknown } })?.response?.body;
+      const code = (error as { code?: number })?.code;
+      this.logger.error(
+        `Failed to send email to ${to}: code=${code}, body=${JSON.stringify(body)}`,
+        (error as Error)?.stack,
+      );
       throw error;
     }
   }
 
-  /**
-   * Send email using SendGrid dynamic template
-   */
   async sendTemplateEmail(
     to: string,
     templateId: string,
     dynamicData: Record<string, unknown>,
   ): Promise<void> {
+    this.logger.log(
+      `sendTemplateEmail called: to=${to}, templateId=${templateId}`,
+    );
     if (!this.isConfigured) {
       this.logger.warn(
         `Template email not sent to ${to}: SendGrid client not configured`,
@@ -116,223 +136,219 @@ export class EmailService {
         ? { name: this.fromName, email: this.fromEmail }
         : this.fromEmail;
 
-      await sgMail.send({
+      this.logger.log(
+        `Dispatching template to SendGrid: from=${JSON.stringify(from)}, to=${to}, templateId=${templateId}`,
+      );
+      const [response] = await sgMail.send({
         to,
         from,
         templateId,
         dynamicTemplateData: dynamicData,
       });
-      this.logger.log(`Template email sent to ${to}: ${templateId}`);
+      this.logger.log(
+        `Template email sent to ${to}: ${templateId} (status=${response?.statusCode}, messageId=${response?.headers?.["x-message-id"] || "n/a"})`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send template email to ${to}`, error);
+      const body = (error as { response?: { body?: unknown } })?.response?.body;
+      const code = (error as { code?: number })?.code;
+      this.logger.error(
+        `Failed to send template email to ${to}: code=${code}, body=${JSON.stringify(body)}`,
+        (error as Error)?.stack,
+      );
       throw error;
     }
   }
 
-  /**
-   * Send welcome email to new user
-   */
   async sendWelcomeEmail(
     user: EmailUser,
     organization: EmailOrganization,
   ): Promise<void> {
-    const subject = `Welcome to ${organization.name} on Heime!`;
-    const html = this.getEmailTemplate(
-      `
-      <h1>Welcome to Heime, ${user.firstName}!</h1>
-      <p>You've successfully joined <strong>${organization.name}</strong>.</p>
-      <p>With Heime, you can:</p>
-      <ul>
-        <li>Book shared resources and facilities</li>
-        <li>Stay updated on community events</li>
-        <li>Connect with your neighbors</li>
-        <li>Access important documents and announcements</li>
+    const subject = `Velkommen til ${organization.name} på Grunnsteinen!`;
+    const content = `
+      ${renderH1(`Velkommen, ${user.firstName}!`)}
+      <p>Du er nå medlem av <strong>${organization.name}</strong>.</p>
+      <p>Med Grunnsteinen kan du:</p>
+      <ul style="padding-left:20px;margin:0 0 16px 0;">
+        <li style="margin-bottom:8px;">Booke felles ressurser og fasiliteter</li>
+        <li style="margin-bottom:8px;">Holde deg oppdatert på arrangementer i nabolaget</li>
+        <li style="margin-bottom:8px;">Komme i kontakt med naboene dine</li>
+        <li style="margin-bottom:8px;">Finne viktige dokumenter og kunngjøringer</li>
       </ul>
-      <p>
-        <a href="${this.frontendUrl}/dashboard" class="button">Go to Dashboard</a>
-      </p>
-      <p>If you have any questions, feel free to reach out to your community administrators.</p>
-    `,
-      user,
-    );
+      ${renderButton("Gå til dashbord", `${this.frontendUrl}/dashboard`)}
+      <p>Har du spørsmål? Ta gjerne kontakt med administratorene i nabolaget ditt.</p>
+    `;
 
-    await this.sendEmail(user.email, subject, html);
+    await this.sendEmail(
+      user.email,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        userId: user._id,
+        preheader: "Kontoen din er klar — velkommen til nabolaget.",
+      }),
+    );
   }
 
-  /**
-   * Send password reset email
-   */
   async sendPasswordResetEmail(
     user: EmailUser,
     resetToken: string,
   ): Promise<void> {
     const resetLink = `${this.frontendUrl}/auth/reset-password?token=${resetToken}`;
-    const subject = "Reset Your Heime Password";
-    const html = this.getEmailTemplate(
-      `
-      <h1>Password Reset Request</h1>
-      <p>Hi ${user.firstName},</p>
-      <p>We received a request to reset your password. Click the button below to create a new password:</p>
-      <p>
-        <a href="${resetLink}" class="button">Reset Password</a>
-      </p>
-      <p>This link will expire in 1 hour.</p>
-      <p>If you didn't request a password reset, you can safely ignore this email. Your password won't be changed.</p>
-      <p style="font-size: 12px; color: #666;">
-        If the button doesn't work, copy and paste this link into your browser:<br>
-        <a href="${resetLink}">${resetLink}</a>
-      </p>
-    `,
-      user,
-    );
+    const subject = "Tilbakestill passordet ditt";
+    const content = `
+      ${renderH1("Tilbakestill passord")}
+      <p>Hei ${user.firstName},</p>
+      <p>Vi har mottatt en forespørsel om å tilbakestille passordet ditt. Klikk på knappen under for å velge et nytt passord:</p>
+      ${renderButton("Tilbakestill passord", resetLink)}
+      <p>Lenken utløper om 1 time.</p>
+      <p>Hvis du ikke ba om å tilbakestille passordet, kan du trygt se bort fra denne e-posten. Passordet ditt vil ikke bli endret.</p>
+      ${renderLinkFallback(resetLink)}
+    `;
 
-    await this.sendEmail(user.email, subject, html);
+    await this.sendEmail(
+      user.email,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        userId: user._id,
+        preheader: "Klikk lenken for å velge et nytt passord.",
+      }),
+    );
   }
 
-  /**
-   * Send booking confirmation email
-   */
   async sendBookingConfirmation(
     user: EmailUser,
     booking: EmailBooking,
   ): Promise<void> {
-    const subject = `Booking Confirmed: ${booking.resource.name}`;
-    const html = this.getEmailTemplate(
-      `
-      <h1>Booking Confirmed!</h1>
-      <p>Hi ${user.firstName},</p>
-      <p>Your booking has been confirmed:</p>
-      <div class="info-box">
-        <p><strong>Resource:</strong> ${booking.resource.name}</p>
-        <p><strong>Date:</strong> ${this.formatDate(booking.startTime)}</p>
-        <p><strong>Time:</strong> ${this.formatTime(booking.startTime)} - ${this.formatTime(booking.endTime)}</p>
-      </div>
-      <p>
-        <a href="${this.frontendUrl}/bookings/${booking._id}" class="button">View Booking</a>
-      </p>
-      <p>Need to make changes? You can manage your booking from the link above.</p>
-    `,
-      user,
-    );
+    const subject = `Booking bekreftet: ${booking.resource.name}`;
+    const content = `
+      ${renderH1("Booking bekreftet")}
+      <p>Hei ${user.firstName},</p>
+      <p>Bookingen din er bekreftet:</p>
+      ${renderInfoBox(`
+        <p style="margin:6px 0;"><strong>Ressurs:</strong> ${booking.resource.name}</p>
+        <p style="margin:6px 0;"><strong>Dato:</strong> ${this.formatDate(booking.startTime)}</p>
+        <p style="margin:6px 0;"><strong>Tid:</strong> ${this.formatTime(booking.startTime)} – ${this.formatTime(booking.endTime)}</p>
+      `)}
+      ${renderButton("Se booking", `${this.frontendUrl}/bookings/${booking._id}`)}
+      <p>Trenger du å gjøre endringer? Du kan administrere bookingen din via lenken over.</p>
+    `;
 
-    await this.sendEmail(user.email, subject, html);
+    await this.sendEmail(
+      user.email,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        userId: user._id,
+        preheader: `Bookingen av ${booking.resource.name} er bekreftet.`,
+      }),
+    );
   }
 
-  /**
-   * Send booking cancellation email
-   */
   async sendBookingCancellation(
     user: EmailUser,
     booking: EmailBooking,
   ): Promise<void> {
-    const subject = `Booking Cancelled: ${booking.resource.name}`;
-    const html = this.getEmailTemplate(
-      `
-      <h1>Booking Cancelled</h1>
-      <p>Hi ${user.firstName},</p>
-      <p>Your booking has been cancelled:</p>
-      <div class="info-box">
-        <p><strong>Resource:</strong> ${booking.resource.name}</p>
-        <p><strong>Date:</strong> ${this.formatDate(booking.startTime)}</p>
-        <p><strong>Time:</strong> ${this.formatTime(booking.startTime)} - ${this.formatTime(booking.endTime)}</p>
-      </div>
-      <p>
-        <a href="${this.frontendUrl}/resources" class="button">Book Another Time</a>
-      </p>
-    `,
-      user,
-    );
+    const subject = `Booking avlyst: ${booking.resource.name}`;
+    const content = `
+      ${renderH1("Booking avlyst")}
+      <p>Hei ${user.firstName},</p>
+      <p>Bookingen din er avlyst:</p>
+      ${renderInfoBox(`
+        <p style="margin:6px 0;"><strong>Ressurs:</strong> ${booking.resource.name}</p>
+        <p style="margin:6px 0;"><strong>Dato:</strong> ${this.formatDate(booking.startTime)}</p>
+        <p style="margin:6px 0;"><strong>Tid:</strong> ${this.formatTime(booking.startTime)} – ${this.formatTime(booking.endTime)}</p>
+      `)}
+      ${renderButton("Book en ny tid", `${this.frontendUrl}/resources`)}
+    `;
 
-    await this.sendEmail(user.email, subject, html);
+    await this.sendEmail(
+      user.email,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        userId: user._id,
+        preheader: `Bookingen av ${booking.resource.name} er avlyst.`,
+      }),
+    );
   }
 
-  /**
-   * Send event reminder email
-   */
   async sendEventReminder(user: EmailUser, event: EmailEvent): Promise<void> {
-    const subject = `Reminder: ${event.title} is coming up!`;
-    const html = this.getEmailTemplate(
-      `
-      <h1>Event Reminder</h1>
-      <p>Hi ${user.firstName},</p>
-      <p>Don't forget about the upcoming event:</p>
-      <div class="info-box">
-        <p><strong>Event:</strong> ${event.title}</p>
-        <p><strong>Date:</strong> ${this.formatDate(event.startDate)}</p>
-        <p><strong>Time:</strong> ${this.formatTime(event.startDate)}</p>
-        ${event.location ? `<p><strong>Location:</strong> ${event.location}</p>` : ""}
-      </div>
-      <p>
-        <a href="${this.frontendUrl}/events/${event._id}" class="button">View Event Details</a>
-      </p>
-    `,
-      user,
-    );
+    const subject = `Påminnelse: ${event.title} nærmer seg`;
+    const content = `
+      ${renderH1("Påminnelse om arrangement")}
+      <p>Hei ${user.firstName},</p>
+      <p>Ikke glem det kommende arrangementet:</p>
+      ${renderInfoBox(`
+        <p style="margin:6px 0;"><strong>Arrangement:</strong> ${event.title}</p>
+        <p style="margin:6px 0;"><strong>Dato:</strong> ${this.formatDate(event.startDate)}</p>
+        <p style="margin:6px 0;"><strong>Tid:</strong> ${this.formatTime(event.startDate)}</p>
+        ${event.location ? `<p style="margin:6px 0;"><strong>Sted:</strong> ${event.location}</p>` : ""}
+      `)}
+      ${renderButton("Se detaljer", `${this.frontendUrl}/events/${event._id}`)}
+    `;
 
-    await this.sendEmail(user.email, subject, html);
+    await this.sendEmail(
+      user.email,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        userId: user._id,
+        preheader: `${event.title} starter snart.`,
+      }),
+    );
   }
 
-  /**
-   * Send new message notification
-   */
   async sendNewMessageNotification(
     user: EmailUser,
     sender: EmailUser,
   ): Promise<void> {
-    const subject = `New message from ${sender.firstName} ${sender.lastName}`;
-    const html = this.getEmailTemplate(
-      `
-      <h1>You've Got a New Message</h1>
-      <p>Hi ${user.firstName},</p>
-      <p><strong>${sender.firstName} ${sender.lastName}</strong> sent you a message.</p>
-      <p>
-        <a href="${this.frontendUrl}/messages" class="button">Read Message</a>
-      </p>
-    `,
-      user,
-    );
+    const senderName = `${sender.firstName} ${sender.lastName}`;
+    const subject = `Ny melding fra ${senderName}`;
+    const content = `
+      ${renderH1("Du har en ny melding")}
+      <p>Hei ${user.firstName},</p>
+      <p><strong>${senderName}</strong> har sendt deg en melding.</p>
+      ${renderButton("Les melding", `${this.frontendUrl}/messages`)}
+    `;
 
-    await this.sendEmail(user.email, subject, html);
+    await this.sendEmail(
+      user.email,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        userId: user._id,
+        preheader: `${senderName} har sendt deg en melding.`,
+      }),
+    );
   }
 
-  /**
-   * Send building invite email with signup link
-   */
   async sendInviteEmail(
     toEmail: string,
     organizationName: string,
     buildingName: string,
     inviteLink: string,
   ): Promise<void> {
-    const subject = `You're invited to join ${organizationName} – ${buildingName}`;
-    const fakeUser: EmailUser = {
-      _id: "",
-      email: toEmail,
-      firstName: "",
-      lastName: "",
-    };
-    const html = this.getEmailTemplate(
-      `
-      <h1>You're invited!</h1>
-      <p>You have been invited to join <strong>${organizationName}</strong> at <strong>${buildingName}</strong>.</p>
-      <p>Click the button below to create your account and get started:</p>
-      <p>
-        <a href="${inviteLink}" class="button">Accept invitation &amp; sign up</a>
-      </p>
-      <p>This invitation link will expire in 7 days.</p>
-      <p style="font-size: 12px; color: #666;">
-        If the button doesn't work, copy and paste this link into your browser:<br>
-        <a href="${inviteLink}">${inviteLink}</a>
-      </p>
-    `,
-      fakeUser,
+    const subject = `Du er invitert til ${organizationName} — ${buildingName}`;
+    const content = `
+      ${renderH1("Du er invitert!")}
+      <p>Du er invitert til å bli med i <strong>${organizationName}</strong> på <strong>${buildingName}</strong>.</p>
+      <p>Klikk på knappen under for å opprette kontoen din og komme i gang:</p>
+      ${renderButton("Godta invitasjon og registrer deg", inviteLink)}
+      <p>Invitasjonslenken utløper om 7 dager.</p>
+      ${renderLinkFallback(inviteLink)}
+    `;
+
+    await this.sendEmail(
+      toEmail,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        preheader: `Opprett kontoen din for ${organizationName}.`,
+      }),
     );
-    await this.sendEmail(toEmail, subject, html);
   }
 
-  /**
-   * Send admin setup email (for inviting a new admin who will set their own password)
-   */
   async sendAdminSetupEmail(
     toEmail: string,
     organizationName: string,
@@ -341,58 +357,52 @@ export class EmailService {
     setupLink: string,
   ): Promise<void> {
     const subject = `Du er invitert som ${roleLabel} i ${organizationName}`;
-    const fakeUser: EmailUser = {
-      _id: "",
-      email: toEmail,
-      firstName: "",
-      lastName: "",
-    };
-    const html = this.getEmailTemplate(
-      `
-      <h1>Du er invitert som ${roleLabel}</h1>
-      <p><strong>${inviterName}</strong> har invitert deg til å bli ${roleLabel} i <strong>${organizationName}</strong> på Heime.</p>
+    const content = `
+      ${renderH1(`Du er invitert som ${roleLabel}`)}
+      <p><strong>${inviterName}</strong> har invitert deg til å bli ${roleLabel} i <strong>${organizationName}</strong> på Grunnsteinen.</p>
       <p>Klikk på knappen under for å fullføre oppsettet av kontoen din. Du velger ditt eget passord.</p>
-      <p>
-        <a href="${setupLink}" class="button">Fullfør oppsett</a>
-      </p>
+      ${renderButton("Fullfør oppsett", setupLink)}
       <p>Lenken utløper om 72 timer.</p>
-      <p style="font-size: 12px; color: #666;">
-        Hvis knappen ikke fungerer, kopier og lim inn denne lenken i nettleseren din:<br>
-        <a href="${setupLink}">${setupLink}</a>
-      </p>
-    `,
-      fakeUser,
+      ${renderLinkFallback(setupLink)}
+    `;
+
+    await this.sendEmail(
+      toEmail,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        preheader: "Fullfør oppsett av administratorkontoen din.",
+      }),
     );
-    await this.sendEmail(toEmail, subject, html);
   }
 
-  /**
-   * Send board announcement to multiple users
-   */
   async sendBoardAnnouncement(
     users: EmailUser[],
     post: EmailPost,
   ): Promise<void> {
-    const subject = `New Announcement: ${post.title}`;
+    const subject = `Ny kunngjøring: ${post.title}`;
 
     const sendPromises = users.map((user) => {
-      const html = this.getEmailTemplate(
-        `
-        <h1>New Board Announcement</h1>
-        <p>Hi ${user.firstName},</p>
-        <p>A new announcement has been posted:</p>
-        <div class="info-box">
-          <h2>${post.title}</h2>
-          <p>${this.truncateContent(post.content, 300)}</p>
-        </div>
-        <p>
-          <a href="${this.frontendUrl}/posts/${post._id}" class="button">Read Full Announcement</a>
-        </p>
-      `,
-        user,
-      );
+      const content = `
+        ${renderH1("Ny kunngjøring fra styret")}
+        <p>Hei ${user.firstName},</p>
+        <p>En ny kunngjøring er publisert:</p>
+        ${renderInfoBox(`
+          <h2 style="color:#374151;font-size:17px;margin:0 0 10px 0;">${post.title}</h2>
+          <p style="margin:0;">${this.truncateContent(post.content, 300)}</p>
+        `)}
+        ${renderButton("Les hele kunngjøringen", `${this.frontendUrl}/posts/${post._id}`)}
+      `;
 
-      return this.sendEmail(user.email, subject, html).catch((error) => {
+      return this.sendEmail(
+        user.email,
+        subject,
+        renderEmailLayout(content, {
+          frontendUrl: this.frontendUrl,
+          userId: user._id,
+          preheader: post.title,
+        }),
+      ).catch((error) => {
         this.logger.error(
           `Failed to send announcement to ${user.email}`,
           error,
@@ -403,120 +413,6 @@ export class EmailService {
     await Promise.all(sendPromises);
   }
 
-  /**
-   * Generate email HTML template with consistent styling
-   */
-  private getEmailTemplate(content: string, user: EmailUser): string {
-    const unsubscribeUrl = `${this.frontendUrl}/settings/notifications?user=${user._id}`;
-
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heime</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    .container {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 40px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    .logo {
-      font-size: 28px;
-      font-weight: bold;
-      color: #2563eb;
-    }
-    h1 {
-      color: #1f2937;
-      font-size: 24px;
-      margin-bottom: 20px;
-    }
-    h2 {
-      color: #374151;
-      font-size: 18px;
-      margin: 0 0 10px 0;
-    }
-    p {
-      margin: 0 0 16px 0;
-    }
-    .button {
-      display: inline-block;
-      background-color: #2563eb;
-      color: #ffffff !important;
-      text-decoration: none;
-      padding: 12px 24px;
-      border-radius: 6px;
-      font-weight: 600;
-      margin: 10px 0;
-    }
-    .button:hover {
-      background-color: #1d4ed8;
-    }
-    .info-box {
-      background-color: #f3f4f6;
-      border-radius: 6px;
-      padding: 20px;
-      margin: 20px 0;
-    }
-    .info-box p {
-      margin: 8px 0;
-    }
-    ul {
-      padding-left: 20px;
-    }
-    li {
-      margin-bottom: 8px;
-    }
-    .footer {
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e7eb;
-      font-size: 12px;
-      color: #6b7280;
-      text-align: center;
-    }
-    .footer a {
-      color: #6b7280;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div class="logo">Heime</div>
-    </div>
-    ${content}
-    <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} Heime. All rights reserved.</p>
-      <p>
-        <a href="${unsubscribeUrl}">Manage notification preferences</a> |
-        <a href="${this.frontendUrl}">Visit Heime</a>
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-    `.trim();
-  }
-
-  /**
-   * Strip HTML tags from content
-   */
   private stripHtml(html: string): string {
     return html
       .replace(/<[^>]*>/g, "")
@@ -524,11 +420,8 @@ export class EmailService {
       .trim();
   }
 
-  /**
-   * Format date for display
-   */
   private formatDate(date: Date): string {
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(date).toLocaleDateString("nb-NO", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -536,19 +429,14 @@ export class EmailService {
     });
   }
 
-  /**
-   * Format time for display
-   */
   private formatTime(date: Date): string {
-    return new Date(date).toLocaleTimeString("en-US", {
+    return new Date(date).toLocaleTimeString("nb-NO", {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
   }
 
-  /**
-   * Truncate content with ellipsis
-   */
   private truncateContent(content: string, maxLength: number): string {
     if (content.length <= maxLength) return content;
     return content.substring(0, maxLength).trim() + "...";

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   S3Client,
@@ -8,8 +8,6 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-
-export type S3Visibility = "public" | "private";
 
 @Injectable()
 export class S3Service {
@@ -36,14 +34,11 @@ export class S3Service {
   }
 
   /**
-   * Upload a file to S3. Public uploads return a CloudFront URL; private
-   * uploads return a raw S3 URL (callers should prefer presigned reads).
+   * Upload a file to S3. The folder must start with `public/` (served via
+   * CloudFront) or `private/` (read via presigned URL); visibility is derived
+   * from the prefix.
    */
-  async uploadFile(
-    file: Express.Multer.File,
-    folder: string = "uploads",
-    visibility: S3Visibility = "public",
-  ): Promise<string> {
+  async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
     const fileExtension = file.originalname.split(".").pop();
     const key = `${folder}/${uuidv4()}.${fileExtension}`;
 
@@ -56,20 +51,19 @@ export class S3Service {
 
     await this.s3Client.send(command);
 
-    const url = this.buildUrl(key, visibility);
-    this.logger.log(`File uploaded (${visibility}): ${url}`);
+    const url = this.buildUrl(key);
+    this.logger.log(`File uploaded: ${url}`);
 
     return url;
   }
 
   /**
-   * Upload a buffer to S3. See `uploadFile` for visibility semantics.
+   * Upload a buffer to S3. See `uploadFile` for key-prefix semantics.
    */
   async uploadBuffer(
     buffer: Buffer,
     key: string,
     contentType: string,
-    visibility: S3Visibility = "public",
   ): Promise<string> {
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -80,8 +74,8 @@ export class S3Service {
 
     await this.s3Client.send(command);
 
-    const url = this.buildUrl(key, visibility);
-    this.logger.log(`Buffer uploaded (${visibility}): ${url}`);
+    const url = this.buildUrl(key);
+    this.logger.log(`Buffer uploaded: ${url}`);
 
     return url;
   }
@@ -110,13 +104,14 @@ export class S3Service {
   }
 
   /**
-   * Generate a presigned URL for uploading
+   * Generate a presigned URL for uploading. Key must start with `public/` or
+   * `private/` — visibility of the returned `publicUrl` is derived from the
+   * prefix.
    */
   async getPresignedUploadUrl(
     key: string,
     contentType: string,
     expiresIn: number = 3600,
-    visibility: S3Visibility = "public",
   ): Promise<{ uploadUrl: string; publicUrl: string }> {
     const command = new PutObjectCommand({
       Bucket: this.bucket,
@@ -125,45 +120,79 @@ export class S3Service {
     });
 
     const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
-    const publicUrl = this.buildUrl(key, visibility);
+    const publicUrl = this.buildUrl(key);
 
     return { uploadUrl, publicUrl };
   }
 
   /**
-   * Generate a presigned URL for downloading
+   * Generate a presigned URL for downloading. By default the response is
+   * served inline so PDFs/images render in a browser tab; pass
+   * `disposition: "attachment"` to force a download. `filename` controls the
+   * name shown in the browser's save dialog.
    */
   async getPresignedDownloadUrl(
     key: string,
     expiresIn: number = 3600,
+    options: {
+      disposition?: "inline" | "attachment";
+      filename?: string;
+      contentType?: string;
+    } = {},
   ): Promise<string> {
+    const { disposition = "inline", filename, contentType } = options;
+
+    const dispositionHeader = filename
+      ? `${disposition}; filename="${filename.replace(/"/g, "")}"`
+      : disposition;
+
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: key,
+      ResponseContentDisposition: dispositionHeader,
+      ...(contentType ? { ResponseContentType: contentType } : {}),
     });
 
     return getSignedUrl(this.s3Client, command, { expiresIn });
   }
 
   /**
-   * Build the stored URL for a key based on visibility. Public keys resolve
-   * through CloudFront when configured; otherwise fall back to S3.
+   * Build the stored URL for a key. Keys under `public/` resolve through
+   * CloudFront; keys under `private/` return a raw S3 URL (callers use
+   * presigned reads). The prefix is the single source of truth — any other
+   * shape is rejected to prevent accidental public/private mix-ups.
    */
-  private buildUrl(key: string, visibility: S3Visibility): string {
-    if (visibility === "public" && this.cloudfrontDomain) {
-      return `https://${this.cloudfrontDomain}/${key}`;
+  private buildUrl(key: string): string {
+    if (key.startsWith("public/")) {
+      if (!this.cloudfrontDomain) {
+        throw new Error(
+          "public/* keys require AWS_CLOUDFRONT_DOMAIN to be set",
+        );
+      }
+      const cfPath = key.slice("public/".length);
+      return `https://${this.cloudfrontDomain}/${cfPath}`;
     }
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+    if (key.startsWith("private/")) {
+      return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+    }
+    throw new BadRequestException(
+      `S3 key must start with "public/" or "private/": ${key}`,
+    );
   }
 
   /**
-   * Extract S3 key from URL. Recognizes both the S3 origin host and the
-   * configured CloudFront domain so deletes work regardless of URL shape.
+   * Extract the S3 key from a stored URL. CloudFront URLs have the `public/`
+   * prefix stripped (origin path rewrite), so we add it back; direct S3 URLs
+   * already carry the full key in their path.
    */
   private extractKeyFromUrl(url: string): string | null {
     try {
       const urlObj = new URL(url);
-      return urlObj.pathname.substring(1);
+      const path = urlObj.pathname.replace(/^\//, "");
+      if (this.cloudfrontDomain && urlObj.host === this.cloudfrontDomain) {
+        return `public/${path}`;
+      }
+      return path;
     } catch {
       return null;
     }
@@ -175,5 +204,24 @@ export class S3Service {
   generateKey(folder: string, filename: string): string {
     const extension = filename.split(".").pop();
     return `${folder}/${uuidv4()}.${extension}`;
+  }
+
+  /**
+   * Build a CloudFront URL for a curated gallery image. Accepts the read
+   * path (`gallery/<name>.<ext>`), not the S3 key — on disk these are
+   * stored under `public/gallery/`, but CloudFront strips the `public/`
+   * prefix via origin path. The regex is a whitelist that lets the frontend
+   * pass paths directly without opening a path-injection surface.
+   */
+  buildGalleryImageUrl(galleryKey: string): string {
+    if (!/^gallery\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/i.test(galleryKey)) {
+      throw new BadRequestException(`Invalid gallery key: ${galleryKey}`);
+    }
+    if (!this.cloudfrontDomain) {
+      throw new BadRequestException(
+        "Gallery images require AWS_CLOUDFRONT_DOMAIN to be set",
+      );
+    }
+    return `https://${this.cloudfrontDomain}/${galleryKey}`;
   }
 }

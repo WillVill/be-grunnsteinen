@@ -1,18 +1,18 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
-import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import helmet from "helmet";
+import { AppModule } from "./app.module";
+import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
 async function bootstrap() {
-  const logger = new Logger('Bootstrap');
+  const logger = new Logger("Bootstrap");
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('port') || 3000;
-  const nodeEnv = configService.get<string>('nodeEnv');
+  const port = configService.get<number>("port") || 3000;
+  const nodeEnv = configService.get<string>("nodeEnv");
 
   // Security: Helmet for HTTP headers
   app.use(helmet());
@@ -30,7 +30,7 @@ async function bootstrap() {
         enableImplicitConversion: true,
       },
       // Don't expose sensitive error details
-      disableErrorMessages: nodeEnv === 'production',
+      disableErrorMessages: nodeEnv === "production",
       // Validate nested objects
       validateCustomDecorators: true,
       // Stop at first error for better performance
@@ -39,26 +39,26 @@ async function bootstrap() {
   );
 
   // Swagger configuration (non-production only)
-  if (nodeEnv !== 'production') {
+  if (nodeEnv !== "production") {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Heime API')
-      .setDescription('Neighborhood community platform API')
-      .setVersion('1.0')
+      .setTitle("Grunnsteinen API")
+      .setDescription("Neighborhood community platform API")
+      .setVersion("1.0")
       .addBearerAuth(
         {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          name: 'JWT',
-          description: 'Enter JWT token',
-          in: 'header',
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          name: "JWT",
+          description: "Enter JWT token",
+          in: "header",
         },
-        'JWT-auth',
+        "JWT-auth",
       )
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api/docs', app, document, {
+    SwaggerModule.setup("api/docs", app, document, {
       swaggerOptions: {
         persistAuthorization: true,
       },
@@ -68,19 +68,19 @@ async function bootstrap() {
   }
 
   // CORS - Properly configured with security in mind
-  const frontendUrl = configService.get<string>('frontendUrl');
+  const frontendUrl = configService.get<string>("frontendUrl");
   const allowedOrigins = frontendUrl
-    ? frontendUrl.split(',').map((url) => url.trim())
-    : nodeEnv === 'production'
-      ? []
+    ? frontendUrl.split(",").map((url) => url.trim())
+    : nodeEnv === "production"
+      ? true
       : true; // Allow all origins in development
 
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Content-Range", "X-Content-Range"],
     maxAge: 86400, // 24 hours
     preflightContinue: false,
     optionsSuccessStatus: 204,

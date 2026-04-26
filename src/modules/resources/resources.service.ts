@@ -9,6 +9,7 @@ import { Model, Types, QueryFilter } from 'mongoose';
 import { Resource, ResourceDocument } from './schemas/resource.schema';
 import { CreateResourceDto, UpdateResourceDto, ResourceQueryDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { S3Service } from '../../shared/services/s3.service';
 
 export interface TimeSlot {
   start: Date;
@@ -23,6 +24,7 @@ export class ResourcesService {
   constructor(
     @InjectModel(Resource.name)
     private readonly resourceModel: Model<ResourceDocument>,
+    private readonly s3Service: S3Service,
   ) {}
 
   /**
@@ -38,13 +40,18 @@ export class ResourcesService {
       );
     }
 
+    const { galleryKey, ...rest } = createDto;
+
     const resource = await this.resourceModel.create({
-      ...createDto,
-      ...(createDto.buildingId
-        ? { buildingId: new Types.ObjectId(createDto.buildingId) }
+      ...rest,
+      ...(rest.buildingId
+        ? { buildingId: new Types.ObjectId(rest.buildingId) }
         : {}),
       organizationId: new Types.ObjectId(organizationId),
-      isOrganizationWide: createDto.isOrganizationWide ?? false,
+      isOrganizationWide: rest.isOrganizationWide ?? false,
+      ...(galleryKey && {
+        imageUrls: [this.s3Service.buildGalleryImageUrl(galleryKey)],
+      }),
     });
 
     this.logger.log(`Resource created: ${resource.name} (${resource._id})`);

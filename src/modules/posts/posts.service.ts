@@ -283,8 +283,10 @@ export class PostsService {
     const post = await this.findPostDocument(postId);
 
     // Verify user is author or board member
+    // Note: findPostDocument populates authorId, so use _id for comparison
     const user = await this.userModel.findById(userId);
-    const isAuthor = post.authorId.toString() === userId;
+    const authorIdStr = ((post.authorId as any)?._id ?? post.authorId).toString();
+    const isAuthor = authorIdStr === userId;
     const isBoard = user && ['board', 'admin'].includes(user.role);
 
     if (!isAuthor && !isBoard) {
@@ -307,8 +309,10 @@ export class PostsService {
     const post = await this.findPostDocument(postId);
 
     // Verify user is author or board member
+    // Note: findPostDocument populates authorId, so use _id for comparison
     const user = await this.userModel.findById(userId);
-    const isAuthor = post.authorId.toString() === userId;
+    const authorIdStr = ((post.authorId as any)?._id ?? post.authorId).toString();
+    const isAuthor = authorIdStr === userId;
     const isBoard = user && ['board', 'admin'].includes(user.role);
 
     if (!isAuthor && !isBoard) {
@@ -423,11 +427,13 @@ export class PostsService {
     await post.save();
 
     // Notify post author if not the same user
-    if (post.authorId.toString() !== userId) {
+    // Note: findPostDocument populates authorId, so use _id for comparison
+    const postAuthorIdStr = ((post.authorId as any)?._id ?? post.authorId).toString();
+    if (postAuthorIdStr !== userId) {
       const commentAuthor = await this.userModel.findById(userId);
       if (commentAuthor) {
         await this.notificationService.createNotification(
-          post.authorId.toString(),
+          postAuthorIdStr,
           NotificationType.POST_COMMENT,
           'New comment on your post',
           `${commentAuthor.name} commented on your post`,

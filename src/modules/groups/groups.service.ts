@@ -15,6 +15,7 @@ import {
   NotificationService,
   NotificationType,
 } from '../../shared/services/notification.service';
+import { S3Service } from '../../shared/services/s3.service';
 
 @Injectable()
 export class GroupsService {
@@ -26,6 +27,7 @@ export class GroupsService {
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     private readonly notificationService: NotificationService,
+    private readonly s3Service: S3Service,
   ) {}
 
   /**
@@ -36,14 +38,19 @@ export class GroupsService {
     orgId: string,
     dto: CreateGroupDto,
   ): Promise<GroupDocument> {
+    const { galleryKey, ...rest } = dto;
+
     // Create group with creator as first member
     const group = await this.groupModel.create({
-      ...dto,
-      buildingId: new Types.ObjectId(dto.buildingId),
+      ...rest,
+      buildingId: new Types.ObjectId(rest.buildingId),
       organizationId: new Types.ObjectId(orgId),
       creatorId: new Types.ObjectId(userId),
       members: [new Types.ObjectId(userId)],
       memberCount: 1,
+      ...(galleryKey && {
+        imageUrl: this.s3Service.buildGalleryImageUrl(galleryKey),
+      }),
     });
 
     this.logger.log(`Group created: ${group.name} (${group._id}) by user ${userId}`);

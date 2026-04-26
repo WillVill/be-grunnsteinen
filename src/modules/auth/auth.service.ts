@@ -15,6 +15,7 @@ import { Types } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 import { Apartment, ApartmentDocument } from '../apartments/schemas/apartment.schema';
+import { Building, BuildingDocument } from '../buildings/schemas/building.schema';
 import { EmailService } from '../../shared/services/email.service';
 import { InvitationsService } from '../invitations/invitations.service';
 import { TenantProfilesService } from '../tenant-profiles/tenant-profiles.service';
@@ -58,6 +59,8 @@ export class AuthService {
     private readonly organizationModel: Model<OrganizationDocument>,
     @InjectModel(Apartment.name)
     private readonly apartmentModel: Model<ApartmentDocument>,
+    @InjectModel(Building.name)
+    private readonly buildingModel: Model<BuildingDocument>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
@@ -116,6 +119,18 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
+    let resolvedApartmentUnit: string | undefined;
+    if (inviteApartmentId) {
+      const apartmentDoc = await this.apartmentModel.findById(inviteApartmentId);
+      resolvedApartmentUnit = apartmentDoc?.unitNumber;
+    }
+
+    let resolvedBuildingName: string | undefined;
+    if (buildingId) {
+      const buildingDoc = await this.buildingModel.findById(buildingId);
+      resolvedBuildingName = buildingDoc?.name;
+    }
+
     const inviteFullName = [inviteFirstName, inviteLastName].filter(Boolean).join(' ');
     const userPayload: Record<string, unknown> = {
       email: emailLower,
@@ -123,8 +138,8 @@ export class AuthService {
       name: name || inviteFullName || emailLower,
       phone: phone || invitePhone,
       organizationId: organization._id,
-      unitNumber: unitNumber || inviteUnitNumber || '-',
-      building,
+      unitNumber: resolvedApartmentUnit || inviteUnitNumber || unitNumber || '-',
+      building: resolvedBuildingName || building,
     };
 
     if (buildingId) {

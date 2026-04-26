@@ -41,7 +41,7 @@ export class BuildingsController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.BOARD)
+  @Roles(UserRole.ADMIN, UserRole.BOARD, UserRole.RESIDENT)
   findAll(
     @CurrentUser() user: CurrentUserData,
     @Query() query: BuildingQueryDto,

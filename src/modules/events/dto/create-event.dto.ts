@@ -6,6 +6,7 @@ import {
   IsDate,
   IsNumber,
   IsMongoId,
+  Matches,
   MinLength,
   MaxLength,
   Min,
@@ -93,5 +94,17 @@ export class CreateEventDto {
   @IsOptional()
   @IsMongoId({ message: 'Invalid group ID format' })
   groupId?: string;
+
+  @ApiPropertyOptional({
+    example: 'gallery/sport.jpg',
+    description:
+      'Reference to a curated gallery image (CloudFront read path). The backend resolves this to a full CloudFront URL and stores it as the event image. Mutually exclusive with uploading a file to POST /events/:id/image.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^gallery\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/i, {
+    message: 'galleryKey must look like "gallery/<name>.<ext>"',
+  })
+  galleryKey?: string;
 }
 

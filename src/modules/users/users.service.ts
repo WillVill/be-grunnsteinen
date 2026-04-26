@@ -110,16 +110,33 @@ export class UsersService {
       organizationId: new Types.ObjectId(organizationId),
       isProfilePrivate: { $ne: true },
     };
-    if (!adminOnlyQuery) {
+
+    const andClauses: Record<string, unknown>[] = [];
+
+    if (adminOnlyQuery) {
+      // Show active admins and pending invitations, but not deactivated admins.
+      andClauses.push({
+        $or: [
+          { isActive: true },
+          { setupTokenExpires: { $exists: true, $ne: null } },
+        ],
+      });
+    } else {
       filter.isActive = true;
     }
 
     // Search by name or email
     if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-      ];
+      andClauses.push({
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      });
+    }
+
+    if (andClauses.length > 0) {
+      filter.$and = andClauses as any;
     }
 
     // Filter by building
@@ -421,7 +438,7 @@ export class UsersService {
 
       await this.emailService.sendAdminSetupEmail(
         user.email,
-        organization?.name || "Heime",
+        organization?.name || "Grunnsteinen",
         inviter?.name || "En administrator",
         roleLabel,
         setupLink,

@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsBoolean,
   IsMongoId,
+  Matches,
   MinLength,
   MaxLength,
 } from 'class-validator';
@@ -43,5 +44,17 @@ export class CreateGroupDto {
   @IsOptional()
   @IsBoolean()
   isPrivate?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'gallery/sport.jpg',
+    description:
+      'Reference to a curated gallery image (CloudFront read path). The backend resolves this to a full CloudFront URL and stores it as the group image. Mutually exclusive with uploading a file to POST /groups/:id/image.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^gallery\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/i, {
+    message: 'galleryKey must look like "gallery/<name>.<ext>"',
+  })
+  galleryKey?: string;
 }
 

@@ -40,7 +40,6 @@ export class DocumentsService {
       file.buffer,
       fileKey,
       file.mimetype,
-      'private',
     );
 
     if (!dto.isOrganizationWide && !dto.buildingId) {
@@ -220,10 +219,17 @@ export class DocumentsService {
       throw new ForbiddenException('You do not have access to this document');
     }
 
-    // Generate presigned URL (valid for 1 hour)
+    // Generate presigned URL (valid for 1 hour). Served inline so PDFs and
+    // images render in a browser tab; the original filename is preserved for
+    // the user's "save as" prompt if they download from the viewer.
     const downloadUrl = await this.s3Service.getPresignedDownloadUrl(
       document.fileKey,
       3600,
+      {
+        disposition: 'inline',
+        filename: document.fileName,
+        contentType: document.mimeType,
+      },
     );
 
     this.logger.log(`Download URL generated for document: ${documentId}`);
