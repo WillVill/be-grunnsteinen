@@ -37,8 +37,15 @@ export class Group {
   })
   buildingId?: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Concept',
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ default: false })
-  isOrganizationWide: boolean;
+  isConceptWide: boolean;
 
   @Prop({
     type: [{ type: Types.ObjectId, ref: 'User' }],
@@ -62,7 +69,8 @@ export const GroupSchema = SchemaFactory.createForClass(Group);
 GroupSchema.index({ organizationId: 1, isActive: 1 });
 GroupSchema.index({ organizationId: 1, isPrivate: 1, isActive: 1 });
 GroupSchema.index({ organizationId: 1, buildingId: 1, isActive: 1 });
-GroupSchema.index({ buildingId: 1, isOrganizationWide: 1 });
+GroupSchema.index({ organizationId: 1, conceptId: 1, isActive: 1 });
+GroupSchema.index({ conceptId: 1, isConceptWide: 1 });
 
 // Text search index
 GroupSchema.index({ name: 'text', description: 'text' });

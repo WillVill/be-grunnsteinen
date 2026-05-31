@@ -8,6 +8,8 @@ import {
   Delete,
   Query,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import { BuildingsService } from "./buildings.service";
 import {
@@ -20,6 +22,9 @@ import {
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { PermissionsGuard } from "../../common/guards/permissions.guard";
+import { RequirePermissions } from "../../common/decorators/permissions.decorator";
+import { Permission } from "../../common/permissions/permissions";
 import {
   CurrentUser,
   CurrentUserData,
@@ -107,12 +112,25 @@ export class BuildingsController {
   }
 
   @Post(":id/send-message")
-  @Roles(UserRole.ADMIN, UserRole.BOARD)
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.BROADCAST_MESSAGE)
   sendMessage(
     @CurrentUser() user: CurrentUserData,
     @Param("id") id: string,
     @Body() dto: SendBuildingMessageDto,
   ) {
     return this.buildingsService.sendMessageToTenants(user, id, dto);
+  }
+
+  @Post(":id/message-recipients/count")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.BROADCAST_MESSAGE)
+  countMessageRecipients(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+    @Body() dto: SendBuildingMessageDto,
+  ) {
+    return this.buildingsService.countMessageRecipients(user, id, dto);
   }
 }

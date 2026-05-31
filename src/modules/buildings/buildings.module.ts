@@ -7,6 +7,7 @@ import { User, UserSchema } from "../users/schemas/user.schema";
 import { TenantProfile, TenantProfileSchema } from "../tenant-profiles/schemas/tenant-profile.schema";
 import { EmailModule } from "../../shared/services/email.module";
 import { TwilioModule } from "../../shared/services/twilio.module";
+import { ConceptsModule } from "../concepts/concepts.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TwilioModule } from "../../shared/services/twilio.module";
     ]),
     EmailModule,
     TwilioModule,
+    ConceptsModule,
   ],
   controllers: [BuildingsController],
   providers: [BuildingsService],

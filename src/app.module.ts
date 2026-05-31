@@ -11,6 +11,7 @@ import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { BuildingsModule } from './modules/buildings/buildings.module';
+import { ConceptsModule } from './modules/concepts/concepts.module';
 import { ApartmentsModule } from './modules/apartments/apartments.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { EventsModule } from './modules/events/events.module';
@@ -20,6 +21,7 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { SharingModule } from './modules/sharing/sharing.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { DocumentFoldersModule } from './modules/document-folders/document-folders.module';
 import { GroupsModule } from './modules/groups/groups.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { TenantProfilesModule } from './modules/tenant-profiles/tenant-profiles.module';
@@ -45,6 +47,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     UsersModule,
     OrganizationsModule,
     BuildingsModule,
+    ConceptsModule,
     ApartmentsModule,
     PostsModule,
     EventsModule,
@@ -53,6 +56,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     MessagesModule,
     SharingModule,
     BookingsModule,
+    DocumentFoldersModule,
     DocumentsModule,
     GroupsModule,
     InvitationsModule,

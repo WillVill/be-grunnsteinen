@@ -72,20 +72,29 @@ export class CreateEventDto {
   @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
     description:
-      'Building ID the event belongs to. Required unless isOrganizationWide is true.',
+      'Building ID the event belongs to. Required unless isConceptWide is true and conceptId is provided.',
   })
   @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
   buildingId?: string;
 
   @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description:
+      'Concept ID the event belongs to. Derived from buildingId when omitted.',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+
+  @ApiPropertyOptional({
     example: false,
     description:
-      'When true, the event is visible to residents of every building in the organization.',
+      'When true, the event is visible to residents of every building in the concept.',
   })
   @IsOptional()
   @IsBoolean()
-  isOrganizationWide?: boolean;
+  isConceptWide?: boolean;
 
   @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',

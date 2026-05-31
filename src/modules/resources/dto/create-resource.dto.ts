@@ -16,31 +16,39 @@ export class CreateResourceDto {
   @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
     description:
-      'Building ID the resource belongs to. Required unless isOrganizationWide is true.',
+      'Building ID the resource belongs to. Required unless isConceptWide is true and conceptId is provided.',
   })
   @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
   buildingId?: string;
 
   @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description: 'Concept ID the resource belongs to. Derived from buildingId when omitted.',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+
+  @ApiPropertyOptional({
     example: false,
     description:
-      'When true, the resource is bookable by residents of every building in the organization.',
+      'When true, the resource is bookable by residents of every building in the concept.',
   })
   @IsOptional()
   @IsBoolean()
-  isOrganizationWide?: boolean;
-  @ApiProperty({ example: 'Guest Apartment A' })
+  isConceptWide?: boolean;
+  @ApiProperty({ example: 'Selskapslokale 1' })
   @IsString()
   name: string;
 
   @ApiProperty({
-    example: ResourceType.GUEST_APARTMENT,
+    example: ResourceType.SELSKAPSLOKALE,
     enum: ResourceType,
     description: 'Resource type',
   })
   @IsEnum(ResourceType, {
-    message: 'Type must be one of: guest-apartment, common-area, parking, equipment',
+    message: 'Type must be one of: selskapslokale, samlingen, gjestevaerelser, utstyr',
   })
   type: ResourceType;
 
@@ -110,7 +118,7 @@ export class CreateResourceDto {
   requiresApproval?: boolean;
 
   @ApiPropertyOptional({
-    example: 'gallery/gjestehybel.jpg',
+    example: 'gallery/selskapslokale.jpg',
     description:
       'Reference to a curated gallery image (CloudFront read path). The backend resolves this to a full CloudFront URL and appends it to imageUrls. Mutually exclusive with uploading a file to POST /resources/:id/image.',
   })

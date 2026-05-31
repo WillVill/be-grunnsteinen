@@ -58,7 +58,7 @@ export class DocumentsController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file', 'title', 'category'],
+      required: ['file', 'title'],
       properties: {
         file: {
           type: 'string',
@@ -75,10 +75,10 @@ export class DocumentsController {
           type: 'string',
           example: 'Updated building rules effective January 2024',
         },
-        category: {
+        folderId: {
           type: 'string',
-          enum: ['rules', 'minutes', 'fdv', 'manuals', 'contracts', 'other'],
-          example: 'rules',
+          example: '507f1f77bcf86cd799439011',
+          description: 'Optional folder ID',
         },
         isPublic: {
           type: 'boolean',
@@ -130,7 +130,7 @@ export class DocumentsController {
     @CurrentUser() user: CurrentUserData,
     @Query() query: DocumentQueryDto,
   ) {
-    return this.documentsService.findAll(user.organizationId, query);
+    return this.documentsService.findAll(user.organizationId, user.role, query);
   }
 
   @Get(':id')
@@ -203,7 +203,12 @@ export class DocumentsController {
     @Param('id') id: string,
     @Body() updateDto: UpdateDocumentDto,
   ) {
-    return this.documentsService.update(id, user.userId, updateDto);
+    return this.documentsService.update(
+      id,
+      user.userId,
+      user.organizationId,
+      updateDto,
+    );
   }
 
   @Delete(':id')

@@ -10,6 +10,7 @@ import { Resource, ResourceDocument } from './schemas/resource.schema';
 import { CreateResourceDto, UpdateResourceDto, ResourceQueryDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { S3Service } from '../../shared/services/s3.service';
+import { ConceptsService } from '../concepts/concepts.service';
 
 export interface TimeSlot {
   start: Date;
@@ -25,6 +26,7 @@ export class ResourcesService {
     @InjectModel(Resource.name)
     private readonly resourceModel: Model<ResourceDocument>,
     private readonly s3Service: S3Service,
+    private readonly conceptsService: ConceptsService,
   ) {}
 
   /**
@@ -34,9 +36,23 @@ export class ResourcesService {
     organizationId: string,
     createDto: CreateResourceDto,
   ): Promise<ResourceDocument> {
-    if (!createDto.isOrganizationWide && !createDto.buildingId) {
+    if (!createDto.buildingId && !createDto.conceptId) {
       throw new BadRequestException(
-        'Either a building must be selected or the resource must be marked as organization-wide.',
+        'Either a building or a concept must be provided.',
+      );
+    }
+
+    let conceptObjectId: Types.ObjectId | null = null;
+    if (createDto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(
+        createDto.conceptId,
+        organizationId,
+      );
+      conceptObjectId = new Types.ObjectId(createDto.conceptId);
+    } else if (createDto.buildingId) {
+      conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
+        createDto.buildingId,
+        organizationId,
       );
     }
 
@@ -47,8 +63,9 @@ export class ResourcesService {
       ...(rest.buildingId
         ? { buildingId: new Types.ObjectId(rest.buildingId) }
         : {}),
+      ...(conceptObjectId ? { conceptId: conceptObjectId } : {}),
       organizationId: new Types.ObjectId(organizationId),
-      isOrganizationWide: rest.isOrganizationWide ?? false,
+      isConceptWide: rest.isConceptWide ?? false,
       ...(galleryKey && {
         imageUrls: [this.s3Service.buildGalleryImageUrl(galleryKey)],
       }),
@@ -92,12 +109,36 @@ export class ResourcesService {
       filter.isActive = true;
     }
 
-    // Building filter: show items for the selected building or org-wide items
+    // Concept-scoped filter (see PostsService.findAll for the full rationale).
+    let scopeConceptId: Types.ObjectId | null = null;
+    if (query.conceptId) {
+      scopeConceptId = new Types.ObjectId(query.conceptId);
+    } else if (query.buildingId) {
+      const derived = await this.conceptsService.findConceptIdForBuilding(
+        query.buildingId,
+        organizationId,
+      );
+      scopeConceptId = derived ?? null;
+      if (!derived) {
+        this.logger.warn(
+          `Building ${query.buildingId} has no conceptId; ` +
+            `concept-wide resources will be omitted from this query`,
+        );
+      }
+    }
+
     if (query.buildingId) {
-      filter.$or = [
-        { buildingId: new Types.ObjectId(query.buildingId) },
-        { isOrganizationWide: true },
-      ];
+      if (scopeConceptId) {
+        filter.conceptId = scopeConceptId;
+        filter.$or = [
+          { buildingId: new Types.ObjectId(query.buildingId) },
+          { isConceptWide: true },
+        ];
+      } else {
+        filter.buildingId = new Types.ObjectId(query.buildingId);
+      }
+    } else if (scopeConceptId) {
+      filter.conceptId = scopeConceptId;
     }
 
     const [resources, total] = await Promise.all([

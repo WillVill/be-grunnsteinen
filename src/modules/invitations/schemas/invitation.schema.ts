@@ -18,6 +18,9 @@ export class Invitation {
   @Prop({ type: Types.ObjectId, ref: 'Building', required: true, index: true })
   buildingId: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'Concept', index: true })
+  conceptId?: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Organization', required: true, index: true })
   organizationId: Types.ObjectId;
 

@@ -5,10 +5,10 @@ import { baseSchemaOptions } from "../../../common/schemas/base.schema";
 export type ResourceDocument = Resource & Document;
 
 export enum ResourceType {
-  GUEST_APARTMENT = "guest-apartment",
-  COMMON_AREA = "common-area",
-  PARKING = "parking",
-  EQUIPMENT = "equipment",
+  SELSKAPSLOKALE = "selskapslokale",
+  SAMLINGEN = "samlingen",
+  GJESTEVAERELSER = "gjestevaerelser",
+  UTSTYR = "utstyr",
 }
 
 @Schema(baseSchemaOptions)
@@ -28,8 +28,15 @@ export class Resource {
   })
   buildingId?: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: "Concept",
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ default: false })
-  isOrganizationWide: boolean;
+  isConceptWide: boolean;
 
   @Prop({ required: true, trim: true })
   name: string;
@@ -106,7 +113,8 @@ ResourceSchema.index({ organizationId: 1, type: 1 });
 ResourceSchema.index({ organizationId: 1, isActive: 1 });
 ResourceSchema.index({ organizationId: 1, type: 1, isActive: 1 });
 ResourceSchema.index({ organizationId: 1, buildingId: 1 });
-ResourceSchema.index({ buildingId: 1, isOrganizationWide: 1 });
+ResourceSchema.index({ organizationId: 1, conceptId: 1 });
+ResourceSchema.index({ conceptId: 1, isConceptWide: 1 });
 
 // Text search index
 ResourceSchema.index({ name: "text", description: "text" });

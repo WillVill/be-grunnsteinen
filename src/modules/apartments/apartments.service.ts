@@ -60,6 +60,7 @@ export class ApartmentsService {
       ...createApartmentDto,
       organizationId: new Types.ObjectId(organizationId),
       buildingId: new Types.ObjectId(createApartmentDto.buildingId),
+      ...(building.conceptId ? { conceptId: building.conceptId } : {}),
     });
 
     return apartment.save();

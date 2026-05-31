@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsBoolean } from 'class-validator';
+import { IsOptional, IsEnum, IsBoolean, IsMongoId } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
@@ -8,7 +8,7 @@ export class ResourceQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     description: 'Filter by resource type',
     enum: ResourceType,
-    example: ResourceType.GUEST_APARTMENT,
+    example: ResourceType.SELSKAPSLOKALE,
   })
   @IsOptional()
   @IsEnum(ResourceType)
@@ -26,5 +26,21 @@ export class ResourceQueryDto extends PaginationQueryDto {
     return value;
   })
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Filter by building ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid building ID format' })
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by concept ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
 }
 

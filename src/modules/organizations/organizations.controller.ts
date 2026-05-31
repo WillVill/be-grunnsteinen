@@ -114,8 +114,15 @@ export class OrganizationsController {
     schema: {
       properties: {
         userCount: { type: 'number', example: 42 },
+        buildingCount: { type: 'number', example: 4 },
+        conceptCount: { type: 'number', example: 2 },
+        totalResidents: { type: 'number', example: 50 },
+        registeredResidents: { type: 'number', example: 41 },
         activeBookings: { type: 'number', example: 5 },
+        pendingBookings: { type: 'number', example: 2 },
         upcomingEvents: { type: 'number', example: 3 },
+        totalPosts: { type: 'number', example: 18 },
+        openHelpRequests: { type: 'number', example: 1 },
       },
     },
   })

@@ -6,6 +6,7 @@ import { GroupsService } from './groups.service';
 import { GroupsController } from './groups.controller';
 import { S3Module } from '../../shared/services/s3.module';
 import { NotificationModule } from '../../shared/services/notification.module';
+import { ConceptsModule } from '../concepts/concepts.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { NotificationModule } from '../../shared/services/notification.module';
     ]),
     S3Module,
     NotificationModule,
+    ConceptsModule,
   ],
   controllers: [GroupsController],
   providers: [GroupsService],

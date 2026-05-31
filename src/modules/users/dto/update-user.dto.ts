@@ -151,6 +151,16 @@ export class UpdateUserDto {
   @IsBoolean()
   isProfilePrivate?: boolean;
 
+  @ApiPropertyOptional({ example: true, description: 'When false, email is hidden from other residents (board/admin always see it)' })
+  @IsOptional()
+  @IsBoolean()
+  isEmailVisible?: boolean;
+
+  @ApiPropertyOptional({ example: true, description: 'When false, phone is hidden from other residents (board/admin always see it)' })
+  @IsOptional()
+  @IsBoolean()
+  isPhoneVisible?: boolean;
+
   @ApiPropertyOptional({ type: NotificationPreferencesDto })
   @IsOptional()
   @ValidateNested()

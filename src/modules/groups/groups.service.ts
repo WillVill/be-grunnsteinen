@@ -8,14 +8,16 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, QueryFilter } from 'mongoose';
 import { Group, GroupDocument } from './schemas/group.schema';
-import { User, UserDocument, UserRole, isBoardOrAbove } from '../users/schemas/user.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateGroupDto, UpdateGroupDto, GroupQueryDto, AddMemberDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { Permission, canModerateInBuilding } from '../../common/permissions/permissions';
 import {
   NotificationService,
   NotificationType,
 } from '../../shared/services/notification.service';
 import { S3Service } from '../../shared/services/s3.service';
+import { ConceptsService } from '../concepts/concepts.service';
 
 @Injectable()
 export class GroupsService {
@@ -28,6 +30,7 @@ export class GroupsService {
     private readonly userModel: Model<UserDocument>,
     private readonly notificationService: NotificationService,
     private readonly s3Service: S3Service,
+    private readonly conceptsService: ConceptsService,
   ) {}
 
   /**
@@ -38,16 +41,37 @@ export class GroupsService {
     orgId: string,
     dto: CreateGroupDto,
   ): Promise<GroupDocument> {
+    if (!dto.buildingId && !dto.conceptId) {
+      throw new BadRequestException(
+        'Either a building or a concept must be provided.',
+      );
+    }
+
+    let conceptObjectId: Types.ObjectId | null = null;
+    if (dto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      conceptObjectId = new Types.ObjectId(dto.conceptId);
+    } else if (dto.buildingId) {
+      conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
+        dto.buildingId,
+        orgId,
+      );
+    }
+
     const { galleryKey, ...rest } = dto;
 
     // Create group with creator as first member
     const group = await this.groupModel.create({
       ...rest,
-      buildingId: new Types.ObjectId(rest.buildingId),
+      ...(rest.buildingId
+        ? { buildingId: new Types.ObjectId(rest.buildingId) }
+        : {}),
+      ...(conceptObjectId ? { conceptId: conceptObjectId } : {}),
       organizationId: new Types.ObjectId(orgId),
       creatorId: new Types.ObjectId(userId),
       members: [new Types.ObjectId(userId)],
       memberCount: 1,
+      isConceptWide: rest.isConceptWide ?? false,
       ...(galleryKey && {
         imageUrl: this.s3Service.buildGalleryImageUrl(galleryKey),
       }),
@@ -105,21 +129,50 @@ export class GroupsService {
       ];
     }
 
-    // Building filter: show groups for the selected building or org-wide groups
-    if (query.buildingId) {
-      const buildingCondition = {
-        $or: [
-          { buildingId: new Types.ObjectId(query.buildingId) },
-          { isOrganizationWide: true },
-        ],
-      };
-      if (filter.$or) {
-        const existingOr = filter.$or;
-        delete filter.$or;
-        filter.$and = [{ $or: existingOr }, buildingCondition];
-      } else {
-        filter.$or = buildingCondition.$or;
+    // Concept-scoped filter (see PostsService.findAll for the full rationale).
+    let scopeConceptId: Types.ObjectId | null = null;
+    if (query.conceptId) {
+      scopeConceptId = new Types.ObjectId(query.conceptId);
+    } else if (query.buildingId) {
+      const derived = await this.conceptsService.findConceptIdForBuilding(
+        query.buildingId,
+        orgId,
+      );
+      scopeConceptId = derived ?? null;
+      if (!derived) {
+        this.logger.warn(
+          `Building ${query.buildingId} has no conceptId; ` +
+            `concept-wide groups will be omitted from this query`,
+        );
       }
+    }
+
+    if (query.buildingId) {
+      const buildingCondition = scopeConceptId
+        ? {
+            $or: [
+              { buildingId: new Types.ObjectId(query.buildingId) },
+              { isConceptWide: true },
+            ],
+          }
+        : { buildingId: new Types.ObjectId(query.buildingId) };
+
+      if (scopeConceptId) {
+        filter.conceptId = scopeConceptId;
+      }
+      if ("$or" in buildingCondition) {
+        if (filter.$or) {
+          const existingOr = filter.$or;
+          delete filter.$or;
+          filter.$and = [{ $or: existingOr }, buildingCondition];
+        } else {
+          filter.$or = buildingCondition.$or;
+        }
+      } else {
+        filter.buildingId = buildingCondition.buildingId;
+      }
+    } else if (scopeConceptId) {
+      filter.conceptId = scopeConceptId;
     }
 
     // Text search
@@ -175,11 +228,13 @@ export class GroupsService {
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
     const isCreator = group.creatorId.toString() === userId;
-    const isBoard = user && isBoardOrAbove(user.role);
+    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
 
-    if (!isCreator && !isBoard) {
+    if (!isCreator && !canModerate) {
       throw new ForbiddenException(
-        'Only the creator or board members can update this group',
+        'Only the creator or a moderator for this building can update this group',
       );
     }
 
@@ -206,11 +261,13 @@ export class GroupsService {
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
     const isCreator = group.creatorId.toString() === userId;
-    const isBoard = user && isBoardOrAbove(user.role);
+    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
 
-    if (!isCreator && !isBoard) {
+    if (!isCreator && !canModerate) {
       throw new ForbiddenException(
-        'Only the creator or board members can update group image',
+        'Only the creator or a moderator for this building can update group image',
       );
     }
 
@@ -311,11 +368,13 @@ export class GroupsService {
 
     const inviter = await this.userModel.findById(inviterUserId);
     const isCreator = group.creatorId.toString() === inviterUserId;
-    const isBoard = inviter && isBoardOrAbove(inviter.role);
+    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
+    const canModerate =
+      inviter && canModerateInBuilding(inviter, scopeBuildingId, Permission.GROUP_MODERATE);
 
-    if (!isCreator && !isBoard) {
+    if (!isCreator && !canModerate) {
       throw new ForbiddenException(
-        'Only the creator or board members can add members to this group',
+        'Only the creator or a moderator for this building can add members to this group',
       );
     }
 
@@ -396,11 +455,13 @@ export class GroupsService {
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
     const isCreator = group.creatorId.toString() === userId;
-    const isBoard = user && isBoardOrAbove(user.role);
+    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
 
-    if (!isCreator && !isBoard) {
+    if (!isCreator && !canModerate) {
       throw new ForbiddenException(
-        'Only the creator or board members can delete this group',
+        'Only the creator or a moderator for this building can delete this group',
       );
     }
 

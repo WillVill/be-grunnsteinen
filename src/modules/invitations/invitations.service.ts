@@ -102,6 +102,7 @@ export class InvitationsService {
     const invitation = await this.invitationModel.create({
       email,
       buildingId: new Types.ObjectId(dto.buildingId),
+      ...(building.conceptId ? { conceptId: building.conceptId } : {}),
       organizationId: new Types.ObjectId(organizationId),
       unitNumber: dto.unitNumber?.trim(),
       apartmentId: dto.apartmentId ? new Types.ObjectId(dto.apartmentId) : undefined,

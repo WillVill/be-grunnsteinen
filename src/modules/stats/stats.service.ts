@@ -70,7 +70,7 @@ export class StatsService {
    * Contract: the org-wide row (buildingId: null) carries the TOTAL for the
    * organization for the day. Building rows partition the subset of records
    * tied to a specific building — they do NOT sum to the org-wide row because
-   * org-wide records (isOrganizationWide: true, or messages, or users with no
+   * org-wide records (isConceptWide: true, or messages, or users with no
    * primaryBuildingId) land only in the org-wide row.
    *
    * Idempotent — re-running for the same targetDate overwrites via upsert.
@@ -237,7 +237,7 @@ export class StatsService {
           _id: {
             organizationId: '$post.organizationId',
             buildingId: {
-              $cond: [{ $eq: ['$post.isOrganizationWide', true] }, null, '$post.buildingId'],
+              $cond: [{ $eq: ['$post.isConceptWide', true] }, null, '$post.buildingId'],
             },
           },
           count: { $sum: 1 },
@@ -277,7 +277,7 @@ export class StatsService {
   }
 
   private groupByOrgBuilding(model: Model<any>, start: Date, end: Date) {
-    // Collapse isOrganizationWide records to buildingId: null so they are
+    // Collapse isConceptWide records to buildingId: null so they are
     // counted only in the org-wide row, never in any building row.
     return model.aggregate<{ organizationId: unknown; buildingId: unknown; count: number }>([
       { $match: { createdAt: { $gte: start, $lt: end } } },
@@ -286,7 +286,7 @@ export class StatsService {
           _id: {
             organizationId: '$organizationId',
             buildingId: {
-              $cond: [{ $eq: ['$isOrganizationWide', true] }, null, '$buildingId'],
+              $cond: [{ $eq: ['$isConceptWide', true] }, null, '$buildingId'],
             },
           },
           count: { $sum: 1 },
@@ -391,7 +391,7 @@ export class StatsService {
     const matchBuilding = (field = 'buildingId') =>
       buildingObjectId ? { [field]: buildingObjectId } : {};
     const excludeOrgWideIfBuildingScoped = buildingObjectId
-      ? { isOrganizationWide: { $ne: true } }
+      ? { isConceptWide: { $ne: true } }
       : {};
     const inOrg = { organizationId: orgObjectId };
 
@@ -413,7 +413,7 @@ export class StatsService {
           $match: {
             'post.organizationId': orgObjectId,
             ...(buildingObjectId
-              ? { 'post.buildingId': buildingObjectId, 'post.isOrganizationWide': { $ne: true } }
+              ? { 'post.buildingId': buildingObjectId, 'post.isConceptWide': { $ne: true } }
               : {}),
           },
         },

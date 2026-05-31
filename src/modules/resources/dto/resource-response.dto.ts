@@ -15,11 +15,11 @@ export class ResourceResponseDto {
   @Expose()
   organizationId: string;
 
-  @ApiProperty({ example: 'Guest Apartment A' })
+  @ApiProperty({ example: 'Selskapslokale 1' })
   @Expose()
   name: string;
 
-  @ApiProperty({ enum: ResourceType, example: ResourceType.GUEST_APARTMENT })
+  @ApiProperty({ enum: ResourceType, example: ResourceType.SELSKAPSLOKALE })
   @Expose()
   type: ResourceType;
 

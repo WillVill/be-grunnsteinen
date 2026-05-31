@@ -38,6 +38,13 @@ export class Booking {
 
   @Prop({
     type: Types.ObjectId,
+    ref: 'Concept',
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
+  @Prop({
+    type: Types.ObjectId,
     ref: 'User',
     required: true,
     index: true,
@@ -88,4 +95,5 @@ export const BookingSchema = SchemaFactory.createForClass(Booking);
 // Compound index for availability checking
 BookingSchema.index({ resourceId: 1, startDate: 1, endDate: 1, status: 1 });
 BookingSchema.index({ organizationId: 1, buildingId: 1, startDate: 1 });
+BookingSchema.index({ organizationId: 1, conceptId: 1, startDate: 1 });
 

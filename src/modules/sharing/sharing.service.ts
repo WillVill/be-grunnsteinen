@@ -19,6 +19,7 @@ import {
   SharedItemCategory,
 } from './schemas/shared-item.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Permission, canModerateInBuilding } from '../../common/permissions/permissions';
 import {
   CreateHelpRequestDto,
   CreateSharedItemDto,
@@ -30,6 +31,7 @@ import {
   NotificationType,
 } from '../../shared/services/notification.service';
 import { EmailService, EmailUser } from '../../shared/services/email.service';
+import { ConceptsService } from '../concepts/concepts.service';
 
 @Injectable()
 export class SharingService {
@@ -44,6 +46,7 @@ export class SharingService {
     private readonly userModel: Model<UserDocument>,
     private readonly notificationService: NotificationService,
     private readonly emailService: EmailService,
+    private readonly conceptsService: ConceptsService,
   ) {}
 
   // ==================== Help Request Methods ====================
@@ -56,12 +59,31 @@ export class SharingService {
     orgId: string,
     dto: CreateHelpRequestDto,
   ): Promise<HelpRequestDocument> {
+    if (!dto.buildingId && !dto.conceptId) {
+      throw new BadRequestException(
+        'Either a building or a concept must be provided.',
+      );
+    }
+
+    let conceptObjectId: Types.ObjectId | null = null;
+    if (dto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      conceptObjectId = new Types.ObjectId(dto.conceptId);
+    } else if (dto.buildingId) {
+      conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
+        dto.buildingId,
+        orgId,
+      );
+    }
+
     const helpRequest = await this.helpRequestModel.create({
       ...dto,
-      buildingId: new Types.ObjectId(dto.buildingId),
+      ...(dto.buildingId ? { buildingId: new Types.ObjectId(dto.buildingId) } : {}),
+      ...(conceptObjectId ? { conceptId: conceptObjectId } : {}),
       organizationId: new Types.ObjectId(orgId),
       requesterId: new Types.ObjectId(userId),
       status: HelpRequestStatus.OPEN,
+      isConceptWide: dto.isConceptWide ?? false,
     });
 
     this.logger.log(`Help request created: ${helpRequest._id} by user ${userId}`);
@@ -77,7 +99,12 @@ export class SharingService {
    */
   async findAllHelpRequests(
     orgId: string,
-    query: PaginationQueryDto & { category?: HelpRequestCategory; status?: HelpRequestStatus },
+    query: PaginationQueryDto & {
+      category?: HelpRequestCategory;
+      status?: HelpRequestStatus;
+      buildingId?: string;
+      conceptId?: string;
+    },
   ): Promise<PaginatedResponseDto<HelpRequestDocument>> {
     const {
       page = 1,
@@ -105,12 +132,38 @@ export class SharingService {
       filter.status = HelpRequestStatus.OPEN;
     }
 
-    // Building filter: show items for the selected building or org-wide items
-    if (query.buildingId) {
-      filter.$or = [
-        { buildingId: new Types.ObjectId(query.buildingId) },
-        { isOrganizationWide: true },
-      ];
+    // Concept-scoped filter (see PostsService.findAll for the full rationale).
+    {
+      let scopeConceptId: Types.ObjectId | null = null;
+      if (query.conceptId) {
+        scopeConceptId = new Types.ObjectId(query.conceptId);
+      } else if (query.buildingId) {
+        const derived = await this.conceptsService.findConceptIdForBuilding(
+          query.buildingId,
+          orgId,
+        );
+        scopeConceptId = derived ?? null;
+        if (!derived) {
+          this.logger.warn(
+            `Building ${query.buildingId} has no conceptId; ` +
+              `concept-wide content will be omitted from this query`,
+          );
+        }
+      }
+
+      if (query.buildingId) {
+        if (scopeConceptId) {
+          filter.conceptId = scopeConceptId;
+          filter.$or = [
+            { buildingId: new Types.ObjectId(query.buildingId) },
+            { isConceptWide: true },
+          ];
+        } else {
+          filter.buildingId = new Types.ObjectId(query.buildingId);
+        }
+      } else if (scopeConceptId) {
+        filter.conceptId = scopeConceptId;
+      }
     }
 
     const [helpRequests, total] = await Promise.all([
@@ -291,9 +344,16 @@ export class SharingService {
       throw new BadRequestException('Help request is already cancelled');
     }
 
-    // Verify user is requester
-    if (helpRequest.requesterId.toString() !== userId) {
-      throw new ForbiddenException('Only the requester can cancel this help request');
+    // Verify user is requester or a sharing moderator for this building
+    const isRequester = helpRequest.requesterId.toString() === userId;
+    const canceller = await this.userModel.findById(userId);
+    const scopeBuildingId = helpRequest.isConceptWide ? null : helpRequest.buildingId;
+    const canModerate =
+      canceller && canModerateInBuilding(canceller, scopeBuildingId, Permission.SHARING_MODERATE);
+    if (!isRequester && !canModerate) {
+      throw new ForbiddenException(
+        'Only the requester or a moderator for this building can cancel this help request',
+      );
     }
 
     // Update status
@@ -349,15 +409,39 @@ export class SharingService {
     if (!userId || !orgId) {
       throw new BadRequestException('userId and organizationId are required');
     }
-    const doc = {
+
+    if (!dto.buildingId && !dto.conceptId) {
+      throw new BadRequestException(
+        'Either a building or a concept must be provided.',
+      );
+    }
+
+    let conceptObjectId: Types.ObjectId | null = null;
+    if (dto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      conceptObjectId = new Types.ObjectId(dto.conceptId);
+    } else if (dto.buildingId) {
+      conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
+        dto.buildingId,
+        orgId,
+      );
+    }
+
+    const doc: Record<string, unknown> = {
       name: dto.name,
       description: dto.description,
       category: dto.category,
-      buildingId: new Types.ObjectId(dto.buildingId),
       organizationId: new Types.ObjectId(orgId),
       ownerId: new Types.ObjectId(userId),
       isAvailable: true,
+      isConceptWide: dto.isConceptWide ?? false,
     };
+    if (dto.buildingId) {
+      doc.buildingId = new Types.ObjectId(dto.buildingId);
+    }
+    if (conceptObjectId) {
+      doc.conceptId = conceptObjectId;
+    }
     const sharedItem = await this.sharedItemModel.create(doc);
 
     this.logger.log(
@@ -384,6 +468,7 @@ export class SharingService {
       category?: SharedItemCategory;
       isAvailable?: boolean;
       ownerId?: string;
+      conceptId?: string;
     },
   ): Promise<PaginatedResponseDto<SharedItemDocument>> {
     const {
@@ -417,12 +502,38 @@ export class SharingService {
       filter.ownerId = new Types.ObjectId(ownerId);
     }
 
-    // Building filter: show items for the selected building or org-wide items
-    if (query.buildingId) {
-      filter.$or = [
-        { buildingId: new Types.ObjectId(query.buildingId) },
-        { isOrganizationWide: true },
-      ];
+    // Concept-scoped filter (see PostsService.findAll for the full rationale).
+    {
+      let scopeConceptId: Types.ObjectId | null = null;
+      if (query.conceptId) {
+        scopeConceptId = new Types.ObjectId(query.conceptId);
+      } else if (query.buildingId) {
+        const derived = await this.conceptsService.findConceptIdForBuilding(
+          query.buildingId,
+          orgId,
+        );
+        scopeConceptId = derived ?? null;
+        if (!derived) {
+          this.logger.warn(
+            `Building ${query.buildingId} has no conceptId; ` +
+              `concept-wide content will be omitted from this query`,
+          );
+        }
+      }
+
+      if (query.buildingId) {
+        if (scopeConceptId) {
+          filter.conceptId = scopeConceptId;
+          filter.$or = [
+            { buildingId: new Types.ObjectId(query.buildingId) },
+            { isConceptWide: true },
+          ];
+        } else {
+          filter.buildingId = new Types.ObjectId(query.buildingId);
+        }
+      } else if (scopeConceptId) {
+        filter.conceptId = scopeConceptId;
+      }
     }
 
     const [sharedItems, total] = await Promise.all([
@@ -570,9 +681,16 @@ export class SharingService {
   async deleteSharedItem(itemId: string, userId: string): Promise<void> {
     const sharedItem = await this.findSharedItemById(itemId);
 
-    // Verify user is owner
-    if (sharedItem.ownerId.toString() !== userId) {
-      throw new ForbiddenException('Only the owner can delete this item');
+    // Verify user is owner or a sharing moderator for this building
+    const isOwner = sharedItem.ownerId.toString() === userId;
+    const user = await this.userModel.findById(userId);
+    const scopeBuildingId = sharedItem.isConceptWide ? null : sharedItem.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.SHARING_MODERATE);
+    if (!isOwner && !canModerate) {
+      throw new ForbiddenException(
+        'Only the owner or a moderator for this building can delete this item',
+      );
     }
 
     // Check if item is currently borrowed

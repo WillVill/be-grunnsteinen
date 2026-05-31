@@ -7,6 +7,7 @@ import { Group, GroupSchema } from '../groups/schemas/group.schema';
 import { PostsService } from './posts.service';
 import { PostsController } from './posts.controller';
 import { NotificationModule } from '../../shared/services/notification.module';
+import { ConceptsModule } from '../concepts/concepts.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { NotificationModule } from '../../shared/services/notification.module';
       { name: Group.name, schema: GroupSchema },
     ]),
     NotificationModule,
+    ConceptsModule,
   ],
   controllers: [PostsController],
   providers: [PostsService],

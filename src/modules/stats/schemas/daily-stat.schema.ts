@@ -12,6 +12,9 @@ export class DailyStat {
   @Prop({ type: Types.ObjectId, ref: 'Building', default: null, index: true })
   buildingId: Types.ObjectId | null;
 
+  @Prop({ type: Types.ObjectId, ref: 'Concept', default: null, index: true })
+  conceptId: Types.ObjectId | null;
+
   @Prop({ type: Date, required: true, index: true })
   date: Date;
 

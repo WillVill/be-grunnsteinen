@@ -26,8 +26,9 @@ import {
   CommentResponseDto,
 } from './dto';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { Permission } from '../../common/permissions/permissions';
 import { UseGuards } from '@nestjs/common';
 
 @ApiTags('Posts')
@@ -117,9 +118,9 @@ export class PostsController {
   }
 
   @Post(':id/pin')
-  @UseGuards(RolesGuard)
-  @Roles('board', 'admin')
-  @ApiOperation({ summary: 'Toggle pin status (Board/Admin only)' })
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.POST_MODERATE)
+  @ApiOperation({ summary: 'Toggle pin status (post moderators only)' })
   @ApiResponse({
     status: 200,
     description: 'Pin status toggled',
@@ -128,10 +129,10 @@ export class PostsController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async togglePin(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.postsService.togglePin(id, userId);
+    return this.postsService.togglePin(id, user.userId);
   }
 
   @Post(':id/like')

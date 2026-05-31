@@ -42,7 +42,7 @@ export class CreatePostDto {
 
   @ApiPropertyOptional({
     description:
-      'Building ID the post belongs to. Required unless isOrganizationWide is true.',
+      'Building ID the post belongs to. Required unless isConceptWide is true and conceptId is provided.',
     example: '507f1f77bcf86cd799439011',
   })
   @IsOptional()
@@ -50,13 +50,22 @@ export class CreatePostDto {
   buildingId?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Concept ID the post belongs to. Derived from buildingId when omitted.',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+
+  @ApiPropertyOptional({
     example: false,
     description:
-      'When true, the post is visible in every building in the organization.',
+      'When true, the post is visible in every building in the concept.',
   })
   @IsOptional()
   @IsBoolean()
-  isOrganizationWide?: boolean;
+  isConceptWide?: boolean;
 
   @ApiPropertyOptional({
     description: 'Group ID when posting in a group',

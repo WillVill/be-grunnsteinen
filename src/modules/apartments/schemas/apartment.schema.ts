@@ -31,6 +31,13 @@ export class Apartment {
   })
   buildingId: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: "Concept",
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ required: true, trim: true })
   unitNumber: string;
 
@@ -75,3 +82,4 @@ ApartmentSchema.index({ buildingId: 1, isActive: 1 });
 
 // Index for querying apartments by organization
 ApartmentSchema.index({ organizationId: 1, buildingId: 1 });
+ApartmentSchema.index({ organizationId: 1, conceptId: 1 });

@@ -39,13 +39,20 @@ export class Post {
 
   @Prop({
     type: Types.ObjectId,
+    ref: 'Concept',
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
+  @Prop({
+    type: Types.ObjectId,
     ref: 'Group',
     index: true,
   })
   groupId?: Types.ObjectId;
 
   @Prop({ default: false })
-  isOrganizationWide: boolean;
+  isConceptWide: boolean;
 
   @Prop({ trim: true })
   title?: string;
@@ -88,8 +95,9 @@ PostSchema.index({ organizationId: 1, isPinned: -1, createdAt: -1 });
 PostSchema.index({ organizationId: 1, category: 1, createdAt: -1 });
 PostSchema.index({ authorId: 1, createdAt: -1 });
 PostSchema.index({ organizationId: 1, buildingId: 1, createdAt: -1 });
+PostSchema.index({ organizationId: 1, conceptId: 1, createdAt: -1 });
 PostSchema.index({ organizationId: 1, groupId: 1, createdAt: -1 });
-PostSchema.index({ buildingId: 1, isOrganizationWide: 1 });
+PostSchema.index({ conceptId: 1, isConceptWide: 1 });
 
 // Text search index
 PostSchema.index({ title: 'text', content: 'text' });

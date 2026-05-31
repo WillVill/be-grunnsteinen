@@ -8,10 +8,12 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, QueryFilter } from 'mongoose';
 import { Document, DocumentDocument } from './schemas/document.schema';
-import { User, UserDocument, UserRole, isBoardOrAbove } from '../users/schemas/user.schema';
+import { User, UserDocument, isBoardOrAbove } from '../users/schemas/user.schema';
 import { UploadDocumentDto, UpdateDocumentDto, DocumentQueryDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { S3Service } from '../../shared/services/s3.service';
+import { ConceptsService } from '../concepts/concepts.service';
+import { DocumentFoldersService } from '../document-folders/document-folders.service';
 
 @Injectable()
 export class DocumentsService {
@@ -23,6 +25,8 @@ export class DocumentsService {
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     private readonly s3Service: S3Service,
+    private readonly conceptsService: ConceptsService,
+    private readonly foldersService: DocumentFoldersService,
   ) {}
 
   /**
@@ -34,7 +38,34 @@ export class DocumentsService {
     file: Express.Multer.File,
     dto: UploadDocumentDto,
   ): Promise<DocumentDocument> {
-    // Upload file to S3
+    if (!dto.buildingId && !dto.conceptId && !dto.apartmentId) {
+      throw new BadRequestException(
+        'Either a building, concept, or apartment must be provided.',
+      );
+    }
+
+    let conceptObjectId: Types.ObjectId | null = null;
+    if (dto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      conceptObjectId = new Types.ObjectId(dto.conceptId);
+    } else if (dto.buildingId) {
+      conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
+        dto.buildingId,
+        orgId,
+      );
+    }
+
+    // Validate folder scope before uploading the file to S3 — avoids leaving
+    // orphan S3 objects when validation fails.
+    if (dto.folderId) {
+      await this.foldersService.assertFolderMatchesScope(
+        dto.folderId,
+        orgId,
+        conceptObjectId,
+        dto.buildingId,
+      );
+    }
+
     const fileKey = this.s3Service.generateKey('private/documents', file.originalname);
     const fileUrl = await this.s3Service.uploadBuffer(
       file.buffer,
@@ -42,16 +73,12 @@ export class DocumentsService {
       file.mimetype,
     );
 
-    if (!dto.isOrganizationWide && !dto.buildingId) {
-      throw new BadRequestException(
-        'Either a building must be selected or the document must be marked as organization-wide.',
-      );
-    }
-
     const document = await this.documentModel.create({
       ...dto,
       ...(dto.buildingId ? { buildingId: new Types.ObjectId(dto.buildingId) } : {}),
+      ...(conceptObjectId ? { conceptId: conceptObjectId } : {}),
       ...(dto.apartmentId ? { apartmentId: new Types.ObjectId(dto.apartmentId) } : {}),
+      ...(dto.folderId ? { folderId: new Types.ObjectId(dto.folderId) } : {}),
       organizationId: new Types.ObjectId(orgId),
       uploadedById: new Types.ObjectId(userId),
       fileUrl,
@@ -60,8 +87,12 @@ export class DocumentsService {
       fileSize: file.size,
       mimeType: file.mimetype,
       isPublic: dto.isPublic ?? true,
-      isOrganizationWide: dto.isOrganizationWide ?? false,
+      isConceptWide: dto.isConceptWide ?? false,
     });
+
+    if (dto.folderId) {
+      await this.foldersService.incrementCount(dto.folderId);
+    }
 
     this.logger.log(`Document uploaded: ${document.title} (${document._id}) by user ${userId}`);
 
@@ -76,6 +107,7 @@ export class DocumentsService {
    */
   async findAll(
     orgId: string,
+    role: string,
     query: DocumentQueryDto,
   ): Promise<PaginatedResponseDto<DocumentDocument>> {
     const {
@@ -83,7 +115,7 @@ export class DocumentsService {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-      category,
+      folderId,
       search,
     } = query;
 
@@ -93,25 +125,66 @@ export class DocumentsService {
       organizationId: new Types.ObjectId(orgId),
     };
 
-    if (category) {
-      filter.category = category;
+    // Residents only see public documents — matches getDownloadUrl's access
+    // check so the list can't surface docs that can't be opened.
+    if (!isBoardOrAbove(role)) {
+      filter.isPublic = true;
     }
 
-    // Text search
+    if (folderId === 'null') {
+      // Special sentinel: documents with no folder (the "Ikke sortert" view).
+      filter.$or = [
+        { folderId: { $exists: false } },
+        { folderId: null },
+      ];
+    } else if (folderId) {
+      filter.folderId = new Types.ObjectId(folderId);
+    }
+
     if (search) {
       filter.$text = { $search: search };
     }
 
-    // Apartment filter: show documents for a specific apartment
     if (query.apartmentId) {
       filter.apartmentId = new Types.ObjectId(query.apartmentId);
-    }
-    // Building filter: show items for the selected building or org-wide items
-    else if (query.buildingId) {
-      filter.$or = [
-        { buildingId: new Types.ObjectId(query.buildingId) },
-        { isOrganizationWide: true },
-      ];
+    } else {
+      let scopeConceptId: Types.ObjectId | null = null;
+      if (query.conceptId) {
+        scopeConceptId = new Types.ObjectId(query.conceptId);
+      } else if (query.buildingId) {
+        const derived = await this.conceptsService.findConceptIdForBuilding(
+          query.buildingId,
+          orgId,
+        );
+        scopeConceptId = derived ?? null;
+        if (!derived) {
+          this.logger.warn(
+            `Building ${query.buildingId} has no conceptId; ` +
+              `concept-wide documents will be omitted from this query`,
+          );
+        }
+      }
+
+      if (query.buildingId) {
+        if (scopeConceptId) {
+          filter.conceptId = scopeConceptId;
+          const buildingOr = [
+            { buildingId: new Types.ObjectId(query.buildingId) },
+            { isConceptWide: true },
+          ];
+          if (filter.$or) {
+            const existingOr = filter.$or;
+            delete filter.$or;
+            filter.$and = [{ $or: existingOr }, { $or: buildingOr }];
+          } else {
+            filter.$or = buildingOr;
+          }
+        } else {
+          filter.buildingId = new Types.ObjectId(query.buildingId);
+        }
+      } else if (scopeConceptId) {
+        filter.conceptId = scopeConceptId;
+      }
     }
 
     const [documents, total] = await Promise.all([
@@ -154,11 +227,11 @@ export class DocumentsService {
   async update(
     documentId: string,
     userId: string,
+    orgId: string,
     dto: UpdateDocumentDto,
   ): Promise<DocumentDocument> {
     const document = await this.findById(documentId);
 
-    // Verify user is board member
     const user = await this.userModel.findById(userId);
     const isBoard = user && isBoardOrAbove(user.role);
 
@@ -166,10 +239,58 @@ export class DocumentsService {
       throw new ForbiddenException('Only board members can update documents');
     }
 
+    const previousFolderId = document.folderId
+      ? document.folderId.toString()
+      : null;
+    let nextFolderId: string | null = previousFolderId;
+
+    const setFields: Record<string, unknown> = {};
+    const unsetFields: Record<string, unknown> = {};
+
+    if (dto.title !== undefined) setFields.title = dto.title;
+    if (dto.description !== undefined) setFields.description = dto.description;
+    if (dto.isPublic !== undefined) setFields.isPublic = dto.isPublic;
+
+    if (dto.folderId !== undefined) {
+      if (dto.folderId === null) {
+        unsetFields.folderId = '';
+        nextFolderId = null;
+      } else {
+        const conceptObjectId = document.conceptId ?? null;
+        const buildingId = document.buildingId
+          ? document.buildingId.toString()
+          : undefined;
+        await this.foldersService.assertFolderMatchesScope(
+          dto.folderId,
+          orgId,
+          conceptObjectId,
+          buildingId,
+        );
+        setFields.folderId = new Types.ObjectId(dto.folderId);
+        nextFolderId = dto.folderId;
+      }
+    }
+
+    const updateOps: Record<string, unknown> = {};
+    if (Object.keys(setFields).length) updateOps.$set = setFields;
+    if (Object.keys(unsetFields).length) updateOps.$unset = unsetFields;
+
     const updatedDocument = await this.documentModel
-      .findByIdAndUpdate(documentId, { $set: dto }, { new: true, runValidators: true })
+      .findByIdAndUpdate(documentId, updateOps, {
+        new: true,
+        runValidators: true,
+      })
       .populate('uploadedById', 'name avatarUrl avatarColor role')
       .exec();
+
+    if (previousFolderId !== nextFolderId) {
+      if (previousFolderId) {
+        await this.foldersService.decrementCount(previousFolderId);
+      }
+      if (nextFolderId) {
+        await this.foldersService.incrementCount(nextFolderId);
+      }
+    }
 
     this.logger.log(`Document updated: ${documentId}`);
     return updatedDocument!;
@@ -181,7 +302,6 @@ export class DocumentsService {
   async delete(documentId: string, userId: string): Promise<void> {
     const document = await this.findById(documentId);
 
-    // Verify user is board member
     const user = await this.userModel.findById(userId);
     const isBoard = user && isBoardOrAbove(user.role);
 
@@ -189,16 +309,17 @@ export class DocumentsService {
       throw new ForbiddenException('Only board members can delete documents');
     }
 
-    // Delete file from S3
     try {
       await this.s3Service.deleteFile(document.fileKey);
     } catch (error) {
       this.logger.error(`Failed to delete file from S3: ${document.fileKey}`, error);
-      // Continue with record deletion even if S3 deletion fails
     }
 
-    // Delete document record
     await this.documentModel.deleteOne({ _id: documentId });
+
+    if (document.folderId) {
+      await this.foldersService.decrementCount(document.folderId);
+    }
 
     this.logger.log(`Document deleted: ${documentId} by user ${userId}`);
   }
@@ -209,9 +330,6 @@ export class DocumentsService {
   async getDownloadUrl(documentId: string, userId: string): Promise<string> {
     const document = await this.findById(documentId);
 
-    // Verify user has access (public documents or user is in same organization)
-    // Note: In a real implementation, you might want to check if user is in the organization
-    // For now, we'll allow access if document is public or user is board member
     const user = await this.userModel.findById(userId);
     const isBoard = user && isBoardOrAbove(user.role);
 
@@ -219,9 +337,6 @@ export class DocumentsService {
       throw new ForbiddenException('You do not have access to this document');
     }
 
-    // Generate presigned URL (valid for 1 hour). Served inline so PDFs and
-    // images render in a browser tab; the original filename is preserved for
-    // the user's "save as" prompt if they download from the viewer.
     const downloadUrl = await this.s3Service.getPresignedDownloadUrl(
       document.fileKey,
       3600,
@@ -236,4 +351,3 @@ export class DocumentsService {
     return downloadUrl;
   }
 }
-

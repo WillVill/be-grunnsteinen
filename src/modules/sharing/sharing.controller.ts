@@ -53,6 +53,16 @@ class HelpRequestQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(HelpRequestStatus)
   status?: HelpRequestStatus;
+
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011' })
+  @IsOptional()
+  @IsMongoId()
+  buildingId?: string;
+
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011' })
+  @IsOptional()
+  @IsMongoId()
+  conceptId?: string;
 }
 
 class SharedItemQueryDto extends PaginationQueryDto {

@@ -1,33 +1,40 @@
 import {
   IsString,
   IsOptional,
-  IsEnum,
   IsBoolean,
   IsMongoId,
   MinLength,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DocumentCategory } from '../schemas/document.schema';
 
 export class UploadDocumentDto {
   @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
     description:
-      'Building ID the document belongs to. Required unless isOrganizationWide is true.',
+      'Building ID the document belongs to. Required unless isConceptWide is true and conceptId is provided.',
   })
   @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
   buildingId?: string;
 
   @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description: 'Concept ID the document belongs to. Derived from buildingId when omitted.',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+
+  @ApiPropertyOptional({
     example: false,
     description:
-      'When true, the document is visible to residents of every building in the organization.',
+      'When true, the document is visible to residents of every building in the concept.',
   })
   @IsOptional()
   @IsBoolean()
-  isOrganizationWide?: boolean;
+  isConceptWide?: boolean;
+
   @ApiProperty({
     example: 'Building Rules and Regulations',
     minLength: 2,
@@ -47,15 +54,14 @@ export class UploadDocumentDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({
-    enum: DocumentCategory,
-    example: DocumentCategory.RULES,
-    description: 'Document category',
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description:
+      'Folder ID the document belongs to. Optional — documents without a folder appear in the "Ikke sortert" section. Apartment-specific documents typically have no folder.',
   })
-  @IsEnum(DocumentCategory, {
-    message: 'Category must be one of: rules, minutes, fdv, manuals, contracts, floor-plan, other',
-  })
-  category: DocumentCategory;
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid folder ID format' })
+  folderId?: string;
 
   @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
@@ -73,4 +79,3 @@ export class UploadDocumentDto {
   @IsBoolean()
   isPublic?: boolean;
 }
-

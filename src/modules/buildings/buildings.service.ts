@@ -26,11 +26,29 @@ import {
 import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import { EmailService } from "../../shared/services/email.service";
 import { TwilioService } from "../../shared/services/twilio.service";
+import { ConceptsService } from "../concepts/concepts.service";
 
 export interface SendMessageResult {
   sentEmail: number;
   sentSms: number;
   skippedSms: number;
+}
+
+export interface RecipientCountResult {
+  /** Total distinct recipients (building users + included tenant profiles). */
+  total: number;
+  users: number;
+  profiles: number;
+  /** Whether SMS delivery is configured server-side (Twilio). */
+  smsConfigured: boolean;
+  /** Recipients that would actually receive an email for the chosen channel. */
+  reachableEmail: number;
+  /** Recipients that would actually receive an SMS (valid phone) for the chosen channel. */
+  reachableSms: number;
+  /** Recipients skipped because they have no email (only relevant for email/both). */
+  skippedNoEmail: number;
+  /** Recipients skipped because they have no valid phone (only relevant for sms/both). */
+  skippedNoPhone: number;
 }
 
 @Injectable()
@@ -46,6 +64,7 @@ export class BuildingsService {
     private tenantProfileModel: Model<TenantProfileDocument>,
     private readonly emailService: EmailService,
     private readonly twilioService: TwilioService,
+    private readonly conceptsService: ConceptsService,
   ) {}
 
   async create(
@@ -66,9 +85,18 @@ export class BuildingsService {
       }
     }
 
+    if (createBuildingDto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(
+        createBuildingDto.conceptId,
+        organizationId,
+      );
+    }
+
+    const { conceptId, ...rest } = createBuildingDto;
     const building = new this.buildingModel({
-      ...createBuildingDto,
+      ...rest,
       organizationId: new Types.ObjectId(organizationId),
+      ...(conceptId ? { conceptId: new Types.ObjectId(conceptId) } : {}),
     });
 
     return building.save();
@@ -112,6 +140,10 @@ export class BuildingsService {
 
     if (typeof isActive === "boolean") {
       filter.isActive = isActive;
+    }
+
+    if (query.conceptId) {
+      filter.conceptId = new Types.ObjectId(query.conceptId);
     }
 
     if (search) {
@@ -175,12 +207,37 @@ export class BuildingsService {
       }
     }
 
+    if (updateBuildingDto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(
+        updateBuildingDto.conceptId,
+        user.organizationId,
+      );
+    }
+
+    // Detect a concept move so we can cascade conceptId on all denormalized
+    // content. Without this, moving a building to a new concept silently hides
+    // its existing posts/events/etc. from residents because the filter uses
+    // the (now stale) denormalized conceptId.
+    const previousBuilding = await this.buildingModel.findOne({
+      _id: new Types.ObjectId(buildingId),
+      organizationId: new Types.ObjectId(user.organizationId),
+    });
+    if (!previousBuilding) {
+      throw new NotFoundException(`Building with ID "${buildingId}" not found`);
+    }
+
+    const { conceptId, ...rest } = updateBuildingDto;
+    const updatePayload: Record<string, unknown> = { ...rest };
+    if (conceptId) {
+      updatePayload.conceptId = new Types.ObjectId(conceptId);
+    }
+
     const building = await this.buildingModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(buildingId),
         organizationId: new Types.ObjectId(user.organizationId),
       },
-      { $set: updateBuildingDto },
+      { $set: updatePayload },
       { new: true },
     );
 
@@ -188,7 +245,62 @@ export class BuildingsService {
       throw new NotFoundException(`Building with ID "${buildingId}" not found`);
     }
 
+    if (
+      conceptId &&
+      previousBuilding.conceptId?.toString() !== conceptId
+    ) {
+      await this.cascadeConceptMove(
+        new Types.ObjectId(buildingId),
+        new Types.ObjectId(user.organizationId),
+        new Types.ObjectId(conceptId),
+      );
+    }
+
     return building;
+  }
+
+  /**
+   * Rewrites the denormalized conceptId on every doc that references this
+   * building, across the 12 content collections + apartments + invitations +
+   * tenant-profiles. Without this, moving a building between concepts hides
+   * its existing content because filters check the (stale) denormalized
+   * conceptId. Runs inline; for orgs with very high write volume this should
+   * probably be moved to a background job.
+   */
+  private async cascadeConceptMove(
+    buildingObjectId: Types.ObjectId,
+    organizationId: Types.ObjectId,
+    newConceptId: Types.ObjectId,
+  ): Promise<void> {
+    const db = this.buildingModel.db.db;
+    const collections = [
+      "posts",
+      "events",
+      "bookings",
+      "resources",
+      "groups",
+      "apartments",
+      "documents",
+      "shareditems",
+      "helprequests",
+      "invitations",
+      "tenantprofiles",
+      "dailystats",
+    ];
+
+    let totalUpdated = 0;
+    for (const name of collections) {
+      const res = await db.collection(name).updateMany(
+        { organizationId, buildingId: buildingObjectId },
+        { $set: { conceptId: newConceptId } },
+      );
+      totalUpdated += res.modifiedCount;
+    }
+
+    this.logger.log(
+      `Cascaded conceptId change for building ${buildingObjectId.toString()} ` +
+        `→ concept ${newConceptId.toString()}: ${totalUpdated} doc(s) updated`,
+    );
   }
 
   async remove(user: CurrentUserData, buildingId: string): Promise<Building> {
@@ -228,10 +340,13 @@ export class BuildingsService {
     // Verify building exists, belongs to organization, and user has access
     await this.findOne(user, buildingId);
 
+    // Only residents are "beboere" — board members and admins/super-admins are
+    // excluded so they don't appear in (or receive) building communications.
     return this.userModel
       .find({
         organizationId: new Types.ObjectId(user.organizationId),
         buildingIds: new Types.ObjectId(buildingId),
+        role: UserRole.RESIDENT,
         isActive: true,
       })
       .select("-password -passwordResetToken -passwordResetExpires")
@@ -331,25 +446,34 @@ export class BuildingsService {
     totalUsers: number;
     activeUsers: number;
     usersByRole: Record<string, number>;
+    totalResidents: number;
+    registeredResidents: number;
+    unregisteredResidents: number;
   }> {
     // Verify building exists, belongs to organization, and user has access
     await this.findOne(user, buildingId);
 
     const buildingObjectId = new Types.ObjectId(buildingId);
 
-    const [totalUsers, activeUsers, roleStats] = await Promise.all([
-      this.userModel.countDocuments({
-        buildingIds: buildingObjectId,
-      }),
-      this.userModel.countDocuments({
-        buildingIds: buildingObjectId,
-        isActive: true,
-      }),
-      this.userModel.aggregate([
-        { $match: { buildingIds: buildingObjectId } },
-        { $group: { _id: "$role", count: { $sum: 1 } } },
-      ]),
-    ]);
+    const [totalUsers, activeUsers, roleStats, totalResidents, registeredResidents] =
+      await Promise.all([
+        this.userModel.countDocuments({
+          buildingIds: buildingObjectId,
+        }),
+        this.userModel.countDocuments({
+          buildingIds: buildingObjectId,
+          isActive: true,
+        }),
+        this.userModel.aggregate([
+          { $match: { buildingIds: buildingObjectId } },
+          { $group: { _id: "$role", count: { $sum: 1 } } },
+        ]),
+        this.tenantProfileModel.countDocuments({ buildingId: buildingObjectId }),
+        this.tenantProfileModel.countDocuments({
+          buildingId: buildingObjectId,
+          status: TenantProfileStatus.REGISTERED,
+        }),
+      ]);
 
     const usersByRole = roleStats.reduce(
       (acc, { _id, count }) => {
@@ -363,6 +487,9 @@ export class BuildingsService {
       totalUsers,
       activeUsers,
       usersByRole,
+      totalResidents,
+      registeredResidents,
+      unregisteredResidents: Math.max(0, totalResidents - registeredResidents),
     };
   }
 
@@ -387,39 +514,11 @@ export class BuildingsService {
     dto: SendBuildingMessageDto,
   ): Promise<SendMessageResult> {
     const building = await this.findOne(currentUser, buildingId);
-    let users = await this.getBuildingUsers(currentUser, buildingId);
-
-    if (dto.recipientIds && dto.recipientIds.length > 0) {
-      const idSet = new Set(dto.recipientIds);
-      users = users.filter((u) => {
-        const id = (u as UserDocument)._id?.toString();
-        return id ? idSet.has(id) : false;
-      });
-    }
-
-    // Resolve tenant profiles to include
-    let profiles: TenantProfileDocument[] = [];
-    const sendAll = !dto.recipientIds?.length && !dto.tenantProfileIds?.length;
-    if (dto.tenantProfileIds && dto.tenantProfileIds.length > 0) {
-      profiles = await this.tenantProfileModel
-        .find({
-          organizationId: new Types.ObjectId(currentUser.organizationId),
-          buildingId: new Types.ObjectId(buildingId),
-          status: { $ne: TenantProfileStatus.REGISTERED },
-          _id: {
-            $in: dto.tenantProfileIds.map((id) => new Types.ObjectId(id)),
-          },
-        })
-        .exec();
-    } else if (sendAll) {
-      profiles = await this.tenantProfileModel
-        .find({
-          organizationId: new Types.ObjectId(currentUser.organizationId),
-          buildingId: new Types.ObjectId(buildingId),
-          status: { $ne: TenantProfileStatus.REGISTERED },
-        })
-        .exec();
-    }
+    const { users, profiles } = await this.resolveMessageRecipients(
+      currentUser,
+      buildingId,
+      dto,
+    );
 
     const result: SendMessageResult = {
       sentEmail: 0,
@@ -511,5 +610,105 @@ export class BuildingsService {
       `Building message: email=${result.sentEmail} sms=${result.sentSms} skippedSms=${result.skippedSms}`,
     );
     return result;
+  }
+
+  /**
+   * Resolve the exact set of users + tenant profiles a message would target.
+   * Shared by sendMessageToTenants and countMessageRecipients so the previewed
+   * count can never diverge from the actual send set.
+   */
+  private async resolveMessageRecipients(
+    currentUser: CurrentUserData,
+    buildingId: string,
+    dto: SendBuildingMessageDto,
+  ): Promise<{ users: User[]; profiles: TenantProfileDocument[] }> {
+    let users = await this.getBuildingUsers(currentUser, buildingId);
+
+    if (dto.recipientIds && dto.recipientIds.length > 0) {
+      const idSet = new Set(dto.recipientIds);
+      users = users.filter((u) => {
+        const id = (u as UserDocument)._id?.toString();
+        return id ? idSet.has(id) : false;
+      });
+    }
+
+    let profiles: TenantProfileDocument[] = [];
+    const sendAll = !dto.recipientIds?.length && !dto.tenantProfileIds?.length;
+    if (dto.tenantProfileIds && dto.tenantProfileIds.length > 0) {
+      profiles = await this.tenantProfileModel
+        .find({
+          organizationId: new Types.ObjectId(currentUser.organizationId),
+          buildingId: new Types.ObjectId(buildingId),
+          status: { $ne: TenantProfileStatus.REGISTERED },
+          _id: {
+            $in: dto.tenantProfileIds.map((id) => new Types.ObjectId(id)),
+          },
+        })
+        .exec();
+    } else if (sendAll) {
+      profiles = await this.tenantProfileModel
+        .find({
+          organizationId: new Types.ObjectId(currentUser.organizationId),
+          buildingId: new Types.ObjectId(buildingId),
+          status: { $ne: TenantProfileStatus.REGISTERED },
+        })
+        .exec();
+    }
+
+    return { users, profiles };
+  }
+
+  /**
+   * Dry-run: count the recipients a send would actually reach, broken down by
+   * channel. Lets the admin UI show an accurate confirmation before dispatch.
+   */
+  async countMessageRecipients(
+    currentUser: CurrentUserData,
+    buildingId: string,
+    dto: SendBuildingMessageDto,
+  ): Promise<RecipientCountResult> {
+    const { users, profiles } = await this.resolveMessageRecipients(
+      currentUser,
+      buildingId,
+      dto,
+    );
+
+    const wantsEmail = dto.type === "email" || dto.type === "both";
+    const wantsSms = dto.type === "sms" || dto.type === "both";
+    // SMS only actually goes out when Twilio is configured; mirror the send path
+    // so the dry-run count never promises SMS reach that won't be delivered.
+    const smsConfigured = this.twilioService.isConfigured();
+
+    const recipients: { email?: string; phone?: string }[] = [
+      ...users.map((u) => ({ email: u.email, phone: u.phone })),
+      ...profiles.map((p) => ({ email: p.email, phone: p.phone })),
+    ];
+
+    let reachableEmail = 0;
+    let reachableSms = 0;
+    let skippedNoEmail = 0;
+    let skippedNoPhone = 0;
+
+    for (const r of recipients) {
+      if (wantsEmail) {
+        if (r.email) reachableEmail++;
+        else skippedNoEmail++;
+      }
+      if (wantsSms) {
+        if (smsConfigured && this.twilioService.normalizeE164(r.phone)) reachableSms++;
+        else skippedNoPhone++;
+      }
+    }
+
+    return {
+      total: recipients.length,
+      users: users.length,
+      profiles: profiles.length,
+      smsConfigured,
+      reachableEmail,
+      reachableSms,
+      skippedNoEmail,
+      skippedNoPhone,
+    };
   }
 }

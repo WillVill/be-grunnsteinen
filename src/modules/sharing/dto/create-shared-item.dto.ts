@@ -1,6 +1,7 @@
 import {
   IsString,
   IsOptional,
+  IsBoolean,
   IsEnum,
   IsMongoId,
   MinLength,
@@ -10,12 +11,29 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SharedItemCategory } from '../schemas/shared-item.schema';
 
 export class CreateSharedItemDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
-    description: 'Building ID the shared item belongs to',
+    description: 'Building ID the shared item belongs to (omit for concept-wide)',
   })
+  @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
-  buildingId: string;
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description: 'Concept ID. Derived from buildingId when omitted.',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'When true, the shared item is borrowable across all buildings in the concept.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isConceptWide?: boolean;
   @ApiProperty({
     example: 'Power Drill',
     minLength: 2,
@@ -43,7 +61,7 @@ export class CreateSharedItemDto {
     description: 'Category of shared item',
   })
   @IsEnum(SharedItemCategory, {
-    message: 'Category must be one of: tools, outdoor, toys, kitchen, electronics, other',
+    message: 'Category must be one of: tools, outdoor, games-social, kitchen, parking, other',
   })
   category: SharedItemCategory;
 }

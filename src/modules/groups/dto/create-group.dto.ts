@@ -10,12 +10,29 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateGroupDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
-    description: 'Building ID the group belongs to',
+    description: 'Building ID the group belongs to (omit when posting concept-wide)',
   })
+  @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
-  buildingId: string;
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description: 'Concept ID the group belongs to. Derived from buildingId when omitted.',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'When true, the group is visible across all buildings in the concept.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isConceptWide?: boolean;
   @ApiProperty({
     example: 'Book Club',
     minLength: 2,

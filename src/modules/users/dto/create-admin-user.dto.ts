@@ -11,10 +11,22 @@ export class CreateAdminUserDto {
   @IsEmail()
   email: string;
 
-  @IsEnum([UserRole.ADMIN, UserRole.SUPER_ADMIN], {
-    message: "Role must be admin or super_admin",
-  })
-  role: UserRole.ADMIN | UserRole.SUPER_ADMIN;
+  @IsEnum(
+    [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+      UserRole.HOST,
+      UserRole.CARETAKER,
+    ],
+    {
+      message: "Role must be admin, super_admin, host or caretaker",
+    },
+  )
+  role:
+    | UserRole.ADMIN
+    | UserRole.SUPER_ADMIN
+    | UserRole.HOST
+    | UserRole.CARETAKER;
 
   @IsOptional()
   @IsArray()

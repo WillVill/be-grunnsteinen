@@ -5,6 +5,8 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
 import { S3Module } from '../../shared/services/s3.module';
+import { ConceptsModule } from '../concepts/concepts.module';
+import { DocumentFoldersModule } from '../document-folders/document-folders.module';
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { S3Module } from '../../shared/services/s3.module';
       { name: User.name, schema: UserSchema },
     ]),
     S3Module,
+    ConceptsModule,
+    DocumentFoldersModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService],

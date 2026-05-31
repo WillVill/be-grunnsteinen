@@ -57,7 +57,7 @@ export class PostQueryDto extends PaginationQueryDto {
   groupId?: string;
 
   @ApiPropertyOptional({
-    description: 'Exclude posts that belong to a group (only org-wide posts)',
+    description: 'Exclude posts that belong to a group (only concept-wide posts)',
     example: true,
   })
   @IsOptional()
@@ -68,5 +68,21 @@ export class PostQueryDto extends PaginationQueryDto {
     return value;
   })
   excludeGroupPosts?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Filter by building ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid building ID format' })
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by concept ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
 }
 

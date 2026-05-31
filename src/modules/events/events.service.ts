@@ -18,6 +18,11 @@ import {
 } from "../../shared/services/notification.service";
 import { EmailService } from "../../shared/services/email.service";
 import { S3Service } from "../../shared/services/s3.service";
+import { ConceptsService } from "../concepts/concepts.service";
+import {
+  Permission,
+  canModerateInBuilding,
+} from "../../common/permissions/permissions";
 
 @Injectable()
 export class EventsService {
@@ -33,6 +38,7 @@ export class EventsService {
     private readonly notificationService: NotificationService,
     private readonly emailService: EmailService,
     private readonly s3Service: S3Service,
+    private readonly conceptsService: ConceptsService,
   ) {}
 
   /**
@@ -48,9 +54,23 @@ export class EventsService {
       throw new BadRequestException("End date must be after start date");
     }
 
-    if (!createDto.isOrganizationWide && !createDto.buildingId) {
+    if (!createDto.buildingId && !createDto.conceptId) {
       throw new BadRequestException(
-        "Either a building must be selected or the event must be marked as organization-wide.",
+        "Either a building or a concept must be provided.",
+      );
+    }
+
+    let conceptObjectId: Types.ObjectId | null = null;
+    if (createDto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(
+        createDto.conceptId,
+        organizationId,
+      );
+      conceptObjectId = new Types.ObjectId(createDto.conceptId);
+    } else if (createDto.buildingId) {
+      conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
+        createDto.buildingId,
+        organizationId,
       );
     }
 
@@ -62,6 +82,7 @@ export class EventsService {
       ...(rest.buildingId
         ? { buildingId: new Types.ObjectId(rest.buildingId) }
         : {}),
+      ...(conceptObjectId ? { conceptId: conceptObjectId } : {}),
       ...(galleryKey && {
         imageUrl: this.s3Service.buildGalleryImageUrl(galleryKey),
       }),
@@ -69,7 +90,7 @@ export class EventsService {
       organizationId: new Types.ObjectId(organizationId),
       participants: [new Types.ObjectId(userId)],
       participantsCount: 1,
-      isOrganizationWide: rest.isOrganizationWide ?? false,
+      isConceptWide: rest.isConceptWide ?? false,
     });
 
     this.logger.log(`Event created: ${event._id} by user ${userId}`);
@@ -102,7 +123,7 @@ export class EventsService {
         .exec();
       recipientIds.push(...usersInBuilding.map((u) => u._id.toString()));
     }
-    if (recipientIds.length === 0 && event.isOrganizationWide) {
+    if (recipientIds.length === 0 && event.isConceptWide) {
       const orgUsers = await this.userModel
         .find({
           organizationId: new Types.ObjectId(organizationId),
@@ -196,12 +217,38 @@ export class EventsService {
       filter.participants = new Types.ObjectId(userId);
     }
 
-    // Building filter: show items for the selected building or org-wide items
+    // Concept-scoped filter (see PostsService.findAll for the full rationale):
+    // if we can't derive a conceptId for the building, drop the isConceptWide
+    // OR-branch so we never pull content from other concepts.
+    let scopeConceptId: Types.ObjectId | null = null;
+    if (query.conceptId) {
+      scopeConceptId = new Types.ObjectId(query.conceptId);
+    } else if (query.buildingId) {
+      const derived = await this.conceptsService.findConceptIdForBuilding(
+        query.buildingId,
+        organizationId,
+      );
+      scopeConceptId = derived ?? null;
+      if (!derived) {
+        this.logger.warn(
+          `Building ${query.buildingId} has no conceptId; ` +
+            `concept-wide events will be omitted from this query`,
+        );
+      }
+    }
+
     if (query.buildingId) {
-      filter.$or = [
-        { buildingId: new Types.ObjectId(query.buildingId) },
-        { isOrganizationWide: true },
-      ];
+      if (scopeConceptId) {
+        filter.conceptId = scopeConceptId;
+        filter.$or = [
+          { buildingId: new Types.ObjectId(query.buildingId) },
+          { isConceptWide: true },
+        ];
+      } else {
+        filter.buildingId = new Types.ObjectId(query.buildingId);
+      }
+    } else if (scopeConceptId) {
+      filter.conceptId = scopeConceptId;
     }
 
     const [events, total] = await Promise.all([
@@ -256,11 +303,13 @@ export class EventsService {
     // Verify user is organizer or board member
     const user = await this.userModel.findById(userId);
     const isOrganizer = event.organizerId.toString() === userId;
-    const isBoard = user && ["board", "admin"].includes(user.role);
+    const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
 
-    if (!isOrganizer && !isBoard) {
+    if (!isOrganizer && !canModerate) {
       throw new ForbiddenException(
-        "Only the organizer or board members can update this event",
+        "Only the organizer or a moderator for this building can update this event",
       );
     }
 
@@ -324,11 +373,13 @@ export class EventsService {
     // Verify user is organizer or board member
     const user = await this.userModel.findById(userId);
     const isOrganizer = event.organizerId.toString() === userId;
-    const isBoard = user && ["board", "admin"].includes(user.role);
+    const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
 
-    if (!isOrganizer && !isBoard) {
+    if (!isOrganizer && !canModerate) {
       throw new ForbiddenException(
-        "Only the organizer or board members can delete this event",
+        "Only the organizer or a moderator for this building can delete this event",
       );
     }
 
@@ -374,11 +425,13 @@ export class EventsService {
     // Verify user is organizer or board member
     const user = await this.userModel.findById(userId);
     const isOrganizer = event.organizerId.toString() === userId;
-    const isBoard = user && ["board", "admin"].includes(user.role);
+    const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
 
-    if (!isOrganizer && !isBoard) {
+    if (!isOrganizer && !canModerate) {
       throw new ForbiddenException(
-        "Only the organizer or board members can cancel this event",
+        "Only the organizer or a moderator for this building can cancel this event",
       );
     }
 

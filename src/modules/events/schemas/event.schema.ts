@@ -49,8 +49,15 @@ export class Event {
   })
   buildingId?: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Concept',
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ default: false })
-  isOrganizationWide: boolean;
+  isConceptWide: boolean;
 
   @Prop({ required: true, trim: true })
   title: string;
@@ -114,7 +121,8 @@ EventSchema.index({ organizationId: 1, category: 1, startDate: 1 });
 EventSchema.index({ organizerId: 1, startDate: -1 });
 EventSchema.index({ groupId: 1, startDate: -1 });
 EventSchema.index({ organizationId: 1, buildingId: 1, startDate: 1 });
-EventSchema.index({ buildingId: 1, isOrganizationWide: 1 });
+EventSchema.index({ organizationId: 1, conceptId: 1, startDate: 1 });
+EventSchema.index({ conceptId: 1, isConceptWide: 1 });
 
 // Text search index
 EventSchema.index({ title: 'text', description: 'text', location: 'text' });

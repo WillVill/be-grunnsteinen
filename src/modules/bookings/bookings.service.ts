@@ -22,6 +22,7 @@ import {
   NotificationType,
 } from '../../shared/services/notification.service';
 import { EmailService, EmailUser } from '../../shared/services/email.service';
+import { ConceptsService } from '../concepts/concepts.service';
 
 @Injectable()
 export class BookingsService {
@@ -36,6 +37,7 @@ export class BookingsService {
     private readonly userModel: Model<UserDocument>,
     private readonly notificationService: NotificationService,
     private readonly emailService: EmailService,
+    private readonly conceptsService: ConceptsService,
   ) {}
 
   /**
@@ -86,11 +88,12 @@ export class BookingsService {
       ? BookingStatus.PENDING
       : BookingStatus.CONFIRMED;
 
-    // Create booking – buildingId is derived from the resource
+    // Create booking – buildingId/conceptId are derived from the resource.
     const booking = await this.bookingModel.create({
       organizationId: new Types.ObjectId(orgId),
       resourceId: new Types.ObjectId(dto.resourceId),
-      buildingId: resource.buildingId,
+      ...(resource.buildingId ? { buildingId: resource.buildingId } : {}),
+      ...(resource.conceptId ? { conceptId: resource.conceptId } : {}),
       userId: new Types.ObjectId(userId),
       startDate: dto.startDate,
       endDate: dto.endDate,
@@ -210,7 +213,22 @@ export class BookingsService {
       filter.status = status;
     }
 
-    // Building filter
+    // Concept-scoped filter: prefer explicit conceptId, otherwise derive from
+    // buildingId for consistency with the other content services. Bookings do
+    // not have an "isConceptWide" notion, so we never expand the scope.
+    let scopeConceptId: Types.ObjectId | null = null;
+    if (query.conceptId) {
+      scopeConceptId = new Types.ObjectId(query.conceptId);
+    } else if (query.buildingId) {
+      const derived = await this.conceptsService.findConceptIdForBuilding(
+        query.buildingId,
+        orgId,
+      );
+      scopeConceptId = derived ?? null;
+    }
+    if (scopeConceptId) {
+      filter.conceptId = scopeConceptId;
+    }
     if (query.buildingId) {
       filter.buildingId = new Types.ObjectId(query.buildingId);
     }

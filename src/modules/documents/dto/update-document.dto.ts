@@ -1,13 +1,13 @@
 import {
   IsString,
   IsOptional,
-  IsEnum,
   IsBoolean,
+  IsMongoId,
   MinLength,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { DocumentCategory } from '../schemas/document.schema';
 
 export class UpdateDocumentDto {
   @ApiPropertyOptional({
@@ -31,13 +31,15 @@ export class UpdateDocumentDto {
   description?: string;
 
   @ApiPropertyOptional({
-    enum: DocumentCategory,
-    example: DocumentCategory.RULES,
-    description: 'Document category',
+    example: '507f1f77bcf86cd799439011',
+    description:
+      'Folder ID. Pass null to remove the document from its folder (move to "Ikke sortert").',
+    nullable: true,
   })
   @IsOptional()
-  @IsEnum(DocumentCategory)
-  category?: DocumentCategory;
+  @ValidateIf((_, value) => value !== null)
+  @IsMongoId({ message: 'Invalid folder ID format' })
+  folderId?: string | null;
 
   @ApiPropertyOptional({
     example: true,
@@ -47,4 +49,3 @@ export class UpdateDocumentDto {
   @IsBoolean()
   isPublic?: boolean;
 }
-

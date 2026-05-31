@@ -4,6 +4,7 @@ import { TenantProfilesService } from './tenant-profiles.service';
 import { TenantProfilesController } from './tenant-profiles.controller';
 import { TenantProfile, TenantProfileSchema } from './schemas/tenant-profile.schema';
 import { Apartment, ApartmentSchema } from '../apartments/schemas/apartment.schema';
+import { Building, BuildingSchema } from '../buildings/schemas/building.schema';
 import { Invitation, InvitationSchema } from '../invitations/schemas/invitation.schema';
 import { InvitationsModule } from '../invitations/invitations.module';
 
@@ -12,6 +13,7 @@ import { InvitationsModule } from '../invitations/invitations.module';
     MongooseModule.forFeature([
       { name: TenantProfile.name, schema: TenantProfileSchema },
       { name: Apartment.name, schema: ApartmentSchema },
+      { name: Building.name, schema: BuildingSchema },
       { name: Invitation.name, schema: InvitationSchema },
     ]),
     InvitationsModule,

@@ -10,6 +10,8 @@ export type UserDocument = User &
 
 export enum UserRole {
   RESIDENT = "resident",
+  HOST = "host", // Vert — social/practical building host
+  CARETAKER = "caretaker", // Vaktmester — operational role
   BOARD = "board",
   ADMIN = "admin",
   SUPER_ADMIN = "super_admin",
@@ -164,6 +166,12 @@ export class User {
 
   @Prop({ default: false })
   isProfilePrivate: boolean;
+
+  @Prop({ default: true })
+  isEmailVisible: boolean;
+
+  @Prop({ default: true })
+  isPhoneVisible: boolean;
 
 
   @Prop({ type: NotificationPreferences, default: () => ({}) })

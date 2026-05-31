@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
+  IsMongoId,
   ValidateNested,
   MaxLength,
   MinLength,
@@ -23,6 +24,10 @@ export class BuildingSettingsDto {
 }
 
 export class CreateBuildingDto {
+  @IsOptional()
+  @IsMongoId()
+  conceptId?: string;
+
   @IsString()
   @MinLength(1)
   @MaxLength(100)

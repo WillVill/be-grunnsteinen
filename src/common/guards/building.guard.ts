@@ -6,7 +6,7 @@ import {
   SetMetadata,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { UserRole } from "../../modules/users/schemas/user.schema";
+import { isAdminRole } from "../../modules/users/schemas/user.schema";
 import { CurrentUserData } from "../decorators/current-user.decorator";
 
 export const BUILDING_KEY = "buildingId";
@@ -49,9 +49,10 @@ export class BuildingGuard implements CanActivate {
       return false;
     }
 
-    // Only super admins have access to all buildings in their organization
-    // Regular admins are scoped to their assigned buildings
-    if (user.role === UserRole.SUPER_ADMIN) {
+    // Admins and super admins span all buildings in their organization.
+    // Scoped roles (host, caretaker, resident) are limited to their assigned
+    // buildings.
+    if (isAdminRole(user.role)) {
       return true;
     }
 

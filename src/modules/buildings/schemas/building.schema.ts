@@ -26,6 +26,14 @@ export class Building {
   })
   organizationId: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: "Concept",
+    required: false,
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ required: true, trim: true })
   name: string;
 
@@ -65,3 +73,6 @@ BuildingSchema.index({ organizationId: 1, code: 1 }, { unique: true, sparse: tru
 
 // Index for querying active buildings in an organization
 BuildingSchema.index({ organizationId: 1, isActive: 1 });
+
+// Index for querying buildings by concept within an organization
+BuildingSchema.index({ organizationId: 1, conceptId: 1, isActive: 1 });

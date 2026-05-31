@@ -7,9 +7,9 @@ export type SharedItemDocument = SharedItem & Document;
 export enum SharedItemCategory {
   TOOLS = 'tools',
   OUTDOOR = 'outdoor',
-  TOYS = 'toys',
+  GAMES_SOCIAL = 'games-social',
   KITCHEN = 'kitchen',
-  ELECTRONICS = 'electronics',
+  PARKING = 'parking',
   OTHER = 'other',
 }
 
@@ -38,8 +38,15 @@ export class SharedItem {
   })
   buildingId?: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Concept',
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ default: false })
-  isOrganizationWide: boolean;
+  isConceptWide: boolean;
 
   @Prop({ required: true, trim: true })
   name: string;
@@ -78,7 +85,8 @@ SharedItemSchema.index({ organizationId: 1, isAvailable: 1 });
 SharedItemSchema.index({ organizationId: 1, category: 1, isAvailable: 1 });
 SharedItemSchema.index({ ownerId: 1, isAvailable: 1 });
 SharedItemSchema.index({ organizationId: 1, buildingId: 1, isAvailable: 1 });
-SharedItemSchema.index({ buildingId: 1, isOrganizationWide: 1 });
+SharedItemSchema.index({ organizationId: 1, conceptId: 1, isAvailable: 1 });
+SharedItemSchema.index({ conceptId: 1, isConceptWide: 1 });
 
 // Text search index
 SharedItemSchema.index({ name: 'text', description: 'text' });

@@ -7,11 +7,11 @@ class ResourceInfoDto {
   @Expose()
   _id: string;
 
-  @ApiProperty({ example: 'Guest Apartment A' })
+  @ApiProperty({ example: 'Selskapslokale 1' })
   @Expose()
   name: string;
 
-  @ApiPropertyOptional({ example: 'guest-apartment' })
+  @ApiPropertyOptional({ example: 'selskapslokale' })
   @Expose()
   type?: string;
 }

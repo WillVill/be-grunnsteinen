@@ -18,7 +18,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "setup:base": "ts-node scripts/setup-base-organization.ts"
+    "setup:base": "ts-node scripts/setup-base-organization.ts",
+    "setup:customer": "ts-node scripts/setup-customer-grunnsteinen.ts",
+    "migrate:concepts": "ts-node scripts/migrate-concepts.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",

@@ -8,7 +8,6 @@ export enum HelpRequestCategory {
   PET_CARE = 'pet-care',
   PLANT_CARE = 'plant-care',
   HANDYMAN = 'handyman',
-  TUTORING = 'tutoring',
   ERRANDS = 'errands',
   OTHER = 'other',
 }
@@ -45,8 +44,15 @@ export class HelpRequest {
   })
   buildingId?: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Concept',
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ default: false })
-  isOrganizationWide: boolean;
+  isConceptWide: boolean;
 
   @Prop({ required: true, trim: true })
   title: string;
@@ -90,7 +96,8 @@ HelpRequestSchema.index({ organizationId: 1, status: 1 });
 HelpRequestSchema.index({ organizationId: 1, category: 1, status: 1 });
 HelpRequestSchema.index({ requesterId: 1, status: 1 });
 HelpRequestSchema.index({ organizationId: 1, buildingId: 1, status: 1 });
-HelpRequestSchema.index({ buildingId: 1, isOrganizationWide: 1 });
+HelpRequestSchema.index({ organizationId: 1, conceptId: 1, status: 1 });
+HelpRequestSchema.index({ conceptId: 1, isConceptWide: 1 });
 
 // Text search index
 HelpRequestSchema.index({ title: 'text', description: 'text' });

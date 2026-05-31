@@ -8,6 +8,7 @@ import { EventsController } from "./events.controller";
 import { NotificationModule } from "../../shared/services/notification.module";
 import { EmailModule } from "../../shared/services/email.module";
 import { S3Module } from "../../shared/services/s3.module";
+import { ConceptsModule } from "../concepts/concepts.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { S3Module } from "../../shared/services/s3.module";
     NotificationModule,
     EmailModule,
     S3Module,
+    ConceptsModule,
   ],
   controllers: [EventsController],
   providers: [EventsService],

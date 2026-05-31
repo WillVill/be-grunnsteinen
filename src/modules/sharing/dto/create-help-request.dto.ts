@@ -2,10 +2,12 @@ import {
   IsString,
   IsEnum,
   IsMongoId,
+  IsOptional,
+  IsBoolean,
   MinLength,
   MaxLength,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { HelpRequestCategory } from '../schemas/help-request.schema';
 
 export class CreateHelpRequestDto {
@@ -20,12 +22,29 @@ export class CreateHelpRequestDto {
   @MaxLength(100, { message: 'Title must not exceed 100 characters' })
   title: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '507f1f77bcf86cd799439011',
-    description: 'Building ID the help request belongs to',
+    description: 'Building ID the help request belongs to (omit for concept-wide)',
   })
+  @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
-  buildingId: string;
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description: 'Concept ID. Derived from buildingId when omitted.',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'When true, the help request is visible across all buildings in the concept.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isConceptWide?: boolean;
 
   @ApiProperty({
     example: 'I need someone to walk my dog on Saturday and Sunday morning around 8 AM.',
@@ -42,7 +61,7 @@ export class CreateHelpRequestDto {
     description: 'Category of help request',
   })
   @IsEnum(HelpRequestCategory, {
-    message: 'Category must be one of: pet-care, plant-care, handyman, tutoring, errands, other',
+    message: 'Category must be one of: pet-care, plant-care, handyman, errands, other',
   })
   category: HelpRequestCategory;
 }

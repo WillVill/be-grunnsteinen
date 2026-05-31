@@ -4,16 +4,6 @@ import { baseSchemaOptions } from '../../../common/schemas/base.schema';
 
 export type DocumentDocument = Document & MongooseDocument;
 
-export enum DocumentCategory {
-  RULES = 'rules',
-  MINUTES = 'minutes',
-  FDV = 'fdv',
-  MANUALS = 'manuals',
-  CONTRACTS = 'contracts',
-  FLOOR_PLAN = 'floor-plan',
-  OTHER = 'other',
-}
-
 @Schema(baseSchemaOptions)
 export class Document {
   @Prop({
@@ -31,8 +21,15 @@ export class Document {
   })
   buildingId?: Types.ObjectId;
 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Concept',
+    index: true,
+  })
+  conceptId?: Types.ObjectId;
+
   @Prop({ default: false })
-  isOrganizationWide: boolean;
+  isConceptWide: boolean;
 
   @Prop({ required: true, trim: true })
   title: string;
@@ -41,12 +38,11 @@ export class Document {
   description?: string;
 
   @Prop({
-    type: String,
-    enum: Object.values(DocumentCategory),
-    required: true,
+    type: Types.ObjectId,
+    ref: 'DocumentFolder',
     index: true,
   })
-  category: DocumentCategory;
+  folderId?: Types.ObjectId;
 
   @Prop({ required: true })
   fileUrl: string;
@@ -84,17 +80,12 @@ export class Document {
 
 export const DocumentSchema = SchemaFactory.createForClass(Document);
 
-// Compound indexes
-DocumentSchema.index({ organizationId: 1, category: 1 });
+DocumentSchema.index({ organizationId: 1, folderId: 1 });
 DocumentSchema.index({ organizationId: 1, isPublic: 1 });
-DocumentSchema.index({ organizationId: 1, category: 1, isPublic: 1 });
+DocumentSchema.index({ organizationId: 1, folderId: 1, isPublic: 1 });
 DocumentSchema.index({ uploadedById: 1, createdAt: -1 });
-DocumentSchema.index({ organizationId: 1, buildingId: 1, category: 1 });
-DocumentSchema.index({ buildingId: 1, isOrganizationWide: 1 });
-
-// Apartment documents index
-DocumentSchema.index({ apartmentId: 1, category: 1 });
-
-// Text search index
+DocumentSchema.index({ organizationId: 1, buildingId: 1, folderId: 1 });
+DocumentSchema.index({ organizationId: 1, conceptId: 1, folderId: 1 });
+DocumentSchema.index({ conceptId: 1, isConceptWide: 1 });
+DocumentSchema.index({ apartmentId: 1 });
 DocumentSchema.index({ title: 'text', description: 'text' });
-

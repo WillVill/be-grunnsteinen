@@ -19,6 +19,8 @@ import {
 } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { NotificationService, NotificationType } from '../../shared/services/notification.service';
+import { ConceptsService } from '../concepts/concepts.service';
+import { Permission, canModerateInBuilding } from '../../common/permissions/permissions';
 
 @Injectable()
 export class PostsService {
@@ -34,6 +36,7 @@ export class PostsService {
     @InjectModel(Group.name)
     private readonly groupModel: Model<GroupDocument>,
     private readonly notificationService: NotificationService,
+    private readonly conceptsService: ConceptsService,
   ) {}
 
   /**
@@ -52,9 +55,23 @@ export class PostsService {
 
     const isFromBoard = ['board', 'admin'].includes(user.role);
 
-    if (!createDto.isOrganizationWide && !createDto.buildingId) {
+    if (!createDto.buildingId && !createDto.conceptId) {
       throw new BadRequestException(
-        'Either a building must be selected or the post must be marked as organization-wide.',
+        'Either a building or a concept must be provided.',
+      );
+    }
+
+    let conceptObjectId: Types.ObjectId | null = null;
+    if (createDto.conceptId) {
+      await this.conceptsService.assertConceptInOrg(
+        createDto.conceptId,
+        organizationId,
+      );
+      conceptObjectId = new Types.ObjectId(createDto.conceptId);
+    } else if (createDto.buildingId) {
+      conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
+        createDto.buildingId,
+        organizationId,
       );
     }
 
@@ -65,10 +82,13 @@ export class PostsService {
       authorId: new Types.ObjectId(userId),
       organizationId: new Types.ObjectId(organizationId),
       isFromBoard,
-      isOrganizationWide: createDto.isOrganizationWide ?? false,
+      isConceptWide: createDto.isConceptWide ?? false,
     };
     if (createDto.buildingId) {
       postData.buildingId = new Types.ObjectId(createDto.buildingId);
+    }
+    if (conceptObjectId) {
+      postData.conceptId = conceptObjectId;
     }
     if (createDto.groupId) {
       postData.groupId = new Types.ObjectId(createDto.groupId);
@@ -164,22 +184,53 @@ export class PostsService {
       filter.$or = [{ groupId: { $exists: false } }, { groupId: null }];
     }
 
-    // Building filter: show items for the selected building or org-wide items
-    if (query.buildingId) {
-      const buildingCondition = {
-        $or: [
-          { buildingId: new Types.ObjectId(query.buildingId) },
-          { isOrganizationWide: true },
-        ],
-      };
-      // Combine with existing filter using $and to avoid overwriting $or
-      if (filter.$or) {
-        const existingOr = filter.$or;
-        delete filter.$or;
-        filter.$and = [{ $or: existingOr }, buildingCondition];
-      } else {
-        filter.$or = buildingCondition.$or;
+    // Concept-scoped filter: prefer explicit conceptId, otherwise derive from
+    // the building. If neither yields a concept (pre-migration building), we
+    // intentionally drop the `isConceptWide: true` OR-branch and scope to the
+    // building only — never leak concept-wide content across concepts.
+    let scopeConceptId: Types.ObjectId | null = null;
+    if (query.conceptId) {
+      scopeConceptId = new Types.ObjectId(query.conceptId);
+    } else if (query.buildingId) {
+      const derived = await this.conceptsService.findConceptIdForBuilding(
+        query.buildingId,
+        organizationId,
+      );
+      scopeConceptId = derived ?? null;
+      if (!derived) {
+        this.logger.warn(
+          `Building ${query.buildingId} has no conceptId; ` +
+            `concept-wide content will be omitted from this query`,
+        );
       }
+    }
+
+    if (query.buildingId) {
+      const buildingCondition = scopeConceptId
+        ? {
+            $or: [
+              { buildingId: new Types.ObjectId(query.buildingId) },
+              { isConceptWide: true },
+            ],
+          }
+        : { buildingId: new Types.ObjectId(query.buildingId) };
+
+      if (scopeConceptId) {
+        filter.conceptId = scopeConceptId;
+      }
+      if ("$or" in buildingCondition) {
+        if (filter.$or) {
+          const existingOr = filter.$or;
+          delete filter.$or;
+          filter.$and = [{ $or: existingOr }, buildingCondition];
+        } else {
+          filter.$or = buildingCondition.$or;
+        }
+      } else {
+        filter.buildingId = buildingCondition.buildingId;
+      }
+    } else if (scopeConceptId) {
+      filter.conceptId = scopeConceptId;
     }
 
     // Build sort: pinned posts first, then by specified field
@@ -287,10 +338,15 @@ export class PostsService {
     const user = await this.userModel.findById(userId);
     const authorIdStr = ((post.authorId as any)?._id ?? post.authorId).toString();
     const isAuthor = authorIdStr === userId;
-    const isBoard = user && ['board', 'admin'].includes(user.role);
+    // Concept-wide posts are out of a host's building scope (admins only).
+    const scopeBuildingId = post.isConceptWide ? null : post.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.POST_MODERATE);
 
-    if (!isAuthor && !isBoard) {
-      throw new ForbiddenException('Only the author or board members can update this post');
+    if (!isAuthor && !canModerate) {
+      throw new ForbiddenException(
+        'Only the author or a moderator for this building can update this post',
+      );
     }
 
     const updatedPost = await this.postModel
@@ -313,10 +369,15 @@ export class PostsService {
     const user = await this.userModel.findById(userId);
     const authorIdStr = ((post.authorId as any)?._id ?? post.authorId).toString();
     const isAuthor = authorIdStr === userId;
-    const isBoard = user && ['board', 'admin'].includes(user.role);
+    // Concept-wide posts are out of a host's building scope (admins only).
+    const scopeBuildingId = post.isConceptWide ? null : post.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.POST_MODERATE);
 
-    if (!isAuthor && !isBoard) {
-      throw new ForbiddenException('Only the author or board members can delete this post');
+    if (!isAuthor && !canModerate) {
+      throw new ForbiddenException(
+        'Only the author or a moderator for this building can delete this post',
+      );
     }
 
     // Delete all comments
@@ -334,10 +395,13 @@ export class PostsService {
   async togglePin(postId: string, userId: string): Promise<PostDocument> {
     const post = await this.findPostDocument(postId);
 
-    // Verify user is board member
+    // Verify user can moderate posts in this post's building
     const user = await this.userModel.findById(userId);
-    if (!user || !['board', 'admin'].includes(user.role)) {
-      throw new ForbiddenException('Only board members can pin/unpin posts');
+    const scopeBuildingId = post.isConceptWide ? null : post.buildingId;
+    if (!user || !canModerateInBuilding(user, scopeBuildingId, Permission.POST_MODERATE)) {
+      throw new ForbiddenException(
+        'Only a moderator for this building can pin/unpin posts',
+      );
     }
 
     post.isPinned = !post.isPinned;
@@ -469,14 +533,17 @@ export class PostsService {
       throw new NotFoundException('Comment not found');
     }
 
-    // Verify user is comment author or board member
+    // Verify user is comment author or a moderator for the post's building
     const user = await this.userModel.findById(userId);
+    const post = await this.postModel.findById(comment.postId);
     const isAuthor = comment.authorId.toString() === userId;
-    const isBoard = user && ['board', 'admin'].includes(user.role);
+    const scopeBuildingId = post?.isConceptWide ? null : post?.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.POST_MODERATE);
 
-    if (!isAuthor && !isBoard) {
+    if (!isAuthor && !canModerate) {
       throw new ForbiddenException(
-        'Only the author or board members can delete this comment',
+        'Only the author or a moderator for this building can delete this comment',
       );
     }
 
@@ -489,8 +556,7 @@ export class PostsService {
       repliesDeletedCount = repliesResult.deletedCount ?? 0;
     }
 
-    // Find post and decrement comments count by 1 + deleted replies
-    const post = await this.postModel.findById(comment.postId);
+    // Decrement comments count by 1 + deleted replies
     if (post) {
       post.commentsCount = Math.max(0, post.commentsCount - 1 - repliesDeletedCount);
       await post.save();

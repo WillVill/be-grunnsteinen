@@ -1,22 +1,15 @@
-import {
-  IsOptional,
-  IsEnum,
-  IsString,
-  IsMongoId,
-} from 'class-validator';
+import { IsOptional, IsString, IsMongoId } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
-import { DocumentCategory } from '../schemas/document.schema';
 
 export class DocumentQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
-    description: 'Filter by document category',
-    enum: DocumentCategory,
-    example: DocumentCategory.RULES,
+    description:
+      'Filter by folder ID. Pass the literal string "null" to return only documents without a folder ("Ikke sortert").',
   })
   @IsOptional()
-  @IsEnum(DocumentCategory)
-  category?: DocumentCategory;
+  @IsString()
+  folderId?: string;
 
   @ApiPropertyOptional({
     description: 'Search documents by title or description',
@@ -33,5 +26,20 @@ export class DocumentQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsMongoId({ message: 'Invalid apartment ID format' })
   apartmentId?: string;
-}
 
+  @ApiPropertyOptional({
+    description: 'Filter by building ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid building ID format' })
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by concept ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
+}

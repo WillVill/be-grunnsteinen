@@ -7,6 +7,7 @@ import { BookingsService } from './bookings.service';
 import { BookingsController } from './bookings.controller';
 import { NotificationModule } from '../../shared/services/notification.module';
 import { EmailModule } from '../../shared/services/email.module';
+import { ConceptsModule } from '../concepts/concepts.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { EmailModule } from '../../shared/services/email.module';
     ]),
     NotificationModule,
     EmailModule,
+    ConceptsModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService],

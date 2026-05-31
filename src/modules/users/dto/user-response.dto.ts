@@ -95,6 +95,14 @@ export class UserResponseDto {
   @Expose()
   isProfilePrivate: boolean;
 
+  @ApiProperty({ example: true })
+  @Expose()
+  isEmailVisible: boolean;
+
+  @ApiProperty({ example: true })
+  @Expose()
+  isPhoneVisible: boolean;
+
   @ApiProperty({ type: NotificationPreferencesResponse })
   @Expose()
   @Type(() => NotificationPreferencesResponse)

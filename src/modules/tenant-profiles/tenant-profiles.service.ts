@@ -13,6 +13,7 @@ import {
   TenantProfileStatus,
 } from './schemas/tenant-profile.schema';
 import { Apartment, ApartmentDocument } from '../apartments/schemas/apartment.schema';
+import { Building, BuildingDocument } from '../buildings/schemas/building.schema';
 import {
   Invitation,
   InvitationDocument,
@@ -20,6 +21,12 @@ import {
 } from '../invitations/schemas/invitation.schema';
 import { InvitationsService } from '../invitations/invitations.service';
 import { CreateTenantProfileDto, UpdateTenantProfileDto } from './dto';
+
+export interface TenantProfileCounts {
+  total: number;
+  registered: number;
+  unregistered: number;
+}
 
 @Injectable()
 export class TenantProfilesService {
@@ -30,6 +37,8 @@ export class TenantProfilesService {
     private readonly tenantProfileModel: Model<TenantProfileDocument>,
     @InjectModel(Apartment.name)
     private readonly apartmentModel: Model<ApartmentDocument>,
+    @InjectModel(Building.name)
+    private readonly buildingModel: Model<BuildingDocument>,
     @InjectModel(Invitation.name)
     private readonly invitationModel: Model<InvitationDocument>,
     private readonly invitationsService: InvitationsService,
@@ -59,9 +68,12 @@ export class TenantProfilesService {
       }
     }
 
+    const building = await this.buildingModel.findById(dto.buildingId).select('conceptId');
+
     const profile = await this.tenantProfileModel.create({
       organizationId: new Types.ObjectId(organizationId),
       buildingId: new Types.ObjectId(dto.buildingId),
+      ...(building?.conceptId ? { conceptId: building.conceptId } : {}),
       apartmentId: new Types.ObjectId(dto.apartmentId),
       firstName: dto.firstName.trim(),
       lastName: dto.lastName?.trim(),
@@ -101,6 +113,80 @@ export class TenantProfilesService {
       })
       .sort({ createdAt: -1 })
       .exec();
+  }
+
+  /**
+   * Aggregate registration counts for a single scope (building or concept).
+   * Avoids shipping the full profile list to the client just to count statuses.
+   */
+  async getCounts(
+    organizationId: string,
+    scope: { buildingId?: string; conceptId?: string },
+  ): Promise<TenantProfileCounts> {
+    const match: Record<string, unknown> = {
+      organizationId: new Types.ObjectId(organizationId),
+    };
+    if (scope.buildingId) match.buildingId = new Types.ObjectId(scope.buildingId);
+    if (scope.conceptId) match.conceptId = new Types.ObjectId(scope.conceptId);
+
+    const [total, registered] = await Promise.all([
+      this.tenantProfileModel.countDocuments(match),
+      this.tenantProfileModel.countDocuments({
+        ...match,
+        status: TenantProfileStatus.REGISTERED,
+      }),
+    ]);
+
+    return { total, registered, unregistered: Math.max(0, total - registered) };
+  }
+
+  /**
+   * Registration counts for many buildings in one round-trip, keyed by buildingId.
+   * Used by the admin landing page to avoid one request per building.
+   */
+  async getCountsForBuildings(
+    organizationId: string,
+    buildingIds: string[],
+  ): Promise<Record<string, TenantProfileCounts>> {
+    const result: Record<string, TenantProfileCounts> = {};
+    for (const id of buildingIds) {
+      result[id] = { total: 0, registered: 0, unregistered: 0 };
+    }
+    if (buildingIds.length === 0) return result;
+
+    const rows = await this.tenantProfileModel.aggregate<{
+      _id: Types.ObjectId;
+      total: number;
+      registered: number;
+    }>([
+      {
+        $match: {
+          organizationId: new Types.ObjectId(organizationId),
+          buildingId: { $in: buildingIds.map((id) => new Types.ObjectId(id)) },
+        },
+      },
+      {
+        $group: {
+          _id: '$buildingId',
+          total: { $sum: 1 },
+          registered: {
+            $sum: {
+              $cond: [{ $eq: ['$status', TenantProfileStatus.REGISTERED] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    for (const row of rows) {
+      const key = row._id.toString();
+      result[key] = {
+        total: row.total,
+        registered: row.registered,
+        unregistered: Math.max(0, row.total - row.registered),
+      };
+    }
+    return result;
   }
 
   async update(

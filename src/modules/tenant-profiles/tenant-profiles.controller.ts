@@ -36,6 +36,39 @@ export class TenantProfilesController {
     return this.tenantProfilesService.create(user.organizationId, user.userId, dto);
   }
 
+  @Get('counts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.BOARD)
+  @ApiOperation({
+    summary: 'Aggregate registration counts (total/registered/unregistered)',
+    description:
+      'Scope with buildingId or conceptId for a single { total, registered, unregistered }, ' +
+      'or buildingIds (comma-separated) for a map keyed by buildingId.',
+  })
+  @ApiQuery({ name: 'buildingId', required: false })
+  @ApiQuery({ name: 'conceptId', required: false })
+  @ApiQuery({ name: 'buildingIds', required: false, description: 'Comma-separated building IDs' })
+  counts(
+    @CurrentUser() user: CurrentUserData,
+    @Query('buildingId') buildingId?: string,
+    @Query('conceptId') conceptId?: string,
+    @Query('buildingIds') buildingIds?: string,
+  ) {
+    if (buildingIds) {
+      const ids = buildingIds.split(',').map((s) => s.trim()).filter(Boolean);
+      return this.tenantProfilesService.getCountsForBuildings(user.organizationId, ids);
+    }
+    if (buildingId || conceptId) {
+      return this.tenantProfilesService.getCounts(user.organizationId, {
+        buildingId,
+        conceptId,
+      });
+    }
+    throw new BadRequestException(
+      'Provide buildingId, conceptId, or buildingIds query param',
+    );
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.BOARD)

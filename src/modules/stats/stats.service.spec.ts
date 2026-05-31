@@ -125,7 +125,7 @@ describe('StatsService.runDailySnapshot', () => {
   });
 
   it('Test B: org-wide posts (buildingId null from $cond collapse) land only in org-wide row', async () => {
-    // postModel returns a row with buildingId null (isOrganizationWide collapsed)
+    // postModel returns a row with buildingId null (isConceptWide collapsed)
     const postModel = mockModel([{ organizationId: orgId, buildingId: null, count: 3 }]);
     const { module, dailyStatModel } = await buildModule({ postModel });
     const service = module.get(StatsService);

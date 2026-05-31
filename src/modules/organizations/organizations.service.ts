@@ -8,8 +8,44 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Organization, OrganizationDocument } from './schemas/organization.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Building, BuildingDocument } from '../buildings/schemas/building.schema';
+import { Concept, ConceptDocument } from '../concepts/schemas/concept.schema';
+import {
+  Booking,
+  BookingDocument,
+  BookingStatus,
+} from '../bookings/schemas/booking.schema';
+import {
+  Event,
+  EventDocument,
+  EventStatus,
+} from '../events/schemas/event.schema';
+import { Post, PostDocument } from '../posts/schemas/post.schema';
+import {
+  HelpRequest,
+  HelpRequestDocument,
+  HelpRequestStatus,
+} from '../sharing/schemas/help-request.schema';
+import {
+  TenantProfile,
+  TenantProfileDocument,
+  TenantProfileStatus,
+} from '../tenant-profiles/schemas/tenant-profile.schema';
 import { CreateOrganizationDto, UpdateOrganizationDto } from './dto';
 import { S3Service } from '../../shared/services/s3.service';
+
+export interface OrganizationStats {
+  userCount: number;
+  buildingCount: number;
+  conceptCount: number;
+  totalResidents: number;
+  registeredResidents: number;
+  activeBookings: number;
+  pendingBookings: number;
+  upcomingEvents: number;
+  totalPosts: number;
+  openHelpRequests: number;
+}
 
 @Injectable()
 export class OrganizationsService {
@@ -20,6 +56,20 @@ export class OrganizationsService {
     private readonly organizationModel: Model<OrganizationDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Building.name)
+    private readonly buildingModel: Model<BuildingDocument>,
+    @InjectModel(Concept.name)
+    private readonly conceptModel: Model<ConceptDocument>,
+    @InjectModel(Booking.name)
+    private readonly bookingModel: Model<BookingDocument>,
+    @InjectModel(Event.name)
+    private readonly eventModel: Model<EventDocument>,
+    @InjectModel(Post.name)
+    private readonly postModel: Model<PostDocument>,
+    @InjectModel(HelpRequest.name)
+    private readonly helpRequestModel: Model<HelpRequestDocument>,
+    @InjectModel(TenantProfile.name)
+    private readonly tenantProfileModel: Model<TenantProfileDocument>,
     private readonly s3Service: S3Service,
   ) {}
 
@@ -133,55 +183,70 @@ export class OrganizationsService {
   }
 
   /**
-   * Get organization statistics
+   * Get organization statistics.
+   * All counts are aggregated server-side so the admin overview never has to
+   * fetch and count paginated collections client-side.
    */
-  async getStats(id: string): Promise<{
-    userCount: number;
-    activeBookings: number;
-    upcomingEvents: number;
-  }> {
-    const organization = await this.findById(id);
+  async getStats(id: string): Promise<OrganizationStats> {
+    // Ensures the org exists (throws 404 otherwise)
+    await this.findById(id);
 
-    // Count active users
-    const userCount = await this.countUsers(id);
+    const orgId = new Types.ObjectId(id);
+    const now = new Date();
 
-    // Count active bookings (to be implemented when bookings module is created)
-    const activeBookings = await this.countActiveBookings(id);
-
-    // Count upcoming events (to be implemented when events module is created)
-    const upcomingEvents = await this.countUpcomingEvents(id);
+    const [
+      userCount,
+      buildingCount,
+      conceptCount,
+      totalResidents,
+      registeredResidents,
+      activeBookings,
+      pendingBookings,
+      upcomingEvents,
+      totalPosts,
+      openHelpRequests,
+    ] = await Promise.all([
+      this.userModel.countDocuments({ organizationId: orgId, isActive: true }),
+      this.buildingModel.countDocuments({ organizationId: orgId, isActive: true }),
+      this.conceptModel.countDocuments({ organizationId: orgId, isActive: true }),
+      this.tenantProfileModel.countDocuments({ organizationId: orgId }),
+      this.tenantProfileModel.countDocuments({
+        organizationId: orgId,
+        status: TenantProfileStatus.REGISTERED,
+      }),
+      this.bookingModel.countDocuments({
+        organizationId: orgId,
+        status: BookingStatus.CONFIRMED,
+        endDate: { $gte: now },
+      }),
+      this.bookingModel.countDocuments({
+        organizationId: orgId,
+        status: BookingStatus.PENDING,
+      }),
+      this.eventModel.countDocuments({
+        organizationId: orgId,
+        status: { $ne: EventStatus.CANCELLED },
+        startDate: { $gte: now },
+      }),
+      this.postModel.countDocuments({ organizationId: orgId }),
+      this.helpRequestModel.countDocuments({
+        organizationId: orgId,
+        status: HelpRequestStatus.OPEN,
+      }),
+    ]);
 
     return {
       userCount,
+      buildingCount,
+      conceptCount,
+      totalResidents,
+      registeredResidents,
       activeBookings,
+      pendingBookings,
       upcomingEvents,
+      totalPosts,
+      openHelpRequests,
     };
-  }
-
-  /**
-   * Count users in organization
-   */
-  private async countUsers(organizationId: string): Promise<number> {
-    return this.userModel.countDocuments({
-      organizationId: new Types.ObjectId(organizationId),
-      isActive: true,
-    });
-  }
-
-  /**
-   * Count active bookings (placeholder - to be implemented)
-   */
-  private async countActiveBookings(organizationId: string): Promise<number> {
-    // TODO: Implement when bookings module is created
-    return 0;
-  }
-
-  /**
-   * Count upcoming events (placeholder - to be implemented)
-   */
-  private async countUpcomingEvents(organizationId: string): Promise<number> {
-    // TODO: Implement when events module is created
-    return 0;
   }
 }
 

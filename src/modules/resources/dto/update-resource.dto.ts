@@ -11,13 +11,13 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ResourceType } from '../schemas/resource.schema';
 
 export class UpdateResourceDto {
-  @ApiPropertyOptional({ example: 'Updated Guest Apartment A' })
+  @ApiPropertyOptional({ example: 'Updated Selskapslokale 1' })
   @IsOptional()
   @IsString()
   name?: string;
 
   @ApiPropertyOptional({
-    example: ResourceType.GUEST_APARTMENT,
+    example: ResourceType.SELSKAPSLOKALE,
     enum: ResourceType,
   })
   @IsOptional()

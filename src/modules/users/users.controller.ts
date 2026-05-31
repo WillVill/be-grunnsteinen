@@ -40,7 +40,7 @@ import {
 import { S3Service } from "../../shared/services/s3.service";
 import { ThrottleUpload } from "../../common/decorators/throttle-upload.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
-import { UserRole } from "./schemas/user.schema";
+import { UserRole, isAdminRole } from "./schemas/user.schema";
 
 @ApiTags("Users")
 @ApiBearerAuth("JWT-auth")
@@ -50,6 +50,25 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly s3Service: S3Service,
   ) {}
+
+  // Strip email/phone when the viewer is a resident and the target user has
+  // chosen to hide them. Owners and board/admin/super_admin viewers always
+  // see the real values.
+  // Uses toJSON() so the response shape matches the existing serialization
+  // (id virtual present, __v stripped) instead of leaking the raw doc.
+  private redactContactInfo(target: any, viewer: CurrentUserData): any {
+    const plain =
+      target && typeof target.toJSON === "function"
+        ? target.toJSON()
+        : { ...target };
+    const targetId = plain.id?.toString?.() || plain._id?.toString?.();
+    const isOwner = viewer.userId === targetId;
+    const isPrivilegedViewer = viewer.role !== UserRole.RESIDENT;
+    if (isOwner || isPrivilegedViewer) return plain;
+    if (plain.isEmailVisible === false) delete plain.email;
+    if (plain.isPhoneVisible === false) delete plain.phone;
+    return plain;
+  }
 
   @Get()
   @ApiOperation({ summary: "Get paginated users in organization" })
@@ -61,7 +80,12 @@ export class UsersController {
     @CurrentUser() user: CurrentUserData,
     @Query() query: UserQueryDto,
   ) {
-    return this.usersService.findByOrganization(user.organizationId, query);
+    const result = await this.usersService.findByOrganization(
+      user.organizationId,
+      query,
+    );
+    result.data = result.data.map((u) => this.redactContactInfo(u, user));
+    return result;
   }
 
   @Get("helpful-neighbors")
@@ -71,7 +95,10 @@ export class UsersController {
     description: "List of helpful neighbors",
   })
   async getHelpfulNeighbors(@CurrentUser() user: CurrentUserData) {
-    return this.usersService.getHelpfulNeighbors(user.organizationId);
+    const neighbors = await this.usersService.getHelpfulNeighbors(
+      user.organizationId,
+    );
+    return neighbors.map((n) => this.redactContactInfo(n, user));
   }
 
   @Get("me")
@@ -109,16 +136,16 @@ export class UsersController {
       );
     }
 
-    // If profile is private, only the user themselves or an admin can view it
+    // If profile is private, only the user themselves or an admin/super_admin can view it
     if (
       user.isProfilePrivate &&
       currentUser.userId !== id &&
-      currentUser.role !== "admin"
+      !isAdminRole(currentUser.role)
     ) {
       throw new ForbiddenException("Profile is private");
     }
 
-    return user;
+    return this.redactContactInfo(user, currentUser);
   }
 
   @Patch("me")

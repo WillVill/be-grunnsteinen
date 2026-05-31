@@ -52,5 +52,21 @@ export class BookingQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsMongoId({ message: 'Invalid user ID format' })
   userId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by building ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid building ID format' })
+  buildingId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by concept ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid concept ID format' })
+  conceptId?: string;
 }
 
