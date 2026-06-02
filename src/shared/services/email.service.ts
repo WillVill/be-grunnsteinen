@@ -193,7 +193,7 @@ export class EmailService {
     user: EmailUser,
     resetToken: string,
   ): Promise<void> {
-    const resetLink = `${this.frontendUrl}/auth/reset-password?token=${resetToken}`;
+    const resetLink = `${this.frontendUrl}/reset-password?token=${resetToken}`;
     const subject = "Tilbakestill passordet ditt";
     const content = `
       ${renderH1("Tilbakestill passord")}
