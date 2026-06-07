@@ -635,57 +635,134 @@ export class MessagesService {
    * channel, each with the resident participant and a staff-side unread count
    * (resident messages not yet read).
    */
-  async getBuildingSupportConversations(
+  /**
+   * Build the Mongo filter for the support threads a staff member may access.
+   * Mirrors canAccessConversation so the inbox can never list a thread the user
+   * isn't allowed to open: admins → all; board → grunnsteinen org-wide;
+   * host/caretaker → husvert in their assigned buildings; anyone else → none.
+   * Returns null when the caller is not eligible for any support thread.
+   */
+  private buildSupportInboxFilter(
     currentUser: CurrentUserData,
-    buildingId: string,
     channel?: 'grunnsteinen' | 'husvert',
-  ): Promise<Array<ConversationDocument & { unread: number }>> {
-    // Building access: admins and board span the org; host/caretaker are limited
-    // to the buildings they are assigned to (prevents cross-building IDOR).
-    const orgWide =
-      isAdminRole(currentUser.role) || currentUser.role === UserRole.BOARD;
-    if (!orgWide) {
-      const assigned = [
-        ...(currentUser.buildingIds || []).map((b) => b.toString()),
-        currentUser.primaryBuildingId?.toString(),
-      ].filter(Boolean);
-      if (!assigned.includes(buildingId)) {
-        throw new ForbiddenException(
-          'You do not have access to this building',
-        );
-      }
-    }
-
-    const filter: QueryFilter<ConversationDocument> = {
+  ): QueryFilter<ConversationDocument> | null {
+    const base: QueryFilter<ConversationDocument> = {
       organizationId: new Types.ObjectId(currentUser.organizationId),
-      buildingId: new Types.ObjectId(buildingId),
       type: 'support',
     };
-    if (channel) filter.supportChannel = channel;
+
+    if (isAdminRole(currentUser.role)) {
+      if (channel) base.supportChannel = channel; // admins may narrow by channel
+      return base;
+    }
+    if (currentUser.role === UserRole.BOARD) {
+      base.supportChannel = 'grunnsteinen';
+      return base;
+    }
+    if (
+      currentUser.role === UserRole.HOST ||
+      currentUser.role === UserRole.CARETAKER
+    ) {
+      const buildingIds = [
+        ...(currentUser.buildingIds || []).map((b) => b.toString()),
+        currentUser.primaryBuildingId?.toString(),
+      ]
+        .filter(Boolean)
+        .map((id) => new Types.ObjectId(id as string));
+      base.supportChannel = 'husvert';
+      base.buildingId = { $in: buildingIds } as unknown as Types.ObjectId;
+      return base;
+    }
+    return null;
+  }
+
+  /** Resident ids (participants[0]) for a set of support conversations. */
+  private supportResidentIds(
+    conversations: Array<{ participants: unknown[] }>,
+  ): Types.ObjectId[] {
+    return conversations
+      .map((c) => {
+        const first = c.participants?.[0] as any;
+        const id = first ? (first._id ?? first) : null;
+        return id ? new Types.ObjectId(id.toString()) : null;
+      })
+      .filter(Boolean) as Types.ObjectId[];
+  }
+
+  /**
+   * Top-level staff support inbox: every support thread the caller may access,
+   * with the resident + building populated and an unread count per thread.
+   */
+  async getSupportInbox(
+    currentUser: CurrentUserData,
+    channel?: 'grunnsteinen' | 'husvert',
+  ): Promise<Array<ConversationDocument & { unread: number }>> {
+    const filter = this.buildSupportInboxFilter(currentUser, channel);
+    if (!filter) return [];
 
     const conversations = await this.conversationModel
       .find(filter)
       .populate('participants', 'name avatarUrl avatarColor email')
+      .populate('buildingId', 'name')
       .sort({ lastMessageAt: -1 })
       .exec();
+    if (conversations.length === 0) return [];
 
-    return Promise.all(
-      conversations.map(async (conv) => {
-        const residentId = conv.participants[0]
-          ? ((conv.participants[0] as any)._id ?? conv.participants[0])
-          : null;
-        const unread = residentId
-          ? await this.messageModel.countDocuments({
-              conversationId: conv._id,
-              senderId: residentId,
-              isRead: false,
-            })
-          : 0;
-        return Object.assign(conv.toObject(), { unread }) as ConversationDocument & {
-          unread: number;
-        };
-      }),
+    // Batched unread (no N+1): one aggregation over messages. We count only
+    // messages sent by the threads' residents (participants[0]); staff replies
+    // are excluded because staff are never a thread's resident.
+    const convIds = conversations.map((c) => c._id);
+    const residentIds = this.supportResidentIds(conversations);
+    const unreadAgg = await this.messageModel.aggregate([
+      {
+        $match: {
+          conversationId: { $in: convIds },
+          isRead: false,
+          senderId: { $in: residentIds },
+        },
+      },
+      { $group: { _id: '$conversationId', count: { $sum: 1 } } },
+    ]);
+    const unreadByConv = new Map<string, number>(
+      unreadAgg.map((u) => [u._id.toString(), u.count]),
     );
+
+    return conversations.map((conv) => {
+      const obj = conv.toObject() as any;
+      // `buildingId` was populated to a { id, name } doc — expose it as `building`
+      // and normalize `buildingId` back to the plain id string for the client.
+      const b = obj.buildingId;
+      if (b && typeof b === 'object') {
+        obj.building = { id: (b.id ?? b._id)?.toString(), name: b.name };
+        obj.buildingId = obj.building.id;
+      }
+      obj.unread = unreadByConv.get(conv._id.toString()) ?? 0;
+      return obj as ConversationDocument & { unread: number };
+    });
+  }
+
+  /** Total unread resident messages across the caller's accessible support threads. */
+  async getSupportInboxUnreadCount(
+    currentUser: CurrentUserData,
+  ): Promise<{ count: number }> {
+    const filter = this.buildSupportInboxFilter(currentUser);
+    if (!filter) return { count: 0 };
+
+    const conversations = await this.conversationModel
+      .find(filter)
+      .select('_id participants')
+      .lean()
+      .exec();
+    if (conversations.length === 0) return { count: 0 };
+
+    const convIds = conversations.map((c) => c._id);
+    const residentIds = this.supportResidentIds(conversations);
+    const count = await this.messageModel.countDocuments({
+      conversationId: { $in: convIds },
+      isRead: false,
+      senderId: { $in: residentIds },
+    });
+    return { count };
   }
 
   /**

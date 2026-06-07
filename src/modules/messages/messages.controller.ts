@@ -83,27 +83,34 @@ export class MessagesController {
     );
   }
 
-  @Get('support/building/:buildingId')
+  @Get('support/unread-count')
   @Roles(UserRole.BOARD, UserRole.HOST, UserRole.CARETAKER)
   @UseGuards(RolesGuard)
   @ApiOperation({
-    summary: 'Staff: list support threads for a building',
+    summary: 'Staff: unread support-inbox count',
     description:
-      'Returns support conversations for a building (optionally filtered by channel) with staff-side unread counts.',
+      'Total unread resident messages across the support threads the caller can access. Drives the sidebar badge.',
   })
-  @ApiParam({ name: 'buildingId', description: 'Building ID' })
+  @ApiResponse({ status: 200, description: 'Unread support count' })
+  async getSupportInboxUnreadCount(@CurrentUser() user: CurrentUserData) {
+    return this.messagesService.getSupportInboxUnreadCount(user);
+  }
+
+  @Get('support')
+  @Roles(UserRole.BOARD, UserRole.HOST, UserRole.CARETAKER)
+  @UseGuards(RolesGuard)
+  @ApiOperation({
+    summary: 'Staff: support inbox (henvendelser)',
+    description:
+      'Every support thread the caller may access, scoped by role/buildings: admin → all; board → Grunnsteinen org-wide; host/caretaker → husvert in their buildings. Each row carries the resident, building and an unread count.',
+  })
   @ApiQuery({ name: 'channel', required: false, enum: ['grunnsteinen', 'husvert'] })
   @ApiResponse({ status: 200, description: 'Support conversations' })
-  async getBuildingSupport(
+  async getSupportInbox(
     @CurrentUser() user: CurrentUserData,
-    @Param('buildingId') buildingId: string,
     @Query('channel') channel?: 'grunnsteinen' | 'husvert',
   ) {
-    return this.messagesService.getBuildingSupportConversations(
-      user,
-      buildingId,
-      channel,
-    );
+    return this.messagesService.getSupportInbox(user, channel);
   }
 
   @Get('conversations')
