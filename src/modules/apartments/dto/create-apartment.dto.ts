@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsEnum,
   IsMongoId,
+  IsArray,
   MaxLength,
   MinLength,
   Min,
@@ -22,6 +23,16 @@ export class CreateApartmentDto {
   @IsOptional()
   @IsNumber()
   floor?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  entrance?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 
   @IsOptional()
   @IsNumber()

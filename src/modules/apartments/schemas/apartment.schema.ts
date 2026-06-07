@@ -44,6 +44,14 @@ export class Apartment {
   @Prop()
   floor?: number;
 
+  // Entrance / oppgang (e.g. "A", "B") — used for recipient segmentation
+  @Prop({ trim: true })
+  entrance?: string;
+
+  // Free-form tags (e.g. "garasje") — used for recipient segmentation
+  @Prop({ type: [String], default: [] })
+  tags: string[];
+
   @Prop({ min: 0 })
   sizeSqm?: number;
 

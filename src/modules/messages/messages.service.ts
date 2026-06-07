@@ -12,7 +12,12 @@ import {
   ConversationDocument,
 } from './schemas/conversation.schema';
 import { Message, MessageDocument } from './schemas/message.schema';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import {
+  User,
+  UserDocument,
+  UserRole,
+  isAdminRole,
+} from '../users/schemas/user.schema';
 import { CreateMessageDto, ConversationQueryDto, MessageQueryDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import {
@@ -20,6 +25,7 @@ import {
   NotificationType,
 } from '../../shared/services/notification.service';
 import { EmailService, EmailUser } from '../../shared/services/email.service';
+import { CurrentUserData } from '../../common/decorators/current-user.decorator';
 
 @Injectable()
 export class MessagesService {
@@ -85,6 +91,166 @@ export class MessagesService {
     return conversation;
   }
 
+  private toEmailUser(user: UserDocument): EmailUser {
+    return {
+      _id: user._id.toString(),
+      email: user.email,
+      firstName: (user.name || '').split(' ')[0],
+      lastName: (user.name || '').split(' ').slice(1).join(' ') || '',
+    };
+  }
+
+  /**
+   * Can this user read/reply to the conversation? Participants always can.
+   * For support threads, eligible staff can too (admins anywhere; board for the
+   * Grunnsteinen channel; host/caretaker for the husvert channel in their building).
+   */
+  private async canAccessConversation(
+    conversation: ConversationDocument,
+    userId: string,
+  ): Promise<boolean> {
+    const isParticipant = conversation.participants.some(
+      (p: any) => (p?._id ?? p).toString() === userId,
+    );
+    if (isParticipant) return true;
+    if (conversation.type !== 'support') return false;
+
+    const user = await this.userModel
+      .findById(userId)
+      .select('role buildingIds primaryBuildingId')
+      .lean()
+      .exec();
+    if (!user) return false;
+    if (isAdminRole(user.role)) return true;
+    if (conversation.supportChannel === 'grunnsteinen') {
+      return user.role === UserRole.BOARD;
+    }
+    if (conversation.supportChannel === 'husvert') {
+      const inBuilding =
+        !!conversation.buildingId &&
+        [
+          ...(user.buildingIds || []).map((b) => b.toString()),
+          user.primaryBuildingId?.toString(),
+        ].includes(conversation.buildingId.toString());
+      return (
+        (user.role === UserRole.HOST || user.role === UserRole.CARETAKER) &&
+        inBuilding
+      );
+    }
+    return false;
+  }
+
+  /**
+   * Staff who should be notified of a new resident message on a support thread.
+   * Grunnsteinen → admins + board (org-wide). Husvert → host/caretaker in building.
+   */
+  private async getSupportStaff(
+    conversation: ConversationDocument,
+  ): Promise<UserDocument[]> {
+    const orgId = conversation.organizationId;
+    if (conversation.supportChannel === 'grunnsteinen') {
+      return this.userModel
+        .find({
+          organizationId: orgId,
+          role: { $in: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.BOARD] },
+          isActive: true,
+        })
+        .exec();
+    }
+    // husvert
+    const buildingFilter = conversation.buildingId
+      ? {
+          $or: [
+            { buildingIds: conversation.buildingId },
+            { primaryBuildingId: conversation.buildingId },
+          ],
+        }
+      : {};
+    return this.userModel
+      .find({
+        organizationId: orgId,
+        role: { $in: [UserRole.HOST, UserRole.CARETAKER] },
+        isActive: true,
+        ...buildingFilter,
+      })
+      .exec();
+  }
+
+  /**
+   * Get (or lazily create) a resident's support thread for a channel.
+   */
+  async getOrCreateSupportConversation(
+    userId: string,
+    orgId: string,
+    channel: 'grunnsteinen' | 'husvert',
+  ): Promise<ConversationDocument> {
+    const existing = await this.conversationModel.findOne({
+      organizationId: new Types.ObjectId(orgId),
+      type: 'support',
+      supportChannel: channel,
+      participants: new Types.ObjectId(userId),
+    });
+    if (existing) return existing;
+
+    const resident = await this.userModel
+      .findById(userId)
+      .select('primaryBuildingId buildingIds')
+      .lean()
+      .exec();
+    const buildingId =
+      resident?.primaryBuildingId ?? resident?.buildingIds?.[0];
+
+    // Husvert support is building-scoped (staff eligibility + the building queue
+    // both key off buildingId). Without a building the thread would be invisible
+    // to staff and over-notify, so require one.
+    if (channel === 'husvert' && !buildingId) {
+      throw new BadRequestException(
+        'Du må være tilknyttet en bygning for å kontakte husvert',
+      );
+    }
+
+    try {
+      return await this.conversationModel.create({
+        organizationId: new Types.ObjectId(orgId),
+        participants: [new Types.ObjectId(userId)],
+        type: 'support',
+        supportChannel: channel,
+        buildingId,
+        unreadCount: new Map<string, number>(),
+      });
+    } catch (err: any) {
+      // Concurrent first message: the partial unique index rejected the second
+      // create. Re-fetch the thread the other request created.
+      if (err?.code === 11000) {
+        const conv = await this.conversationModel.findOne({
+          organizationId: new Types.ObjectId(orgId),
+          type: 'support',
+          supportChannel: channel,
+          participants: new Types.ObjectId(userId),
+        });
+        if (conv) return conv;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Resident sends a message to Grunnsteinen / husvert (creates the thread if needed).
+   */
+  async sendSupportMessage(
+    userId: string,
+    orgId: string,
+    channel: 'grunnsteinen' | 'husvert',
+    content: string,
+  ): Promise<MessageDocument> {
+    const conversation = await this.getOrCreateSupportConversation(
+      userId,
+      orgId,
+      channel,
+    );
+    return this.appendMessage(conversation, userId, content);
+  }
+
   /**
    * Send a message
    */
@@ -102,11 +268,9 @@ export class MessagesService {
         throw new NotFoundException('Conversation not found');
       }
 
-      // Verify user is participant
-      const isParticipant = conversation.participants.some(
-        (p) => p.toString() === userId,
-      );
-      if (!isParticipant) {
+      // Participants always allowed; eligible staff allowed on support threads
+      const allowed = await this.canAccessConversation(conversation, userId);
+      if (!allowed) {
         throw new ForbiddenException('You are not a participant in this conversation');
       }
 
@@ -124,48 +288,112 @@ export class MessagesService {
       throw new BadRequestException('Either recipientId or conversationId must be provided');
     }
 
-    // Create message
+    return this.appendMessage(conversation, userId, dto.content);
+  }
+
+  /**
+   * Create a message in a conversation, update unread/preview, and notify.
+   * Handles both direct (1-to-1) and support (resident ↔ staff pool) threads.
+   */
+  private async appendMessage(
+    conversation: ConversationDocument,
+    userId: string,
+    content: string,
+  ): Promise<MessageDocument> {
     const message = await this.messageModel.create({
       conversationId: conversation._id,
       senderId: new Types.ObjectId(userId),
-      content: dto.content,
+      content,
       isRead: false,
     });
 
-    // Get recipient (other participant)
-    const recipientId = conversation.participants.find(
-      (p) => p.toString() !== userId,
-    )?.toString();
+    const preview =
+      content.length > 200 ? content.substring(0, 200) + '...' : content;
+    conversation.lastMessageAt = new Date();
+    conversation.lastMessagePreview = preview;
 
+    const sender = await this.userModel.findById(userId);
+
+    if (conversation.type === 'support') {
+      const residentId = conversation.participants[0]?.toString();
+      if (!residentId) {
+        throw new BadRequestException('Invalid support conversation');
+      }
+      const channelLabel =
+        conversation.supportChannel === 'grunnsteinen'
+          ? 'Grunnsteinen'
+          : 'Leva (husvert)';
+
+      if (userId === residentId) {
+        // Resident → staff pool. Staff-side unread is tracked via message read
+        // flags in the support queue, so no unreadCount map change here.
+        await conversation.save();
+        const staff = await this.getSupportStaff(conversation);
+        if (staff.length) {
+          const link = conversation.buildingId
+            ? `/admin/buildings/${conversation.buildingId.toString()}?tab=henvendelser`
+            : '/admin';
+          await this.notificationService
+            .createBulkNotifications(
+              staff.map((s) => s._id.toString()),
+              NotificationType.MESSAGE_RECEIVED,
+              `Ny henvendelse (${channelLabel})`,
+              `${sender?.name || 'Beboer'}: ${preview}`,
+              link,
+              true,
+              staff.map((s) => this.toEmailUser(s)),
+            )
+            .catch((error) =>
+              this.logger.error('Failed to notify support staff', error),
+            );
+        }
+      } else {
+        // Staff → resident. Bump the resident's unread and notify them.
+        const current = conversation.unreadCount.get(residentId) || 0;
+        conversation.unreadCount.set(residentId, current + 1);
+        await conversation.save();
+        const resident = await this.userModel.findById(residentId);
+        if (resident) {
+          await this.notificationService
+            .createNotification(
+              residentId,
+              NotificationType.MESSAGE_RECEIVED,
+              `Svar fra ${channelLabel}`,
+              preview,
+              `/messages/${conversation._id}`,
+              true,
+              this.toEmailUser(resident),
+            )
+            .catch((error) =>
+              this.logger.error('Failed to notify resident', error),
+            );
+        }
+      }
+
+      this.logger.log(
+        `Support message sent: ${message._id} in conversation ${conversation._id}`,
+      );
+      return this.messageModel
+        .findById(message._id)
+        .populate('senderId', 'name avatarUrl avatarColor role')
+        .exec() as Promise<MessageDocument>;
+    }
+
+    // Direct 1-to-1 conversation
+    const recipientId = conversation.participants
+      .find((p) => p.toString() !== userId)
+      ?.toString();
     if (!recipientId) {
       throw new BadRequestException('Invalid conversation participants');
     }
-
-    // Update conversation
-    const preview = dto.content.length > 200
-      ? dto.content.substring(0, 200) + '...'
-      : dto.content;
-
-    // Increment recipient's unread count
     const currentUnread = conversation.unreadCount.get(recipientId) || 0;
     conversation.unreadCount.set(recipientId, currentUnread + 1);
-    conversation.lastMessageAt = new Date();
-    conversation.lastMessagePreview = preview;
     await conversation.save();
 
     this.logger.log(`Message sent: ${message._id} in conversation ${conversation._id}`);
 
-    // Send notification to recipient
     const recipient = await this.userModel.findById(recipientId);
-    const sender = await this.userModel.findById(userId);
     if (recipient && sender) {
-      const emailUser: EmailUser = {
-        _id: recipient._id.toString(),
-        email: recipient.email,
-        firstName: recipient.name.split(' ')[0],
-        lastName: recipient.name.split(' ').slice(1).join(' ') || '',
-      };
-
       await this.notificationService
         .createNotification(
           recipientId,
@@ -174,7 +402,7 @@ export class MessagesService {
           preview,
           `/messages/${conversation._id}`,
           true,
-          emailUser,
+          this.toEmailUser(recipient),
         )
         .catch((error) => {
           this.logger.error('Failed to create message notification', error);
@@ -240,10 +468,8 @@ export class MessagesService {
       throw new NotFoundException('Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(
-      (p: any) => (p?._id ?? p).toString() === userId,
-    );
-    if (!isParticipant) {
+    const canAccess = await this.canAccessConversation(conversation, userId);
+    if (!canAccess) {
       throw new ForbiddenException('You are not a participant in this conversation');
     }
 
@@ -277,10 +503,8 @@ export class MessagesService {
       throw new NotFoundException('Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(
-      (p) => p.toString() === userId,
-    );
-    if (!isParticipant) {
+    const canAccess = await this.canAccessConversation(conversation, userId);
+    if (!canAccess) {
       throw new ForbiddenException('You are not a participant in this conversation');
     }
 
@@ -326,11 +550,17 @@ export class MessagesService {
         },
       );
 
-      // Update unread count in conversation
-      const currentUnread = conversation.unreadCount.get(userId) || 0;
-      const newUnread = Math.max(0, currentUnread - unreadMessages.length);
-      conversation.unreadCount.set(userId, newUnread);
-      await conversation.save();
+      // Update unread count in conversation, but only for actual participants
+      // (support-thread staff are not in the map — skip to avoid polluting it).
+      const isParticipant = conversation.participants.some(
+        (p) => p.toString() === userId,
+      );
+      if (isParticipant) {
+        const currentUnread = conversation.unreadCount.get(userId) || 0;
+        const newUnread = Math.max(0, currentUnread - unreadMessages.length);
+        conversation.unreadCount.set(userId, newUnread);
+        await conversation.save();
+      }
     }
 
     return new PaginatedResponseDto(messages, total, page, limit);
@@ -345,10 +575,8 @@ export class MessagesService {
       throw new NotFoundException('Conversation not found');
     }
 
-    const isParticipant = conversation.participants.some(
-      (p) => p.toString() === userId,
-    );
-    if (!isParticipant) {
+    const canAccess = await this.canAccessConversation(conversation, userId);
+    if (!canAccess) {
       throw new ForbiddenException('You are not a participant in this conversation');
     }
 
@@ -367,9 +595,15 @@ export class MessagesService {
       },
     );
 
-    // Reset unread count for this user
-    conversation.unreadCount.set(userId, 0);
-    await conversation.save();
+    // Reset unread count for this user (participants only; support staff aren't
+    // tracked in the map — their queue unread derives from message read flags).
+    const isParticipant = conversation.participants.some(
+      (p) => p.toString() === userId,
+    );
+    if (isParticipant) {
+      conversation.unreadCount.set(userId, 0);
+      await conversation.save();
+    }
 
     this.logger.log(
       `Marked ${result.modifiedCount} messages as read in conversation ${conversationId}`,
@@ -394,6 +628,64 @@ export class MessagesService {
     ]);
 
     return result.length > 0 ? result[0].total : 0;
+  }
+
+  /**
+   * Staff support queue for a building: support threads, optionally filtered by
+   * channel, each with the resident participant and a staff-side unread count
+   * (resident messages not yet read).
+   */
+  async getBuildingSupportConversations(
+    currentUser: CurrentUserData,
+    buildingId: string,
+    channel?: 'grunnsteinen' | 'husvert',
+  ): Promise<Array<ConversationDocument & { unread: number }>> {
+    // Building access: admins and board span the org; host/caretaker are limited
+    // to the buildings they are assigned to (prevents cross-building IDOR).
+    const orgWide =
+      isAdminRole(currentUser.role) || currentUser.role === UserRole.BOARD;
+    if (!orgWide) {
+      const assigned = [
+        ...(currentUser.buildingIds || []).map((b) => b.toString()),
+        currentUser.primaryBuildingId?.toString(),
+      ].filter(Boolean);
+      if (!assigned.includes(buildingId)) {
+        throw new ForbiddenException(
+          'You do not have access to this building',
+        );
+      }
+    }
+
+    const filter: QueryFilter<ConversationDocument> = {
+      organizationId: new Types.ObjectId(currentUser.organizationId),
+      buildingId: new Types.ObjectId(buildingId),
+      type: 'support',
+    };
+    if (channel) filter.supportChannel = channel;
+
+    const conversations = await this.conversationModel
+      .find(filter)
+      .populate('participants', 'name avatarUrl avatarColor email')
+      .sort({ lastMessageAt: -1 })
+      .exec();
+
+    return Promise.all(
+      conversations.map(async (conv) => {
+        const residentId = conv.participants[0]
+          ? ((conv.participants[0] as any)._id ?? conv.participants[0])
+          : null;
+        const unread = residentId
+          ? await this.messageModel.countDocuments({
+              conversationId: conv._id,
+              senderId: residentId,
+              isRead: false,
+            })
+          : 0;
+        return Object.assign(conv.toObject(), { unread }) as ConversationDocument & {
+          unread: number;
+        };
+      }),
+    );
   }
 
   /**

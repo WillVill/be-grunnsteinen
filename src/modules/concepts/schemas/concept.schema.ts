@@ -28,6 +28,24 @@ export class Concept {
   @Prop({ trim: true })
   brandColor?: string;
 
+  // Four-color brand palette. primary mirrors brandColor; 2–4 are concept
+  // secondaries surfaced as small accents in the UI.
+  @Prop({
+    type: {
+      primary: { type: String, trim: true },
+      secondary: { type: String, trim: true },
+      tertiary: { type: String, trim: true },
+      quaternary: { type: String, trim: true },
+    },
+    _id: false,
+  })
+  brandColors?: {
+    primary: string;
+    secondary?: string;
+    tertiary?: string;
+    quaternary?: string;
+  };
+
   @Prop({ trim: true })
   description?: string;
 

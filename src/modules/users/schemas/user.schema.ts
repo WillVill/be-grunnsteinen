@@ -94,6 +94,27 @@ export class NotificationPreferences {
   push: PushNotificationPreferences;
 }
 
+@Schema({ _id: false })
+export class EmergencyContact {
+  @Prop({ required: true, trim: true })
+  name: string;
+
+  @Prop({ required: true, trim: true })
+  phone: string;
+
+  @Prop({ trim: true, lowercase: true })
+  email?: string;
+}
+
+@Schema({ _id: false })
+export class Pets {
+  @Prop({ default: false })
+  hasPets: boolean;
+
+  @Prop({ type: [String], default: [] })
+  types: string[];
+}
+
 @Schema(baseSchemaOptions)
 export class User {
   @Prop({
@@ -176,6 +197,21 @@ export class User {
 
   @Prop({ type: NotificationPreferences, default: () => ({}) })
   notificationPreferences: NotificationPreferences;
+
+  // Pårørende / nødkontakter — up to 2. Editable by the resident and by admins.
+  @Prop({
+    type: [EmergencyContact],
+    default: [],
+    validate: {
+      validator: (contacts: EmergencyContact[]) => contacts.length <= 2,
+      message: "Maks 2 pårørende kan registreres",
+    },
+  })
+  emergencyContacts: EmergencyContact[];
+
+  // Kjæledyr — whether the resident has pets and what kinds.
+  @Prop({ type: Pets, default: () => ({}) })
+  pets: Pets;
 
   @Prop({ default: true })
   isActive: boolean;

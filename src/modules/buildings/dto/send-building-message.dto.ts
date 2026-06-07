@@ -4,6 +4,7 @@ import {
   IsArray,
   IsIn,
   IsMongoId,
+  IsNumber,
   ValidateNested,
   IsBase64,
   IsMimeType,
@@ -61,6 +62,40 @@ export class EmailAttachmentDto {
   type: string;
 }
 
+/**
+ * Rule-based recipient segment. Resolved against the building's apartments:
+ * an apartment matches when it satisfies every provided (non-empty) criterion,
+ * and its tenants become recipients. Examples:
+ *   { floors: [1] }            → first floor
+ *   { entrances: ['A'] }       → entrance A (and not B)
+ *   { tags: ['garasje'] }      → garage renters
+ */
+export class MessageSegmentDto {
+  @ApiPropertyOptional({ type: [Number], description: 'Match apartments on these floors' })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  floors?: number[];
+
+  @ApiPropertyOptional({ type: [String], description: 'Match apartments with these entrances' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  entrances?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: 'Match apartments carrying any of these tags' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: 'Match apartments of these types' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  apartmentTypes?: string[];
+}
+
 export class SendBuildingMessageDto {
   @ApiProperty({ enum: ['email', 'sms', 'both'] })
   @IsString()
@@ -91,6 +126,15 @@ export class SendBuildingMessageDto {
   @IsArray()
   @IsMongoId({ each: true })
   tenantProfileIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Rule-based segment; resolved against the building apartments to a recipient set',
+    type: MessageSegmentDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MessageSegmentDto)
+  segment?: MessageSegmentDto;
 
   @ApiPropertyOptional({ description: 'File attachments for email (base64-encoded)' })
   @IsOptional()

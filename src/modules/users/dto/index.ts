@@ -5,4 +5,5 @@ export * from './user-query.dto';
 export * from './create-admin-user.dto';
 export * from './update-admin-user.dto';
 export * from './update-role.dto';
+export * from './update-care-info.dto';
 

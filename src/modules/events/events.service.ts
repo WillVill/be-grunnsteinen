@@ -76,6 +76,10 @@ export class EventsService {
 
     const { galleryKey, ...rest } = createDto;
 
+    // Mark events created by board/admin so the UI can show "Fra Grunnsteinen"
+    const organizer = await this.userModel.findById(userId).select('role');
+    const isFromBoard = ['board', 'admin'].includes(organizer?.role);
+
     // Create event
     const event = await this.eventModel.create({
       ...rest,
@@ -91,6 +95,7 @@ export class EventsService {
       participants: [new Types.ObjectId(userId)],
       participantsCount: 1,
       isConceptWide: rest.isConceptWide ?? false,
+      isFromBoard,
     });
 
     this.logger.log(`Event created: ${event._id} by user ${userId}`);

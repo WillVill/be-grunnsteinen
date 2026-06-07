@@ -97,30 +97,77 @@ export class PostsService {
 
     this.logger.log(`Post created: ${post._id} by user ${userId}`);
 
-    // Notify group or building members about new post (POST_CREATED)
+    // Notify recipients about the new post (POST_CREATED) — in-app + email.
+    // Scope is mutually exclusive by the post's audience: a group post notifies
+    // ONLY the group (never falls through to the building/org, even if empty);
+    // a building post notifies the building; a concept-wide post notifies the org.
+    const authorIdStr = userId.toString();
     const recipientIds: string[] = [];
     if (post.groupId) {
       const group = await this.groupModel.findById(post.groupId).exec();
       if (group?.members?.length) {
-        const authorIdStr = userId.toString();
-        const memberIds = group.members
-          .filter((id) => id.toString() !== authorIdStr)
-          .map((id) => id.toString());
-        recipientIds.push(...memberIds);
+        recipientIds.push(
+          ...group.members
+            .filter((id) => id.toString() !== authorIdStr)
+            .map((id) => id.toString()),
+        );
       }
+    } else if (post.buildingId) {
+      const usersInBuilding = await this.userModel
+        .find({
+          organizationId: new Types.ObjectId(organizationId),
+          $or: [
+            { buildingIds: post.buildingId },
+            { primaryBuildingId: post.buildingId },
+          ],
+          _id: { $ne: new Types.ObjectId(userId) },
+        })
+        .select('_id')
+        .lean()
+        .exec();
+      recipientIds.push(...usersInBuilding.map((u) => u._id.toString()));
+    } else if (post.isConceptWide) {
+      const orgUsers = await this.userModel
+        .find({
+          organizationId: new Types.ObjectId(organizationId),
+          _id: { $ne: new Types.ObjectId(userId) },
+        })
+        .select('_id')
+        .lean()
+        .exec();
+      recipientIds.push(...orgUsers.map((u) => u._id.toString()));
     }
-    if (recipientIds.length > 0) {
+
+    const uniqueRecipientIds = [...new Set(recipientIds)];
+    if (uniqueRecipientIds.length > 0) {
       const preview = (post.title || post.content).slice(0, 80);
       const title = 'New post';
       const message = `${user.name} posted: ${preview}${(post.title || post.content).length > 80 ? '…' : ''}`;
+
+      // Build emailUsers so SendGrid actually fires (createBulkNotifications only
+      // emails when a non-empty emailUsers array is passed). Email delivery still
+      // respects each user's notificationPreferences.email.newPosts.
+      const recipients = await this.userModel
+        .find({ _id: { $in: uniqueRecipientIds.map((id) => new Types.ObjectId(id)) } })
+        .select('_id email name')
+        .lean()
+        .exec();
+      const emailUsers = recipients.map((u) => ({
+        _id: u._id.toString(),
+        email: u.email,
+        firstName: (u.name || '').split(' ')[0],
+        lastName: (u.name || '').split(' ').slice(1).join(' '),
+      }));
+
       await this.notificationService
         .createBulkNotifications(
-          recipientIds,
+          uniqueRecipientIds,
           NotificationType.POST_CREATED,
           title,
           message,
           `/posts/${post._id}`,
-          false,
+          true,
+          emailUsers,
         )
         .catch((err) => this.logger.warn(`Failed to send post notifications: ${err.message}`));
     }

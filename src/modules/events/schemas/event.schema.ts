@@ -59,6 +59,9 @@ export class Event {
   @Prop({ default: false })
   isConceptWide: boolean;
 
+  @Prop({ default: false })
+  isFromBoard: boolean;
+
   @Prop({ required: true, trim: true })
   title: string;
 

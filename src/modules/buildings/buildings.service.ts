@@ -17,6 +17,10 @@ import {
   TenantProfileStatus,
 } from "../tenant-profiles/schemas/tenant-profile.schema";
 import {
+  Apartment,
+  ApartmentDocument,
+} from "../apartments/schemas/apartment.schema";
+import {
   CreateBuildingDto,
   UpdateBuildingDto,
   BuildingQueryDto,
@@ -62,6 +66,8 @@ export class BuildingsService {
     private userModel: Model<UserDocument>,
     @InjectModel(TenantProfile.name)
     private tenantProfileModel: Model<TenantProfileDocument>,
+    @InjectModel(Apartment.name)
+    private apartmentModel: Model<ApartmentDocument>,
     private readonly emailService: EmailService,
     private readonly twilioService: TwilioService,
     private readonly conceptsService: ConceptsService,
@@ -624,16 +630,68 @@ export class BuildingsService {
   ): Promise<{ users: User[]; profiles: TenantProfileDocument[] }> {
     let users = await this.getBuildingUsers(currentUser, buildingId);
 
+    // Rule-based segment: resolve the building's matching apartments to the set
+    // of tenants (registered users) and apartments (for unregistered profiles).
+    // SAFETY: the presence of a `segment` object signals explicit targeting. We
+    // never fall back to "send to all" when a segment is supplied — a segment
+    // with no usable criteria resolves to ZERO recipients, never everyone.
+    const segmentProvided = !!dto.segment;
+    let segmentTenantIds: Set<string> | null = null;
+    let segmentApartmentIds: string[] | null = null;
+    const segmentHasCriteria =
+      segmentProvided &&
+      ((dto.segment.floors?.length ?? 0) > 0 ||
+        (dto.segment.entrances?.length ?? 0) > 0 ||
+        (dto.segment.tags?.length ?? 0) > 0 ||
+        (dto.segment.apartmentTypes?.length ?? 0) > 0);
+    if (segmentProvided) {
+      // Empty/criteria-less segment → no apartments match → no recipients.
+      segmentApartmentIds = [];
+      segmentTenantIds = new Set<string>();
+      if (segmentHasCriteria) {
+        const aptFilter: Record<string, unknown> = {
+          organizationId: new Types.ObjectId(currentUser.organizationId),
+          buildingId: new Types.ObjectId(buildingId),
+          isActive: true,
+        };
+        if (dto.segment.floors?.length)
+          aptFilter.floor = { $in: dto.segment.floors };
+        if (dto.segment.entrances?.length)
+          aptFilter.entrance = { $in: dto.segment.entrances };
+        if (dto.segment.tags?.length) aptFilter.tags = { $in: dto.segment.tags };
+        if (dto.segment.apartmentTypes?.length)
+          aptFilter.apartmentType = { $in: dto.segment.apartmentTypes };
+
+        const apartments = await this.apartmentModel
+          .find(aptFilter)
+          .select("_id tenantIds")
+          .lean()
+          .exec();
+        segmentApartmentIds = apartments.map((a) => a._id.toString());
+        segmentTenantIds = new Set(
+          apartments.flatMap((a) =>
+            (a.tenantIds || []).map((id) => id.toString()),
+          ),
+        );
+      }
+    }
+
     if (dto.recipientIds && dto.recipientIds.length > 0) {
       const idSet = new Set(dto.recipientIds);
       users = users.filter((u) => {
         const id = (u as UserDocument)._id?.toString();
         return id ? idSet.has(id) : false;
       });
+    } else if (segmentTenantIds) {
+      users = users.filter((u) => {
+        const id = (u as UserDocument)._id?.toString();
+        return id ? segmentTenantIds.has(id) : false;
+      });
     }
 
     let profiles: TenantProfileDocument[] = [];
-    const sendAll = !dto.recipientIds?.length && !dto.tenantProfileIds?.length;
+    const sendAll =
+      !dto.recipientIds?.length && !dto.tenantProfileIds?.length && !segmentProvided;
     if (dto.tenantProfileIds && dto.tenantProfileIds.length > 0) {
       profiles = await this.tenantProfileModel
         .find({
@@ -642,6 +700,17 @@ export class BuildingsService {
           status: { $ne: TenantProfileStatus.REGISTERED },
           _id: {
             $in: dto.tenantProfileIds.map((id) => new Types.ObjectId(id)),
+          },
+        })
+        .exec();
+    } else if (segmentApartmentIds) {
+      profiles = await this.tenantProfileModel
+        .find({
+          organizationId: new Types.ObjectId(currentUser.organizationId),
+          buildingId: new Types.ObjectId(buildingId),
+          status: { $ne: TenantProfileStatus.REGISTERED },
+          apartmentId: {
+            $in: segmentApartmentIds.map((id) => new Types.ObjectId(id)),
           },
         })
         .exec();

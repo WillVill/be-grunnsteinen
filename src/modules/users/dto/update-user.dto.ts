@@ -4,10 +4,43 @@ import {
   IsBoolean,
   IsArray,
   IsDate,
+  IsEmail,
+  ArrayMaxSize,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export class EmergencyContactDto {
+  @ApiPropertyOptional({ example: 'Kari Nordmann' })
+  @IsString()
+  @MaxLength(100)
+  name: string;
+
+  @ApiPropertyOptional({ example: '+47 123 45 678' })
+  @IsString()
+  @MaxLength(30)
+  phone: string;
+
+  @ApiPropertyOptional({ example: 'kari@example.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+}
+
+export class PetsDto {
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  hasPets?: boolean;
+
+  @ApiPropertyOptional({ example: ['Hund', 'Katt'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  types?: string[];
+}
 
 class EmailNotificationPreferencesDto {
   @ApiPropertyOptional()
@@ -166,5 +199,19 @@ export class UpdateUserDto {
   @ValidateNested()
   @Type(() => NotificationPreferencesDto)
   notificationPreferences?: NotificationPreferencesDto;
+
+  @ApiPropertyOptional({ type: [EmergencyContactDto], description: 'Pårørende / nødkontakter (maks 2)' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => EmergencyContactDto)
+  emergencyContacts?: EmergencyContactDto[];
+
+  @ApiPropertyOptional({ type: PetsDto, description: 'Kjæledyr' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PetsDto)
+  pets?: PetsDto;
 }
 

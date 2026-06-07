@@ -22,6 +22,7 @@ import {
   CreateAdminUserDto,
   UpdateAdminUserDto,
   UpdateRoleDto,
+  UpdateCareInfoDto,
 } from "./dto";
 import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import {
@@ -508,6 +509,38 @@ export class UsersService {
     }
 
     this.logger.log(`Admin user updated: ${updated.email}`);
+    return updated;
+  }
+
+  /**
+   * Admin: update a resident's pårørende / pets on their behalf.
+   * Org-scoped; works on any user in the organization (unlike updateAdminUser,
+   * which is restricted to admin-role users).
+   */
+  async updateCareInfo(
+    organizationId: string,
+    userId: string,
+    dto: UpdateCareInfoDto,
+  ): Promise<UserDocument> {
+    const updateData: any = {};
+    if (dto.emergencyContacts !== undefined) {
+      updateData.emergencyContacts = dto.emergencyContacts;
+    }
+    if (dto.pets !== undefined) {
+      updateData.pets = dto.pets;
+    }
+
+    const updated = await this.userModel.findOneAndUpdate(
+      { _id: userId, organizationId: new Types.ObjectId(organizationId) },
+      { $set: updateData },
+      { new: true, runValidators: true },
+    );
+
+    if (!updated) {
+      throw new NotFoundException("User not found");
+    }
+
+    this.logger.log(`Care info updated for user: ${updated.email}`);
     return updated;
   }
 

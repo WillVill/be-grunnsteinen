@@ -7,6 +7,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,8 +23,12 @@ import {
   CreateMessageDto,
   ConversationQueryDto,
   MessageQueryDto,
+  SendSupportMessageDto,
 } from './dto';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { UserRole } from '../users/schemas/user.schema';
 
 @ApiTags('Messages')
 @ApiBearerAuth('JWT-auth')
@@ -54,6 +59,50 @@ export class MessagesController {
       user.userId,
       user.organizationId,
       createMessageDto,
+    );
+  }
+
+  @Post('support')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Send a message to a support channel (Grunnsteinen or husvert)',
+    description:
+      'Resident sends to a support channel; the support thread is created on first message and reused thereafter.',
+  })
+  @ApiBody({ type: SendSupportMessageDto })
+  @ApiResponse({ status: 201, description: 'Support message sent' })
+  async sendSupportMessage(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: SendSupportMessageDto,
+  ) {
+    return this.messagesService.sendSupportMessage(
+      user.userId,
+      user.organizationId,
+      dto.channel,
+      dto.content,
+    );
+  }
+
+  @Get('support/building/:buildingId')
+  @Roles(UserRole.BOARD, UserRole.HOST, UserRole.CARETAKER)
+  @UseGuards(RolesGuard)
+  @ApiOperation({
+    summary: 'Staff: list support threads for a building',
+    description:
+      'Returns support conversations for a building (optionally filtered by channel) with staff-side unread counts.',
+  })
+  @ApiParam({ name: 'buildingId', description: 'Building ID' })
+  @ApiQuery({ name: 'channel', required: false, enum: ['grunnsteinen', 'husvert'] })
+  @ApiResponse({ status: 200, description: 'Support conversations' })
+  async getBuildingSupport(
+    @CurrentUser() user: CurrentUserData,
+    @Param('buildingId') buildingId: string,
+    @Query('channel') channel?: 'grunnsteinen' | 'husvert',
+  ) {
+    return this.messagesService.getBuildingSupportConversations(
+      user,
+      buildingId,
+      channel,
     );
   }
 

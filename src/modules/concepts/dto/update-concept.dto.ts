@@ -5,8 +5,11 @@ import {
   MinLength,
   MaxLength,
   Matches,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { BrandColorsDto } from "./create-concept.dto";
 
 export class UpdateConceptDto {
   @ApiPropertyOptional({ example: "Solsiden", minLength: 1, maxLength: 100 })
@@ -29,6 +32,12 @@ export class UpdateConceptDto {
     message: "brandColor must be a hex string like #0E9471",
   })
   brandColor?: string;
+
+  @ApiPropertyOptional({ type: BrandColorsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BrandColorsDto)
+  brandColors?: BrandColorsDto;
 
   @ApiPropertyOptional()
   @IsOptional()

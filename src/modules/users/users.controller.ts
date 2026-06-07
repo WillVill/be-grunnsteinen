@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  UseGuards,
   UseInterceptors,
   UploadedFile,
   ParseFilePipe,
@@ -32,6 +33,7 @@ import {
   CreateAdminUserDto,
   UpdateAdminUserDto,
   UpdateRoleDto,
+  UpdateCareInfoDto,
 } from "./dto";
 import {
   CurrentUser,
@@ -40,6 +42,9 @@ import {
 import { S3Service } from "../../shared/services/s3.service";
 import { ThrottleUpload } from "../../common/decorators/throttle-upload.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { PermissionsGuard } from "../../common/guards/permissions.guard";
+import { RequirePermissions } from "../../common/decorators/permissions.decorator";
+import { Permission } from "../../common/permissions/permissions";
 import { UserRole, isAdminRole } from "./schemas/user.schema";
 
 @ApiTags("Users")
@@ -265,6 +270,21 @@ export class UsersController {
       );
     }
     return this.usersService.updateAdminUser(user.organizationId, id, dto);
+  }
+
+  @Patch(":id/care-info")
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.USER_MANAGE)
+  @ApiOperation({
+    summary: "Update a resident's pårørende / pets on their behalf (admin)",
+  })
+  @ApiResponse({ status: 200, description: "Care info updated" })
+  async updateCareInfo(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+    @Body() dto: UpdateCareInfoDto,
+  ) {
+    return this.usersService.updateCareInfo(user.organizationId, id, dto);
   }
 
   @Patch(":id/role")
