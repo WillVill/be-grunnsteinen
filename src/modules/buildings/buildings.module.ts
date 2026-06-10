@@ -9,6 +9,7 @@ import { Apartment, ApartmentSchema } from "../apartments/schemas/apartment.sche
 import { EmailModule } from "../../shared/services/email.module";
 import { TwilioModule } from "../../shared/services/twilio.module";
 import { ConceptsModule } from "../concepts/concepts.module";
+import { MessagesModule } from "../messages/messages.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ConceptsModule } from "../concepts/concepts.module";
     EmailModule,
     TwilioModule,
     ConceptsModule,
+    MessagesModule,
   ],
   controllers: [BuildingsController],
   providers: [BuildingsService],

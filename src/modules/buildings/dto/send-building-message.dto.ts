@@ -2,7 +2,7 @@ import {
   IsString,
   IsOptional,
   IsArray,
-  IsIn,
+  IsBoolean,
   IsMongoId,
   IsNumber,
   ValidateNested,
@@ -96,13 +96,35 @@ export class MessageSegmentDto {
   apartmentTypes?: string[];
 }
 
-export class SendBuildingMessageDto {
-  @ApiProperty({ enum: ['email', 'sms', 'both'] })
-  @IsString()
-  @IsIn(['email', 'sms', 'both'])
-  type: 'email' | 'sms' | 'both';
+/**
+ * Independent delivery channels. At least one must be enabled (validated in
+ * the service). In-app reaches registered users only (their support thread);
+ * email/SMS also reach unregistered tenant profiles.
+ */
+export class MessageChannelsDto {
+  @ApiPropertyOptional({ description: 'Deliver as in-app support-thread message' })
+  @IsOptional()
+  @IsBoolean()
+  inApp?: boolean;
 
-  @ApiPropertyOptional({ description: 'Subject for email (required when type is email or both)' })
+  @ApiPropertyOptional({ description: 'Deliver as email' })
+  @IsOptional()
+  @IsBoolean()
+  email?: boolean;
+
+  @ApiPropertyOptional({ description: 'Deliver as SMS' })
+  @IsOptional()
+  @IsBoolean()
+  sms?: boolean;
+}
+
+export class SendBuildingMessageDto {
+  @ApiProperty({ type: MessageChannelsDto })
+  @ValidateNested()
+  @Type(() => MessageChannelsDto)
+  channels: MessageChannelsDto;
+
+  @ApiPropertyOptional({ description: 'Subject for email (required when the email channel is on)' })
   @IsOptional()
   @IsString()
   subject?: string;

@@ -31,11 +31,15 @@ import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import { EmailService } from "../../shared/services/email.service";
 import { TwilioService } from "../../shared/services/twilio.service";
 import { ConceptsService } from "../concepts/concepts.service";
+import { MessagesService } from "../messages/messages.service";
 
 export interface SendMessageResult {
   sentEmail: number;
   sentSms: number;
   skippedSms: number;
+  /** In-app support-thread messages delivered (registered users only). */
+  sentInApp: number;
+  failedInApp: number;
 }
 
 export interface RecipientCountResult {
@@ -53,6 +57,10 @@ export interface RecipientCountResult {
   skippedNoEmail: number;
   /** Recipients skipped because they have no valid phone (only relevant for sms/both). */
   skippedNoPhone: number;
+  /** Registered users reachable in-app (when the in-app channel is on). */
+  reachableInApp: number;
+  /** Unregistered profiles that cannot be reached in-app (when the in-app channel is on). */
+  skippedNoApp: number;
 }
 
 @Injectable()
@@ -71,6 +79,7 @@ export class BuildingsService {
     private readonly emailService: EmailService,
     private readonly twilioService: TwilioService,
     private readonly conceptsService: ConceptsService,
+    private readonly messagesService: MessagesService,
   ) {}
 
   async create(
@@ -512,13 +521,19 @@ export class BuildingsService {
   }
 
   /**
-   * Send email and/or SMS to building tenants (admin/board).
+   * Send in-app, email and/or SMS to building tenants (admin/board/host).
+   * In-app messages land in each registered user's support thread; unregistered
+   * tenant profiles are reachable by email/SMS only.
    */
   async sendMessageToTenants(
     currentUser: CurrentUserData,
     buildingId: string,
     dto: SendBuildingMessageDto,
   ): Promise<SendMessageResult> {
+    if (!dto.channels?.inApp && !dto.channels?.email && !dto.channels?.sms) {
+      throw new BadRequestException("At least one channel must be selected");
+    }
+
     const building = await this.findOne(currentUser, buildingId);
     const { users, profiles } = await this.resolveMessageRecipients(
       currentUser,
@@ -530,13 +545,35 @@ export class BuildingsService {
       sentEmail: 0,
       sentSms: 0,
       skippedSms: 0,
+      sentInApp: 0,
+      failedInApp: 0,
     };
     const subject =
       dto.subject ||
-      (dto.type !== "sms" ? `Message from ${building.name}` : undefined);
+      (dto.channels.email ? `Message from ${building.name}` : undefined);
+
+    if (dto.channels.inApp && users.length > 0) {
+      // Boards/admins speak for Grunnsteinen; hosts for the husvert channel —
+      // mirrors which inbox each role sees the replies in.
+      const supportChannel =
+        currentUser.role === UserRole.HOST ? "husvert" : "grunnsteinen";
+      const { sent, failed } = await this.messagesService.broadcastSupportMessage(
+        currentUser.userId,
+        currentUser.organizationId,
+        users.map((u) => (u as UserDocument)._id.toString()),
+        supportChannel,
+        dto.body,
+        {
+          suppressEmailNotification: !!dto.channels.email,
+          preferredBuildingId: buildingId,
+        },
+      );
+      result.sentInApp = sent;
+      result.failedInApp = failed;
+    }
 
     for (const user of users) {
-      if (dto.type === "email" || dto.type === "both") {
+      if (dto.channels.email) {
         try {
           await this.emailService.sendEmail(
             user.email,
@@ -551,7 +588,7 @@ export class BuildingsService {
         }
       }
 
-      if (dto.type === "sms" || dto.type === "both") {
+      if (dto.channels.sms) {
         const to = this.twilioService.normalizeE164(user.phone);
         if (!to) {
           result.skippedSms++;
@@ -571,7 +608,7 @@ export class BuildingsService {
     }
 
     for (const profile of profiles) {
-      if (dto.type === "email" || dto.type === "both") {
+      if (dto.channels.email) {
         if (!profile.email) continue;
         try {
           await this.emailService.sendEmail(
@@ -590,7 +627,7 @@ export class BuildingsService {
         }
       }
 
-      if (dto.type === "sms" || dto.type === "both") {
+      if (dto.channels.sms) {
         const to = this.twilioService.normalizeE164(profile.phone);
         if (!to) {
           result.skippedSms++;
@@ -613,7 +650,7 @@ export class BuildingsService {
     }
 
     this.logger.log(
-      `Building message: email=${result.sentEmail} sms=${result.sentSms} skippedSms=${result.skippedSms}`,
+      `Building message: inApp=${result.sentInApp} email=${result.sentEmail} sms=${result.sentSms} skippedSms=${result.skippedSms}`,
     );
     return result;
   }
@@ -742,8 +779,9 @@ export class BuildingsService {
       dto,
     );
 
-    const wantsEmail = dto.type === "email" || dto.type === "both";
-    const wantsSms = dto.type === "sms" || dto.type === "both";
+    const wantsInApp = !!dto.channels?.inApp;
+    const wantsEmail = !!dto.channels?.email;
+    const wantsSms = !!dto.channels?.sms;
     // SMS only actually goes out when Twilio is configured; mirror the send path
     // so the dry-run count never promises SMS reach that won't be delivered.
     const smsConfigured = this.twilioService.isConfigured();
@@ -778,6 +816,10 @@ export class BuildingsService {
       reachableSms,
       skippedNoEmail,
       skippedNoPhone,
+      // In-app reaches registered users only; unregistered profiles are
+      // counted as skipped so the UI can surface them.
+      reachableInApp: wantsInApp ? users.length : 0,
+      skippedNoApp: wantsInApp ? profiles.length : 0,
     };
   }
 }

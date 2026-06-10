@@ -183,6 +183,7 @@ export class MessagesService {
     userId: string,
     orgId: string,
     channel: 'grunnsteinen' | 'husvert',
+    preferredBuildingId?: string,
   ): Promise<ConversationDocument> {
     const existing = await this.conversationModel.findOne({
       organizationId: new Types.ObjectId(orgId),
@@ -197,8 +198,9 @@ export class MessagesService {
       .select('primaryBuildingId buildingIds')
       .lean()
       .exec();
-    const buildingId =
-      resident?.primaryBuildingId ?? resident?.buildingIds?.[0];
+    const buildingId = preferredBuildingId
+      ? new Types.ObjectId(preferredBuildingId)
+      : (resident?.primaryBuildingId ?? resident?.buildingIds?.[0]);
 
     // Husvert support is building-scoped (staff eligibility + the building queue
     // both key off buildingId). Without a building the thread would be invisible
@@ -252,6 +254,49 @@ export class MessagesService {
   }
 
   /**
+   * Staff broadcast to many residents' support threads (created lazily).
+   * Failures are per-resident: one bad resident never aborts the batch.
+   */
+  async broadcastSupportMessage(
+    staffUserId: string,
+    orgId: string,
+    residentUserIds: string[],
+    channel: 'grunnsteinen' | 'husvert',
+    content: string,
+    options?: {
+      suppressEmailNotification?: boolean;
+      preferredBuildingId?: string;
+    },
+  ): Promise<{ sent: number; failed: number }> {
+    let sent = 0;
+    let failed = 0;
+    for (const residentId of residentUserIds) {
+      try {
+        const conversation = await this.getOrCreateSupportConversation(
+          residentId,
+          orgId,
+          channel,
+          options?.preferredBuildingId,
+        );
+        await this.appendMessage(conversation, staffUserId, content, {
+          suppressEmail: options?.suppressEmailNotification,
+        });
+        sent++;
+      } catch (err) {
+        failed++;
+        this.logger.warn(
+          `Broadcast support message failed for resident ${residentId}`,
+          err,
+        );
+      }
+    }
+    this.logger.log(
+      `Support broadcast (${channel}): sent=${sent} failed=${failed}`,
+    );
+    return { sent, failed };
+  }
+
+  /**
    * Send a message
    */
   async sendMessage(
@@ -299,6 +344,7 @@ export class MessagesService {
     conversation: ConversationDocument,
     userId: string,
     content: string,
+    opts?: { suppressEmail?: boolean },
   ): Promise<MessageDocument> {
     const message = await this.messageModel.create({
       conversationId: conversation._id,
@@ -361,7 +407,7 @@ export class MessagesService {
               `Svar fra ${channelLabel}`,
               preview,
               `/messages/${conversation._id}`,
-              true,
+              !opts?.suppressEmail,
               this.toEmailUser(resident),
             )
             .catch((error) =>
