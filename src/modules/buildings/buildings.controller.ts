@@ -111,6 +111,16 @@ export class BuildingsController {
     return this.buildingsService.getBuildingStats(user, id);
   }
 
+  @Get(":id/segment-options")
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.BROADCAST_MESSAGE)
+  getSegmentOptions(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+  ) {
+    return this.buildingsService.getSegmentOptions(user, id);
+  }
+
   @Post(":id/send-message")
   @UseGuards(PermissionsGuard)
   @RequirePermissions(Permission.BROADCAST_MESSAGE)

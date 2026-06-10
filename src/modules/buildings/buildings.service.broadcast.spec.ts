@@ -36,6 +36,7 @@ describe('BuildingsService broadcast channels', () => {
   let service: BuildingsService;
   let broadcastSupportMessage: jest.Mock;
   let sendEmail: jest.Mock;
+  let apartmentFind: jest.Mock;
 
   const users = [
     { _id: new Types.ObjectId(residentA), email: 'a@example.com', phone: '+4798765432' },
@@ -51,13 +52,18 @@ describe('BuildingsService broadcast channels', () => {
       find: jest.fn().mockReturnValue({ exec: async () => profiles }),
     };
 
+    apartmentFind = jest.fn().mockReturnValue({
+      select: () => ({ lean: () => ({ exec: async () => [] }) }),
+    });
+    const apartmentModel: any = { find: apartmentFind };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BuildingsService,
         { provide: getModelToken(Building.name), useValue: {} },
         { provide: getModelToken(User.name), useValue: {} },
         { provide: getModelToken(TenantProfile.name), useValue: tenantProfileModel },
-        { provide: getModelToken(Apartment.name), useValue: {} },
+        { provide: getModelToken(Apartment.name), useValue: apartmentModel },
         { provide: EmailService, useValue: { sendEmail } },
         {
           provide: TwilioService,
@@ -173,6 +179,54 @@ describe('BuildingsService broadcast channels', () => {
       expect((count as any).reachableInApp).toBe(0);
       expect((count as any).skippedNoApp).toBe(0);
       expect((count as any).reachableEmail).toBe(3);
+    });
+  });
+
+  describe('getSegmentOptions', () => {
+    it('returns distinct sorted values from the building apartments', async () => {
+      await buildModule();
+      apartmentFind.mockReturnValue({
+        select: () => ({
+          lean: () => ({
+            exec: async () => [
+              { floor: 2, entrance: 'B', tags: ['garasje'], apartmentType: '2-room' },
+              { floor: 1, entrance: 'A', tags: ['garasje', 'parkering'], apartmentType: '1-room' },
+              { floor: 2, entrance: 'A', tags: [], apartmentType: '2-room' },
+              { floor: undefined, entrance: undefined, tags: undefined, apartmentType: undefined },
+            ],
+          }),
+        }),
+      });
+
+      const options = await (service as any).getSegmentOptions(
+        currentUser(UserRole.ADMIN),
+        buildingId,
+      );
+
+      expect(options).toEqual({
+        floors: [1, 2],
+        entrances: ['A', 'B'],
+        tags: ['garasje', 'parkering'],
+        apartmentTypes: ['1-room', '2-room'],
+      });
+      // Access check goes through findOne (org scoping + building access)
+      expect(service.findOne).toHaveBeenCalled();
+    });
+
+    it('returns empty lists when the building has no apartment data', async () => {
+      await buildModule();
+
+      const options = await (service as any).getSegmentOptions(
+        currentUser(UserRole.ADMIN),
+        buildingId,
+      );
+
+      expect(options).toEqual({
+        floors: [],
+        entrances: [],
+        tags: [],
+        apartmentTypes: [],
+      });
     });
   });
 });

@@ -33,6 +33,13 @@ import { TwilioService } from "../../shared/services/twilio.service";
 import { ConceptsService } from "../concepts/concepts.service";
 import { MessagesService } from "../messages/messages.service";
 
+export interface SegmentOptionsResult {
+  floors: number[];
+  entrances: string[];
+  tags: string[];
+  apartmentTypes: string[];
+}
+
 export interface SendMessageResult {
   sentEmail: number;
   sentSms: number;
@@ -762,6 +769,45 @@ export class BuildingsService {
     }
 
     return { users, profiles };
+  }
+
+  /**
+   * Distinct segment-filter values present in the building's apartments, so
+   * the composer can offer real options instead of free-text criteria.
+   */
+  async getSegmentOptions(
+    currentUser: CurrentUserData,
+    buildingId: string,
+  ): Promise<SegmentOptionsResult> {
+    await this.findOne(currentUser, buildingId);
+
+    const apartments = await this.apartmentModel
+      .find({
+        organizationId: new Types.ObjectId(currentUser.organizationId),
+        buildingId: new Types.ObjectId(buildingId),
+        isActive: true,
+      })
+      .select("floor entrance tags apartmentType")
+      .lean()
+      .exec();
+
+    const floors = new Set<number>();
+    const entrances = new Set<string>();
+    const tags = new Set<string>();
+    const apartmentTypes = new Set<string>();
+    for (const apt of apartments) {
+      if (typeof apt.floor === "number") floors.add(apt.floor);
+      if (apt.entrance) entrances.add(apt.entrance);
+      for (const tag of apt.tags || []) tags.add(tag);
+      if (apt.apartmentType) apartmentTypes.add(apt.apartmentType);
+    }
+
+    return {
+      floors: [...floors].sort((a, b) => a - b),
+      entrances: [...entrances].sort(),
+      tags: [...tags].sort(),
+      apartmentTypes: [...apartmentTypes].sort(),
+    };
   }
 
   /**

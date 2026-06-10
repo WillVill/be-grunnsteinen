@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { User, UserRole } from '../users/schemas/user.schema';
 import { Organization } from '../organizations/schemas/organization.schema';
 import { Apartment } from '../apartments/schemas/apartment.schema';
+import { Building } from '../buildings/schemas/building.schema';
 import { EmailService } from '../../shared/services/email.service';
 import { InvitationsService } from '../invitations/invitations.service';
 import { TenantProfilesService } from '../tenant-profiles/tenant-profiles.service';
@@ -49,6 +50,7 @@ describe('AuthService admin setup flow', () => {
         { provide: getModelToken(User.name), useValue: userModel },
         { provide: getModelToken(Organization.name), useValue: organizationModel },
         { provide: getModelToken(Apartment.name), useValue: { findOneAndUpdate: jest.fn() } },
+        { provide: getModelToken(Building.name), useValue: { findById: jest.fn().mockResolvedValue(null) } },
         { provide: JwtService, useValue: { sign: () => 'token-xyz', verify: jest.fn() } },
         { provide: ConfigService, useValue: { get: () => 'secret' } },
         { provide: EmailService, useValue: { sendEmail: jest.fn(), sendWelcomeEmail: jest.fn(), sendPasswordResetEmail: jest.fn() } },
