@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "setup:base": "ts-node scripts/setup-base-organization.ts",
     "setup:customer": "ts-node scripts/setup-customer-grunnsteinen.ts",
-    "migrate:concepts": "ts-node scripts/migrate-concepts.ts"
+    "migrate:concepts": "ts-node scripts/migrate-concepts.ts",
+    "import:langenga": "ts-node scripts/import-apartments-langenga.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
