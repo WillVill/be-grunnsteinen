@@ -1,0 +1,4010 @@
+[
+  {
+    "buildingCode": "hjemom-langenga",
+    "source": "Leilighetsoversikt Hjemom Langenga AS.xlsx",
+    "city": "Asker",
+    "postalCode": "1386",
+    "apartments": [
+      {
+        "unitNumber": "H0101",
+        "entrance": "Langenga 42",
+        "floor": 1,
+        "sizeSqm": 77.0,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0102",
+        "entrance": "Langenga 44",
+        "floor": 1,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0103",
+        "entrance": "Langenga 46",
+        "floor": 1,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0104",
+        "entrance": "Langenga 48",
+        "floor": 1,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0105",
+        "entrance": "Langenga 50",
+        "floor": 1,
+        "sizeSqm": 63.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0106",
+        "entrance": "Langenga 52",
+        "floor": 1,
+        "sizeSqm": 41.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0107",
+        "entrance": "Langenga 54",
+        "floor": 1,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0108",
+        "entrance": "Langenga 56",
+        "floor": 1,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0109",
+        "entrance": "Langenga 58",
+        "floor": 1,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0110",
+        "entrance": "Langenga 58",
+        "floor": 1,
+        "sizeSqm": 54.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0201",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 77.0,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0202",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0203",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0204",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0205",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 64.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0206",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 64.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0207",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0208",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0209",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0210",
+        "entrance": "Langenga 58",
+        "floor": 2,
+        "sizeSqm": 54.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0301",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 77.0,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0302",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0303",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0304",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0305",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 64.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0306",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 64.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0307",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0308",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0309",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0310",
+        "entrance": "Langenga 58",
+        "floor": 3,
+        "sizeSqm": 54.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0401",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 77.0,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0402",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0403",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0404",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0405",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 64.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0406",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 64.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0407",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0408",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0409",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0410",
+        "entrance": "Langenga 58",
+        "floor": 4,
+        "sizeSqm": 53.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0501",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 63.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0502",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0503",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 63.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0504",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 63.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0505",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0506",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0507",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 45.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0508",
+        "entrance": "Langenga 58",
+        "floor": 5,
+        "sizeSqm": 54.0,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      }
+    ]
+  },
+  {
+    "buildingCode": "hjemom-bergerlokka",
+    "source": "Leilighetsoversikt Hjemom Bergerløkka AS.xlsx",
+    "city": "Asker",
+    "postalCode": "1396",
+    "apartments": [
+      {
+        "unitNumber": "U0101",
+        "entrance": "Vekslerfaret 1",
+        "floor": -1,
+        "sizeSqm": 57.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0101",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0102",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 61.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0103",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 65.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0104",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0105",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0106",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0107",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0108",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0109",
+        "entrance": "Vekslerfaret 1",
+        "floor": 1,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0201",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0202",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 61.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0203",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 65.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0204",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0205",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0206",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0207",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0208",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0209",
+        "entrance": "Vekslerfaret 1",
+        "floor": 2,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0301",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0302",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 61.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0303",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 65.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0304",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0305",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0306",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0307",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0308",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0309",
+        "entrance": "Vekslerfaret 1",
+        "floor": 3,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0401",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0402",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 61.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0403",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 65.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0404",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0405",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0406",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0407",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0408",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0409",
+        "entrance": "Vekslerfaret 1",
+        "floor": 4,
+        "sizeSqm": 43.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      }
+    ]
+  },
+  {
+    "buildingCode": "hjemom-granstangen-park",
+    "source": "Leilighetsoversikt Hjemom Granstangen Park AS.xlsx",
+    "city": "Oslo",
+    "postalCode": "1086",
+    "apartments": [
+      {
+        "unitNumber": "U0101",
+        "entrance": "Granstangen 11A",
+        "floor": -1,
+        "sizeSqm": 44.7,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "U0102",
+        "entrance": "Granstangen 11B",
+        "floor": -1,
+        "sizeSqm": 50.5,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "U0103",
+        "entrance": "Granstangen 11B",
+        "floor": -1,
+        "sizeSqm": 56.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "U0104",
+        "entrance": "Granstangen 11C",
+        "floor": -1,
+        "sizeSqm": 69.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0101",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0102",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0103",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0104",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0105",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0106",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 51.1,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0107",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0108",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0109",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0110",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0111",
+        "entrance": "Hus 18",
+        "floor": 1,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0201",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0202",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0203",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0204",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0205",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0206",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 51.1,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0207",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0208",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0209",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0210",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0211",
+        "entrance": "Hus 18",
+        "floor": 2,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0301",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0302",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0303",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0304",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0305",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0306",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 51.1,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0307",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0308",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0309",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0310",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0311",
+        "entrance": "Hus 18",
+        "floor": 3,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0401",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0402",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0403",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0404",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0405",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0406",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 51.1,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0407",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0408",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0409",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0410",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0411",
+        "entrance": "Hus 18",
+        "floor": 4,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0501",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0502",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0503",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0504",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0505",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0506",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 51.1,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0507",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0508",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0509",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0510",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0511",
+        "entrance": "Hus 18",
+        "floor": 5,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0601",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0602",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0603",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0604",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0605",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0606",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 51.1,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0607",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0608",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0609",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0610",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0611",
+        "entrance": "Hus 18",
+        "floor": 6,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0701",
+        "entrance": "Hus 18",
+        "floor": 7,
+        "sizeSqm": 69.8,
+        "numberOfRooms": 4,
+        "apartmentType": "4-room"
+      },
+      {
+        "unitNumber": "H0702",
+        "entrance": "Hus 18",
+        "floor": 7,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0703",
+        "entrance": "Hus 18",
+        "floor": 7,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0704",
+        "entrance": "Hus 18",
+        "floor": 7,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "H0705",
+        "entrance": "Hus 18",
+        "floor": 7,
+        "sizeSqm": 56.6,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "H0706",
+        "entrance": "Hus 18",
+        "floor": 7,
+        "sizeSqm": 51.1,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7B H0101",
+        "entrance": "Granstangen 7B",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7C H0101",
+        "entrance": "Granstangen 7C",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7D H0101",
+        "entrance": "Granstangen 7D",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7A H0101",
+        "entrance": "Granstangen 7A",
+        "floor": 1,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "7E H0201",
+        "entrance": "Granstangen 7E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0202",
+        "entrance": "Granstangen 7E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0203",
+        "entrance": "Granstangen 7E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0204",
+        "entrance": "Granstangen 7E",
+        "floor": 2,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "7E H0301",
+        "entrance": "Granstangen 7E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0302",
+        "entrance": "Granstangen 7E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0303",
+        "entrance": "Granstangen 7E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0304",
+        "entrance": "Granstangen 7E",
+        "floor": 3,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "7E H0401",
+        "entrance": "Granstangen 7E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0402",
+        "entrance": "Granstangen 7E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0403",
+        "entrance": "Granstangen 7E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0404",
+        "entrance": "Granstangen 7E",
+        "floor": 4,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "7E H0501",
+        "entrance": "Granstangen 7E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0502",
+        "entrance": "Granstangen 7E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0503",
+        "entrance": "Granstangen 7E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "7E H0504",
+        "entrance": "Granstangen 7E",
+        "floor": 5,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "5B H0101",
+        "entrance": "Granstangen 5B",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5C H0102",
+        "entrance": "Granstangen 5C",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5D H0103",
+        "entrance": "Granstangen 5D",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5A H0104",
+        "entrance": "Granstangen 5A",
+        "floor": 1,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "5E H0201",
+        "entrance": "Granstangen 5E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0202",
+        "entrance": "Granstangen 5E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0203",
+        "entrance": "Granstangen 5E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0204",
+        "entrance": "Granstangen 5E",
+        "floor": 2,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "5E H0301",
+        "entrance": "Granstangen 5E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0302",
+        "entrance": "Granstangen 5E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0303",
+        "entrance": "Granstangen 5E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0304",
+        "entrance": "Granstangen 5E",
+        "floor": 3,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "5E H0401",
+        "entrance": "Granstangen 5E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0402",
+        "entrance": "Granstangen 5E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0403",
+        "entrance": "Granstangen 5E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0404",
+        "entrance": "Granstangen 5E",
+        "floor": 4,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "5E H0501",
+        "entrance": "Granstangen 5E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0502",
+        "entrance": "Granstangen 5E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0503",
+        "entrance": "Granstangen 5E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "5E H0504",
+        "entrance": "Granstangen 5E",
+        "floor": 5,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "3B H0101",
+        "entrance": "Granstangen 3B",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3C H0102",
+        "entrance": "Granstangen 3C",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3D H0103",
+        "entrance": "Granstangen 3D",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3A H0104",
+        "entrance": "Granstangen 3A",
+        "floor": 1,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "3E H0201",
+        "entrance": "Granstangen 3E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0202",
+        "entrance": "Granstangen 3E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0203",
+        "entrance": "Granstangen 3E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0204",
+        "entrance": "Granstangen 3E",
+        "floor": 2,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "3E H0301",
+        "entrance": "Granstangen 3E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0302",
+        "entrance": "Granstangen 3E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0303",
+        "entrance": "Granstangen 3E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0304",
+        "entrance": "Granstangen 3E",
+        "floor": 3,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "3E H0401",
+        "entrance": "Granstangen 3E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0402",
+        "entrance": "Granstangen 3E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0403",
+        "entrance": "Granstangen 3E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0404",
+        "entrance": "Granstangen 3E",
+        "floor": 4,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "3E H0501",
+        "entrance": "Granstangen 3E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0502",
+        "entrance": "Granstangen 3E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0503",
+        "entrance": "Granstangen 3E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "3E H0504",
+        "entrance": "Granstangen 3E",
+        "floor": 5,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "1B H0101",
+        "entrance": "Granstangen 1B",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1C H0102",
+        "entrance": "Granstangen 1C",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1D H0103",
+        "entrance": "Granstangen 1D",
+        "floor": 1,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1A H0104",
+        "entrance": "Granstangen 1A",
+        "floor": 1,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "1E H0201",
+        "entrance": "Granstangen 1E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0202",
+        "entrance": "Granstangen 1E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0203",
+        "entrance": "Granstangen 1E",
+        "floor": 2,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0204",
+        "entrance": "Granstangen 1E",
+        "floor": 2,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "1E H0301",
+        "entrance": "Granstangen 1E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0302",
+        "entrance": "Granstangen 1E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0303",
+        "entrance": "Granstangen 1E",
+        "floor": 3,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0304",
+        "entrance": "Granstangen 1E",
+        "floor": 3,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "1E H0401",
+        "entrance": "Granstangen 1E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0402",
+        "entrance": "Granstangen 1E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0403",
+        "entrance": "Granstangen 1E",
+        "floor": 4,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0404",
+        "entrance": "Granstangen 1E",
+        "floor": 4,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "1E H0501",
+        "entrance": "Granstangen 1E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0502",
+        "entrance": "Granstangen 1E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0503",
+        "entrance": "Granstangen 1E",
+        "floor": 5,
+        "sizeSqm": 43.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "1E H0504",
+        "entrance": "Granstangen 1E",
+        "floor": 5,
+        "sizeSqm": 61.2,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      }
+    ]
+  },
+  {
+    "buildingCode": "leva-granstangen-park",
+    "source": "Leilighetsoversikt Leva Granstangen Park AS.xlsx",
+    "city": "Oslo",
+    "postalCode": "1086",
+    "apartments": [
+      {
+        "unitNumber": "16-H0201",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 57.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0202",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0203",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0204",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 56.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0205",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0206",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0207",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0208",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0209",
+        "entrance": "Hus 16",
+        "floor": 2,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0301",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 57.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0302",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0303",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0304",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 56.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0305",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0306",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0307",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0308",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0309",
+        "entrance": "Hus 16",
+        "floor": 3,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0401",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 57.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0402",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0403",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0404",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 56.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0405",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0406",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0407",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0408",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0409",
+        "entrance": "Hus 16",
+        "floor": 4,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0501",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 57.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0502",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0503",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0504",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 56.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0505",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0506",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0507",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0508",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0509",
+        "entrance": "Hus 16",
+        "floor": 5,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0601",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 57.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0602",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0603",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 57.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0604",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 56.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "16-H0605",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0606",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0607",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 44.2,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "16-H0608",
+        "entrance": "Hus 16",
+        "floor": 6,
+        "sizeSqm": 60.9,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0201",
+        "entrance": "Hus 17",
+        "floor": 2,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0202",
+        "entrance": "Hus 17",
+        "floor": 2,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0203",
+        "entrance": "Hus 17",
+        "floor": 2,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0204",
+        "entrance": "Hus 17",
+        "floor": 2,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0205",
+        "entrance": "Hus 17",
+        "floor": 2,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0206",
+        "entrance": "Hus 17",
+        "floor": 2,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0207",
+        "entrance": "Hus 17",
+        "floor": 2,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0301",
+        "entrance": "Hus 17",
+        "floor": 3,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0302",
+        "entrance": "Hus 17",
+        "floor": 3,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0303",
+        "entrance": "Hus 17",
+        "floor": 3,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0304",
+        "entrance": "Hus 17",
+        "floor": 3,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0305",
+        "entrance": "Hus 17",
+        "floor": 3,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0306",
+        "entrance": "Hus 17",
+        "floor": 3,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0307",
+        "entrance": "Hus 17",
+        "floor": 3,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0401",
+        "entrance": "Hus 17",
+        "floor": 4,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0402",
+        "entrance": "Hus 17",
+        "floor": 4,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0403",
+        "entrance": "Hus 17",
+        "floor": 4,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0404",
+        "entrance": "Hus 17",
+        "floor": 4,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0405",
+        "entrance": "Hus 17",
+        "floor": 4,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0406",
+        "entrance": "Hus 17",
+        "floor": 4,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0407",
+        "entrance": "Hus 17",
+        "floor": 4,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0501",
+        "entrance": "Hus 17",
+        "floor": 5,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0502",
+        "entrance": "Hus 17",
+        "floor": 5,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0503",
+        "entrance": "Hus 17",
+        "floor": 5,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0504",
+        "entrance": "Hus 17",
+        "floor": 5,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0505",
+        "entrance": "Hus 17",
+        "floor": 5,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0506",
+        "entrance": "Hus 17",
+        "floor": 5,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0507",
+        "entrance": "Hus 17",
+        "floor": 5,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0601",
+        "entrance": "Hus 17",
+        "floor": 6,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0602",
+        "entrance": "Hus 17",
+        "floor": 6,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0603",
+        "entrance": "Hus 17",
+        "floor": 6,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0604",
+        "entrance": "Hus 17",
+        "floor": 6,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0605",
+        "entrance": "Hus 17",
+        "floor": 6,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0606",
+        "entrance": "Hus 17",
+        "floor": 6,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0607",
+        "entrance": "Hus 17",
+        "floor": 6,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0701",
+        "entrance": "Hus 17",
+        "floor": 7,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0702",
+        "entrance": "Hus 17",
+        "floor": 7,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0703",
+        "entrance": "Hus 17",
+        "floor": 7,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0704",
+        "entrance": "Hus 17",
+        "floor": 7,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0705",
+        "entrance": "Hus 17",
+        "floor": 7,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0706",
+        "entrance": "Hus 17",
+        "floor": 7,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0707",
+        "entrance": "Hus 17",
+        "floor": 7,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0801",
+        "entrance": "Hus 17",
+        "floor": 8,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0802",
+        "entrance": "Hus 17",
+        "floor": 8,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0803",
+        "entrance": "Hus 17",
+        "floor": 8,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0804",
+        "entrance": "Hus 17",
+        "floor": 8,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0805",
+        "entrance": "Hus 17",
+        "floor": 8,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0806",
+        "entrance": "Hus 17",
+        "floor": 8,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0807",
+        "entrance": "Hus 17",
+        "floor": 8,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0901",
+        "entrance": "Hus 17",
+        "floor": 9,
+        "sizeSqm": 46.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0902",
+        "entrance": "Hus 17",
+        "floor": 9,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0903",
+        "entrance": "Hus 17",
+        "floor": 9,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0904",
+        "entrance": "Hus 17",
+        "floor": 9,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0905",
+        "entrance": "Hus 17",
+        "floor": 9,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "17-H0906",
+        "entrance": "Hus 17",
+        "floor": 9,
+        "sizeSqm": 44.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "17-H0907",
+        "entrance": "Hus 17",
+        "floor": 9,
+        "sizeSqm": 62.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      }
+    ]
+  },
+  {
+    "buildingCode": "leva-bergerlokka",
+    "source": "Boligvelger Leva Bergerløkka AS.xlsx",
+    "city": "Billingstad",
+    "postalCode": "1396",
+    "apartments": [
+      {
+        "unitNumber": "24A-H0201",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 55.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0202",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0203",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 46.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0204",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0205",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0206",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0207",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0208",
+        "entrance": "Bergerekra 9",
+        "floor": 2,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0301",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 55.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0302",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0303",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 46.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0304",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0305",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0306",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0307",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0308",
+        "entrance": "Bergerekra 9",
+        "floor": 3,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0401",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 55.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0402",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0403",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 46.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0404",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0405",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0406",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0407",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0408",
+        "entrance": "Bergerekra 9",
+        "floor": 4,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0501",
+        "entrance": "Bergerekra 9",
+        "floor": 5,
+        "sizeSqm": 55.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0502",
+        "entrance": "Bergerekra 9",
+        "floor": 5,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0503",
+        "entrance": "Bergerekra 9",
+        "floor": 5,
+        "sizeSqm": 46.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0504",
+        "entrance": "Bergerekra 9",
+        "floor": 5,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0505",
+        "entrance": "Bergerekra 9",
+        "floor": 5,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0601",
+        "entrance": "Bergerekra 9",
+        "floor": 6,
+        "sizeSqm": 55.1,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0602",
+        "entrance": "Bergerekra 9",
+        "floor": 6,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24A-H0603",
+        "entrance": "Bergerekra 9",
+        "floor": 6,
+        "sizeSqm": 46.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0604",
+        "entrance": "Bergerekra 9",
+        "floor": 6,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0605",
+        "entrance": "Bergerekra 9",
+        "floor": 6,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0101",
+        "entrance": "Vekslerfaret 23",
+        "floor": 1,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0102",
+        "entrance": "Vekslerfaret 23",
+        "floor": 1,
+        "sizeSqm": 54.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0201",
+        "entrance": "Vekslerfaret 23",
+        "floor": 2,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0202",
+        "entrance": "Vekslerfaret 23",
+        "floor": 2,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0203",
+        "entrance": "Vekslerfaret 23",
+        "floor": 2,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0204",
+        "entrance": "Vekslerfaret 23",
+        "floor": 2,
+        "sizeSqm": 55.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0205",
+        "entrance": "Vekslerfaret 23",
+        "floor": 2,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0206",
+        "entrance": "Vekslerfaret 23",
+        "floor": 2,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0207",
+        "entrance": "Vekslerfaret 23",
+        "floor": 2,
+        "sizeSqm": 54.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0301",
+        "entrance": "Vekslerfaret 23",
+        "floor": 3,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0302",
+        "entrance": "Vekslerfaret 23",
+        "floor": 3,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0303",
+        "entrance": "Vekslerfaret 23",
+        "floor": 3,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0304",
+        "entrance": "Vekslerfaret 23",
+        "floor": 3,
+        "sizeSqm": 55.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0305",
+        "entrance": "Vekslerfaret 23",
+        "floor": 3,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0306",
+        "entrance": "Vekslerfaret 23",
+        "floor": 3,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0307",
+        "entrance": "Vekslerfaret 23",
+        "floor": 3,
+        "sizeSqm": 54.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0401",
+        "entrance": "Vekslerfaret 23",
+        "floor": 4,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0402",
+        "entrance": "Vekslerfaret 23",
+        "floor": 4,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0403",
+        "entrance": "Vekslerfaret 23",
+        "floor": 4,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0404",
+        "entrance": "Vekslerfaret 23",
+        "floor": 4,
+        "sizeSqm": 55.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0405",
+        "entrance": "Vekslerfaret 23",
+        "floor": 4,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0406",
+        "entrance": "Vekslerfaret 23",
+        "floor": 4,
+        "sizeSqm": 57.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0407",
+        "entrance": "Vekslerfaret 23",
+        "floor": 4,
+        "sizeSqm": 54.4,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0101 VF 21",
+        "entrance": "Vekslerfaret 21",
+        "floor": 1,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0101 VF 25",
+        "entrance": "Vekslerfaret 25",
+        "floor": 1,
+        "sizeSqm": 55.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0101 VF 27",
+        "entrance": "Vekslerfaret 27",
+        "floor": 1,
+        "sizeSqm": 55.3,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "24B-H0101 VF 29",
+        "entrance": "Vekslerfaret 29",
+        "floor": 1,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24B-H0101 VF 31",
+        "entrance": "Vekslerfaret 31",
+        "floor": 1,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0101 VF 33",
+        "entrance": "Vekslerfaret 33",
+        "floor": 1,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0101 VF 35",
+        "entrance": "Vekslerfaret 35",
+        "floor": 1,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "24A-H0101 VF 37",
+        "entrance": "Vekslerfaret 37",
+        "floor": 1,
+        "sizeSqm": 47.0,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      }
+    ]
+  },
+  {
+    "buildingCode": "leva-jessheim-park",
+    "source": "Leilighetsoversikt Jessheim Park.xlsx",
+    "city": "Jessheim",
+    "postalCode": "2066",
+    "apartments": [
+      {
+        "unitNumber": "J0101",
+        "entrance": "Idretten 8L",
+        "floor": 1,
+        "sizeSqm": 45.5,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0102",
+        "entrance": "Idretten 8K",
+        "floor": 1,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0103",
+        "entrance": "Idretten 8J",
+        "floor": 1,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0104",
+        "entrance": "Idretten 8H",
+        "floor": 1,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0105",
+        "entrance": "Idretten 8G",
+        "floor": 1,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0106",
+        "entrance": "Idretten 8F",
+        "floor": 1,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0107",
+        "entrance": "Idretten 8E",
+        "floor": 1,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0108",
+        "entrance": "Idretten 8D",
+        "floor": 1,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0114",
+        "entrance": "Idretten 8A",
+        "floor": 1,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0201",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.5,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0202",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0203",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0204",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0205",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0206",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0207",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0208",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0209",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 58.5,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0210",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0211",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0212",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0213",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0214",
+        "entrance": "Idretten 8C",
+        "floor": 2,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0301",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.5,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0302",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0303",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0304",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0305",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0306",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0307",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0308",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0309",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 58.5,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0310",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0311",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0312",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0313",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0314",
+        "entrance": "Idretten 8C",
+        "floor": 3,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0401",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.5,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0402",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0403",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0404",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0405",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0406",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0407",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0408",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0409",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 58.5,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0410",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0411",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0412",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0413",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0414",
+        "entrance": "Idretten 8C",
+        "floor": 4,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0501",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.5,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0502",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0503",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0504",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0505",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0506",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0507",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0508",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0509",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 58.5,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0510",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0511",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0512",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0513",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0514",
+        "entrance": "Idretten 8C",
+        "floor": 5,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0601",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.5,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0602",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0603",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0604",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0605",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0606",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0607",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0608",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0609",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 58.5,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0610",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0611",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0612",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0613",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0614",
+        "entrance": "Idretten 8C",
+        "floor": 6,
+        "sizeSqm": 58.7,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0703",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0704",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0705",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0706",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 45.6,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0707",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0708",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 45.4,
+        "numberOfRooms": 2,
+        "apartmentType": "2-room"
+      },
+      {
+        "unitNumber": "J0709",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 58.5,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0710",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0711",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      },
+      {
+        "unitNumber": "J0712",
+        "entrance": "Idretten 8C",
+        "floor": 7,
+        "sizeSqm": 58.8,
+        "numberOfRooms": 3,
+        "apartmentType": "3-room"
+      }
+    ]
+  }
+]
