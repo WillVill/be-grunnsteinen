@@ -4,14 +4,15 @@ Full-stack community neighborhood platform. Multi-tenant SaaS: organizations (ho
 
 ```
 /code
-├── be_grunnsteinen/   NestJS 10 backend (MongoDB, Mongoose) — this file lives here
-├── fe_grunnsteinen/   Next.js 16 frontend (React 19, Tailwind CSS 4)
-└── .claude/rules/     Detailed coding conventions (workspace-level, not in this repo)
+├── be_grunnsteinen/   NestJS 10 backend (MongoDB, Mongoose)
+│   ├── CLAUDE.md      this file
+│   └── .claude/rules/ Detailed coding conventions (backend + frontend)
+└── fe_grunnsteinen/   Next.js 16 frontend (React 19, Tailwind CSS 4)
 ```
 
 `be_grunnsteinen` and `fe_grunnsteinen` are **separate GitHub repos**; `/code` is just the
-workspace folder that contains them. This file is tracked in the backend repo, so paths to
-`.claude/rules/` below are relative to `/code`, one level up.
+workspace folder that contains them. This file and the rule files are tracked in the backend
+repo — including `rules/frontend.md`, which documents the frontend repo.
 
 ## Tech Stack
 
@@ -211,7 +212,7 @@ Index: unique sparse (apartmentId, email)
 
 Persistent admin-managed record of who lives in an apartment — outlives any invitation and
 exists whether or not the tenant ever registers. `apartment.tenantIds` holds only registered
-users; unregistered tenants live here. See `../.claude/rules/tenant-user-relation.md`.
+users; unregistered tenants live here. See `.claude/rules/tenant-user-relation.md`.
 
 #### `dailystats`
 ```
