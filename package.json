@@ -21,7 +21,8 @@
     "setup:base": "ts-node scripts/setup-base-organization.ts",
     "setup:customer": "ts-node scripts/setup-customer-grunnsteinen.ts",
     "migrate:concepts": "ts-node scripts/migrate-concepts.ts",
-    "import:langenga": "ts-node scripts/import-apartments-langenga.ts"
+    "extract:apartments": "python3 scripts/extract-apartments.py",
+    "import:apartments": "ts-node scripts/import-apartments.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
