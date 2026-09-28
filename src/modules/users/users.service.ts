@@ -242,6 +242,8 @@ export class UsersService {
         isHelpfulNeighbor: true,
         isActive: true,
         isProfilePrivate: { $ne: true },
+        // Org-wide staff are linked to every building, so they'd show up everywhere
+        role: { $nin: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
         ...(buildingId ? { buildingIds: new Types.ObjectId(buildingId) } : {}),
       })
       .sort({ name: 1 })
