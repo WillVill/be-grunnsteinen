@@ -30,6 +30,7 @@ import { UsersService } from "./users.service";
 import {
   UpdateUserDto,
   UserQueryDto,
+  HelpfulNeighborsQueryDto,
   CreateAdminUserDto,
   UpdateAdminUserDto,
   UpdateRoleDto,
@@ -99,9 +100,13 @@ export class UsersController {
     status: 200,
     description: "List of helpful neighbors",
   })
-  async getHelpfulNeighbors(@CurrentUser() user: CurrentUserData) {
+  async getHelpfulNeighbors(
+    @CurrentUser() user: CurrentUserData,
+    @Query() query: HelpfulNeighborsQueryDto,
+  ) {
     const neighbors = await this.usersService.getHelpfulNeighbors(
       user.organizationId,
+      query.buildingId,
     );
     return neighbors.map((n) => this.redactContactInfo(n, user));
   }

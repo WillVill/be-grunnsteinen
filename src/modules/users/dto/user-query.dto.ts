@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsBoolean, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsEnum, IsMongoId } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
@@ -60,3 +60,9 @@ export class UserQueryDto extends PaginationQueryDto {
   excludeRoles?: string;
 }
 
+export class HelpfulNeighborsQueryDto {
+  @ApiPropertyOptional({ description: 'Filter by building ID' })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid building ID format' })
+  buildingId?: string;
+}

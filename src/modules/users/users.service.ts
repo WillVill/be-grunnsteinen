@@ -140,6 +140,11 @@ export class UsersService {
       filter.$and = andClauses as any;
     }
 
+    // Filter by building membership
+    if (query.buildingId) {
+      filter.buildingIds = new Types.ObjectId(query.buildingId);
+    }
+
     // Filter by building
     if (building) {
       filter.building = building;
@@ -227,13 +232,17 @@ export class UsersService {
   /**
    * Get all helpful neighbors in an organization
    */
-  async getHelpfulNeighbors(organizationId: string): Promise<UserDocument[]> {
+  async getHelpfulNeighbors(
+    organizationId: string,
+    buildingId?: string,
+  ): Promise<UserDocument[]> {
     return this.userModel
       .find({
         organizationId: new Types.ObjectId(organizationId),
         isHelpfulNeighbor: true,
         isActive: true,
         isProfilePrivate: { $ne: true },
+        ...(buildingId ? { buildingIds: new Types.ObjectId(buildingId) } : {}),
       })
       .sort({ name: 1 })
       .exec();
