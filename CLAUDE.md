@@ -82,6 +82,7 @@ settings { allowResidentPosts, allowResidentEvents, requireBookingApproval, defa
 ```
 organizationId → organizations, name, code, logoUrl, brandColor, description, isActive
 brandColors { primary, secondary, tertiary, quaternary }
+isBookingEnabled (default true; false hides booking in the UI for the concept's buildings)
 Index: unique sparse (organizationId, code)
 ```
 
@@ -169,9 +170,14 @@ apartmentId → apartments?, isPublic
 #### `documentfolders`
 ```
 organizationId → organizations, conceptId → concepts (required), buildingId → buildings?
+parentId → documentfolders? (subfolders; inherit conceptId/buildingId from the parent)
 name, description, documentCount, createdById → users
-Index: unique (organizationId, conceptId, name)
+Index: unique (organizationId, conceptId, buildingId, parentId, name) — names unique among siblings
 ```
+
+Residents only see folders whose subtree holds a public document. A folder with documents
+or subfolders cannot be deleted. `scripts/setup-document-folders.ts` migrates the old
+`(organizationId, conceptId, name)` index and seeds the standard folders per building.
 
 #### `notifications`
 ```

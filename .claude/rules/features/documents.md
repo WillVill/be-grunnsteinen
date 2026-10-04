@@ -365,7 +365,7 @@ Main documents hub with category filtering, search, and upload capability.
 **Features:**
 - **Header:**
   - Title: "Dokumenter"
-  - Subtitle: "Viktige dokumenter for borettslaget"
+  - Subtitle: "Viktige dokumenter for eiendommen"
   - Gradient icon (FileText)
   - Upload button (for board/admin only)
 
