@@ -48,7 +48,7 @@ export class DocumentFoldersController {
   @ApiOperation({
     summary: 'Create a document folder',
     description:
-      'Create a new folder for documents. Only board members and admins.',
+      'Create a new folder for documents, or a subfolder when parentId is set. Only board members and admins.',
   })
   @ApiBody({ type: CreateDocumentFolderDto })
   @ApiResponse({ status: 201, description: 'Folder created' })
@@ -91,8 +91,11 @@ export class DocumentFoldersController {
   @ApiParam({ name: 'id', description: 'Folder ID' })
   @ApiResponse({ status: 200, description: 'Folder details' })
   @ApiResponse({ status: 404, description: 'Not Found' })
-  async findOne(@Param('id') id: string) {
-    return this.documentFoldersService.findById(id);
+  async findOne(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.documentFoldersService.findById(id, user.organizationId);
   }
 
   @Patch(':id')
@@ -128,11 +131,11 @@ export class DocumentFoldersController {
   @ApiOperation({
     summary: 'Delete folder',
     description:
-      'Delete a folder. Blocked if the folder contains documents — move or delete them first.',
+      'Delete a folder. Blocked if the folder contains documents or subfolders — move or delete them first.',
   })
   @ApiParam({ name: 'id', description: 'Folder ID' })
   @ApiResponse({ status: 204, description: 'Folder deleted' })
-  @ApiResponse({ status: 400, description: 'Folder not empty' })
+  @ApiResponse({ status: 400, description: 'Folder has documents or subfolders' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Not Found' })
   async delete(

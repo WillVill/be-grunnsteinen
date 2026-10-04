@@ -19,7 +19,7 @@ export class UpdateDocumentFolderDto {
   name?: string;
 
   @ApiPropertyOptional({
-    example: 'Husordensregler og retningslinjer for sameiet',
+    example: 'Husordensregler og retningslinjer for eiendommen',
     maxLength: 300,
   })
   @IsOptional()

@@ -20,7 +20,7 @@ export class CreateDocumentFolderDto {
   name: string;
 
   @ApiPropertyOptional({
-    example: 'Husordensregler og retningslinjer for sameiet',
+    example: 'Husordensregler og retningslinjer for eiendommen',
     maxLength: 300,
     description: 'Optional folder description',
   })
@@ -46,4 +46,13 @@ export class CreateDocumentFolderDto {
   @IsOptional()
   @IsMongoId({ message: 'Invalid building ID format' })
   buildingId?: string;
+
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description:
+      'Parent folder ID. When set, creates a subfolder; conceptId and buildingId are inherited from the parent and ignored.',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'Invalid parent folder ID format' })
+  parentId?: string;
 }

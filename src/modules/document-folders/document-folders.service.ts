@@ -40,30 +40,48 @@ export class DocumentFoldersService {
     orgId: string,
     dto: CreateDocumentFolderDto,
   ): Promise<DocumentFolderDocument> {
-    if (!dto.conceptId && !dto.buildingId) {
+    if (!dto.conceptId && !dto.buildingId && !dto.parentId) {
       throw new BadRequestException(
-        'Either conceptId or buildingId must be provided.',
+        'Either conceptId, buildingId or parentId must be provided.',
       );
     }
 
     let conceptObjectId: Types.ObjectId;
-    if (dto.conceptId) {
+    let buildingObjectId: Types.ObjectId | undefined;
+    let parentObjectId: Types.ObjectId | undefined;
+    if (dto.parentId) {
+      // Subfolders always share their parent's scope — whatever scope the
+      // client sent is ignored so a subtree can never span buildings.
+      const parent = await this.folderModel.findOne({
+        _id: new Types.ObjectId(dto.parentId),
+        organizationId: new Types.ObjectId(orgId),
+      });
+      if (!parent) {
+        throw new NotFoundException(`Mappe "${dto.parentId}" finnes ikke`);
+      }
+      conceptObjectId = parent.conceptId;
+      buildingObjectId = parent.buildingId ?? undefined;
+      parentObjectId = parent._id as Types.ObjectId;
+    } else if (dto.conceptId) {
       await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
       conceptObjectId = new Types.ObjectId(dto.conceptId);
+      buildingObjectId = dto.buildingId
+        ? new Types.ObjectId(dto.buildingId)
+        : undefined;
     } else {
       conceptObjectId = await this.conceptsService.requireConceptIdForBuilding(
         dto.buildingId!,
         orgId,
       );
+      buildingObjectId = new Types.ObjectId(dto.buildingId);
     }
 
     try {
       const folder = await this.folderModel.create({
         organizationId: new Types.ObjectId(orgId),
         conceptId: conceptObjectId,
-        ...(dto.buildingId
-          ? { buildingId: new Types.ObjectId(dto.buildingId) }
-          : {}),
+        ...(buildingObjectId ? { buildingId: buildingObjectId } : {}),
+        ...(parentObjectId ? { parentId: parentObjectId } : {}),
         name: dto.name.trim(),
         description: dto.description?.trim(),
         createdById: new Types.ObjectId(userId),
@@ -75,7 +93,7 @@ export class DocumentFoldersService {
     } catch (err: unknown) {
       if (isDuplicateKeyError(err)) {
         throw new ConflictException(
-          `En mappe med navnet "${dto.name}" finnes allerede i dette konseptet`,
+          `En mappe med navnet "${dto.name}" finnes allerede her`,
         );
       }
       throw err;
@@ -117,9 +135,10 @@ export class DocumentFoldersService {
     const folders = await this.folderModel.find(filter).sort({ name: 1 }).exec();
 
     // Board+ sees every folder (including empty ones) so they can manage them.
-    // Residents only see folders that contain at least one document they can
-    // access — the denormalized documentCount is replaced with the visible
-    // count so the card label matches what they can actually open.
+    // Residents only see folders whose subtree contains at least one document
+    // they can access — an empty subfolder hides, but its non-empty sibling
+    // keeps the shared parent visible. documentCount is replaced with the
+    // visible direct count so the card label matches what they can open.
     if (isBoardOrAbove(role)) {
       return folders;
     }
@@ -145,19 +164,40 @@ export class DocumentFoldersService {
     const countByFolderId = new Map(
       visibleCounts.map((row) => [row._id.toString(), row.count]),
     );
+    const folderById = new Map(folders.map((f) => [f._id.toString(), f]));
+
+    // Walk up from every non-empty folder, marking its ancestors visible.
+    // Stops at an already-visible folder, which also guards against cycles.
+    const visibleIds = new Set<string>();
+    for (const folderId of countByFolderId.keys()) {
+      let current = folderById.get(folderId);
+      while (current && !visibleIds.has(current._id.toString())) {
+        visibleIds.add(current._id.toString());
+        current = current.parentId
+          ? folderById.get(current.parentId.toString())
+          : undefined;
+      }
+    }
 
     return folders
-      .filter((folder) => (countByFolderId.get(folder._id.toString()) ?? 0) > 0)
+      .filter((folder) => visibleIds.has(folder._id.toString()))
       .map((folder) => {
-        const visibleCount = countByFolderId.get(folder._id.toString()) ?? 0;
         const obj = folder.toObject();
-        obj.documentCount = visibleCount;
+        obj.documentCount = countByFolderId.get(folder._id.toString()) ?? 0;
         return obj as DocumentFolderDocument;
       });
   }
 
-  async findById(folderId: string): Promise<DocumentFolderDocument> {
-    const folder = await this.folderModel.findById(folderId).exec();
+  async findById(
+    folderId: string,
+    orgId: string,
+  ): Promise<DocumentFolderDocument> {
+    const folder = await this.folderModel
+      .findOne({
+        _id: new Types.ObjectId(folderId),
+        organizationId: new Types.ObjectId(orgId),
+      })
+      .exec();
     if (!folder) {
       throw new NotFoundException(`Mappe "${folderId}" finnes ikke`);
     }
@@ -199,7 +239,7 @@ export class DocumentFoldersService {
     } catch (err: unknown) {
       if (isDuplicateKeyError(err)) {
         throw new ConflictException(
-          `En mappe med navnet "${dto.name}" finnes allerede i dette konseptet`,
+          `En mappe med navnet "${dto.name}" finnes allerede her`,
         );
       }
       throw err;
@@ -225,6 +265,16 @@ export class DocumentFoldersService {
     if (documentCount > 0) {
       throw new BadRequestException(
         `Mappen inneholder ${documentCount} dokument${documentCount === 1 ? '' : 'er'}. Flytt eller slett dokumentene før du sletter mappen.`,
+      );
+    }
+
+    const subfolderCount = await this.folderModel.countDocuments({
+      parentId: folder._id,
+    });
+
+    if (subfolderCount > 0) {
+      throw new BadRequestException(
+        `Mappen inneholder ${subfolderCount} undermappe${subfolderCount === 1 ? '' : 'r'}. Slett undermappene før du sletter mappen.`,
       );
     }
 

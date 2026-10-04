@@ -29,6 +29,15 @@ export class DocumentFolder {
   })
   buildingId?: Types.ObjectId;
 
+  // Subfolders inherit conceptId/buildingId from their parent, so a folder's
+  // scope is always that of its root folder. Absent on top-level folders.
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'DocumentFolder',
+    index: true,
+  })
+  parentId?: Types.ObjectId;
+
   @Prop({ required: true, trim: true })
   name: string;
 
@@ -49,7 +58,12 @@ export class DocumentFolder {
 export const DocumentFolderSchema = SchemaFactory.createForClass(DocumentFolder);
 
 DocumentFolderSchema.index({ organizationId: 1, conceptId: 1, buildingId: 1 });
+// Names are unique among siblings: the same name may exist in different
+// buildings and under different parents. Missing buildingId/parentId index as
+// null, so concept-wide and top-level folders are still deduplicated.
+// Replaces the old { organizationId, conceptId, name } index — drop it with
+// scripts/migrate-folder-hierarchy.ts.
 DocumentFolderSchema.index(
-  { organizationId: 1, conceptId: 1, name: 1 },
+  { organizationId: 1, conceptId: 1, buildingId: 1, parentId: 1, name: 1 },
   { unique: true },
 );
