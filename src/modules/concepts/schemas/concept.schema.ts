@@ -51,6 +51,11 @@ export class Concept {
 
   @Prop({ default: true, index: true })
   isActive: boolean;
+
+  // Hides the booking feature (nav, home widget, /booking) for buildings in
+  // this concept. UI-level only — the bookings API itself stays available.
+  @Prop({ default: true })
+  isBookingEnabled: boolean;
 }
 
 export const ConceptSchema = SchemaFactory.createForClass(Concept);

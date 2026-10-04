@@ -49,4 +49,11 @@ export class UpdateConceptDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Show the booking feature for buildings in this concept",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBookingEnabled?: boolean;
 }
