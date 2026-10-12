@@ -12,6 +12,7 @@ import {
   ConversationDocument,
 } from './schemas/conversation.schema';
 import { Message, MessageDocument } from './schemas/message.schema';
+import { refId } from '../../common/schemas/ref-id';
 import {
   User,
   UserDocument,
@@ -580,7 +581,7 @@ export class MessagesService {
 
     // Mark messages as read for this user (except their own messages)
     const unreadMessages = messages.filter(
-      (m) => !m.isRead && m.senderId.toString() !== userId,
+      (m) => !m.isRead && refId(m.senderId) !== userId,
     );
 
     if (unreadMessages.length > 0) {

@@ -32,6 +32,7 @@ import {
 } from '../../shared/services/notification.service';
 import { EmailService, EmailUser } from '../../shared/services/email.service';
 import { ConceptsService } from '../concepts/concepts.service';
+import { refId } from '../../common/schemas/ref-id';
 
 @Injectable()
 export class SharingService {
@@ -216,7 +217,7 @@ export class SharingService {
       throw new BadRequestException('Help request is not open');
     }
 
-    if (helpRequest.requesterId.toString() === helperId) {
+    if (refId(helpRequest.requesterId) === helperId) {
       throw new BadRequestException('Cannot accept your own help request');
     }
 
@@ -241,7 +242,7 @@ export class SharingService {
 
       await this.notificationService
         .createNotification(
-          helpRequest.requesterId.toString(),
+          refId(helpRequest.requesterId),
           NotificationType.MESSAGE_RECEIVED,
           'Help request accepted',
           `${helper.name} has accepted your help request: "${helpRequest.title}"`,
@@ -275,8 +276,8 @@ export class SharingService {
     }
 
     // Verify user is requester or helper
-    const isRequester = helpRequest.requesterId.toString() === userId;
-    const isHelper = helpRequest.helperId?.toString() === userId;
+    const isRequester = refId(helpRequest.requesterId) === userId;
+    const isHelper = refId(helpRequest.helperId) === userId;
 
     if (!isRequester && !isHelper) {
       throw new ForbiddenException(
@@ -293,8 +294,8 @@ export class SharingService {
 
     // Notify the other party
     const otherUserId = isRequester
-      ? helpRequest.helperId?.toString()
-      : helpRequest.requesterId.toString();
+      ? refId(helpRequest.helperId)
+      : refId(helpRequest.requesterId);
     const otherUser = await this.userModel.findById(otherUserId);
     const currentUser = await this.userModel.findById(userId);
     if (otherUser && currentUser) {
@@ -345,7 +346,7 @@ export class SharingService {
     }
 
     // Verify user is requester or a sharing moderator for this building
-    const isRequester = helpRequest.requesterId.toString() === userId;
+    const isRequester = refId(helpRequest.requesterId) === userId;
     const canceller = await this.userModel.findById(userId);
     const scopeBuildingId = helpRequest.isConceptWide ? null : helpRequest.buildingId;
     const canModerate =
@@ -375,7 +376,7 @@ export class SharingService {
 
         await this.notificationService
           .createNotification(
-            helpRequest.helperId.toString(),
+            refId(helpRequest.helperId),
             NotificationType.MESSAGE_RECEIVED,
             'Help request cancelled',
             `The help request "${helpRequest.title}" has been cancelled`,
@@ -584,7 +585,7 @@ export class SharingService {
     const sharedItem = await this.findSharedItemById(itemId);
 
     // Verify user is owner
-    if (sharedItem.ownerId.toString() !== userId) {
+    if (refId(sharedItem.ownerId) !== userId) {
       throw new ForbiddenException('Only the owner can update this item');
     }
 
@@ -608,7 +609,7 @@ export class SharingService {
     const sharedItem = await this.findSharedItemById(itemId);
 
     // Verify user is owner
-    if (sharedItem.ownerId.toString() !== userId) {
+    if (refId(sharedItem.ownerId) !== userId) {
       throw new ForbiddenException('Only the owner can toggle availability');
     }
 
@@ -642,7 +643,7 @@ export class SharingService {
       throw new BadRequestException('Item is not available for borrowing');
     }
 
-    if (sharedItem.ownerId.toString() === userId) {
+    if (refId(sharedItem.ownerId) === userId) {
       throw new BadRequestException('Cannot request to borrow your own item');
     }
 
@@ -659,7 +660,7 @@ export class SharingService {
 
       await this.notificationService
         .createNotification(
-          sharedItem.ownerId.toString(),
+          refId(sharedItem.ownerId),
           NotificationType.MESSAGE_RECEIVED,
           'Borrow request',
           `${requester.name} wants to borrow your "${sharedItem.name}"`,
@@ -682,7 +683,7 @@ export class SharingService {
     const sharedItem = await this.findSharedItemById(itemId);
 
     // Verify user is owner or a sharing moderator for this building
-    const isOwner = sharedItem.ownerId.toString() === userId;
+    const isOwner = refId(sharedItem.ownerId) === userId;
     const user = await this.userModel.findById(userId);
     const scopeBuildingId = sharedItem.isConceptWide ? null : sharedItem.buildingId;
     const canModerate =

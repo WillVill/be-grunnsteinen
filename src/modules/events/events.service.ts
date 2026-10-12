@@ -19,6 +19,7 @@ import {
 import { EmailService } from "../../shared/services/email.service";
 import { S3Service } from "../../shared/services/s3.service";
 import { ConceptsService } from "../concepts/concepts.service";
+import { refId } from "../../common/schemas/ref-id";
 import {
   Permission,
   canModerateInBuilding,
@@ -307,7 +308,7 @@ export class EventsService {
 
     // Verify user is organizer or board member
     const user = await this.userModel.findById(userId);
-    const isOrganizer = event.organizerId.toString() === userId;
+    const isOrganizer = refId(event.organizerId) === userId;
     const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
     const canModerate =
       user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
@@ -377,7 +378,7 @@ export class EventsService {
 
     // Verify user is organizer or board member
     const user = await this.userModel.findById(userId);
-    const isOrganizer = event.organizerId.toString() === userId;
+    const isOrganizer = refId(event.organizerId) === userId;
     const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
     const canModerate =
       user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
@@ -429,7 +430,7 @@ export class EventsService {
 
     // Verify user is organizer or board member
     const user = await this.userModel.findById(userId);
-    const isOrganizer = event.organizerId.toString() === userId;
+    const isOrganizer = refId(event.organizerId) === userId;
     const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
     const canModerate =
       user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);

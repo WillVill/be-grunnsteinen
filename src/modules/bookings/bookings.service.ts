@@ -23,6 +23,7 @@ import {
 } from '../../shared/services/notification.service';
 import { EmailService, EmailUser } from '../../shared/services/email.service';
 import { ConceptsService } from '../concepts/concepts.service';
+import { refId } from '../../common/schemas/ref-id';
 
 @Injectable()
 export class BookingsService {
@@ -284,7 +285,7 @@ export class BookingsService {
     }
 
     // Verify access rights
-    const isOwner = booking.userId.toString() === userId;
+    const isOwner = refId(booking.userId) === userId;
     if (!isOwner && !isBoard) {
       throw new ForbiddenException('You do not have access to this booking');
     }

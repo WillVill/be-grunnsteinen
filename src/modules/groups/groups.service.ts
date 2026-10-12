@@ -18,6 +18,7 @@ import {
 } from '../../shared/services/notification.service';
 import { S3Service } from '../../shared/services/s3.service';
 import { ConceptsService } from '../concepts/concepts.service';
+import { refId } from '../../common/schemas/ref-id';
 
 @Injectable()
 export class GroupsService {
@@ -227,7 +228,7 @@ export class GroupsService {
 
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
-    const isCreator = group.creatorId.toString() === userId;
+    const isCreator = refId(group.creatorId) === userId;
     const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
     const canModerate =
       user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
@@ -260,7 +261,7 @@ export class GroupsService {
 
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
-    const isCreator = group.creatorId.toString() === userId;
+    const isCreator = refId(group.creatorId) === userId;
     const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
     const canModerate =
       user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
@@ -294,7 +295,7 @@ export class GroupsService {
 
     // Check if already a member
     const isMember = group.members.some(
-      (m) => m.toString() === userId,
+      (m) => refId(m) === userId,
     );
     if (isMember) {
       throw new BadRequestException('Already a member of this group');
@@ -327,14 +328,14 @@ export class GroupsService {
 
     // Check if member
     const isMember = group.members.some(
-      (m) => m.toString() === userId,
+      (m) => refId(m) === userId,
     );
     if (!isMember) {
       throw new BadRequestException('Not a member of this group');
     }
 
     // Creator cannot leave (must delete group instead)
-    if (group.creatorId.toString() === userId) {
+    if (refId(group.creatorId) === userId) {
       throw new BadRequestException(
         'Creator cannot leave the group. Delete the group instead.',
       );
@@ -342,7 +343,7 @@ export class GroupsService {
 
     // Remove user from members
     group.members = group.members.filter(
-      (m) => m.toString() !== userId,
+      (m) => refId(m) !== userId,
     );
     group.memberCount = group.members.length;
     await group.save();
@@ -367,7 +368,7 @@ export class GroupsService {
     const group = await this.findById(groupId);
 
     const inviter = await this.userModel.findById(inviterUserId);
-    const isCreator = group.creatorId.toString() === inviterUserId;
+    const isCreator = refId(group.creatorId) === inviterUserId;
     const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
     const canModerate =
       inviter && canModerateInBuilding(inviter, scopeBuildingId, Permission.GROUP_MODERATE);
@@ -379,7 +380,7 @@ export class GroupsService {
     }
 
     const newMemberId = new Types.ObjectId(dto.userId);
-    const isAlreadyMember = group.members.some((m) => m.toString() === dto.userId);
+    const isAlreadyMember = group.members.some((m) => refId(m) === dto.userId);
     if (isAlreadyMember) {
       throw new BadRequestException('User is already a member of this group');
     }
@@ -454,7 +455,7 @@ export class GroupsService {
 
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
-    const isCreator = group.creatorId.toString() === userId;
+    const isCreator = refId(group.creatorId) === userId;
     const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
     const canModerate =
       user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
