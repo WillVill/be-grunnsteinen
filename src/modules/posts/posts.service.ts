@@ -600,8 +600,13 @@ export class PostsService {
     // Note: findPostDocument populates authorId, so use _id for comparison
     const postAuthorIdStr = ((post.authorId as any)?._id ?? post.authorId).toString();
     if (postAuthorIdStr !== userId) {
-      const commentAuthor = await this.userModel.findById(userId);
-      if (commentAuthor) {
+      const [commentAuthor, postAuthor] = await Promise.all([
+        this.userModel.findById(userId).select('name'),
+        this.userModel.findById(postAuthorIdStr).select('name email'),
+      ]);
+      if (commentAuthor && postAuthor) {
+        // The email goes to the post author (the notification's recipient),
+        // not to the commenter.
         await this.notificationService.createNotification(
           postAuthorIdStr,
           NotificationType.POST_COMMENT,
@@ -610,10 +615,10 @@ export class PostsService {
           `/posts/${postId}`,
           true, // Send email
           {
-            _id: commentAuthor._id.toString(),
-            email: commentAuthor.email,
-            firstName: commentAuthor.name.split(' ')[0],
-            lastName: commentAuthor.name.split(' ').slice(1).join(' '),
+            _id: postAuthor._id.toString(),
+            email: postAuthor.email,
+            firstName: postAuthor.name.split(' ')[0],
+            lastName: postAuthor.name.split(' ').slice(1).join(' '),
           },
         ).catch((error) => {
           this.logger.error('Failed to send comment notification', error);

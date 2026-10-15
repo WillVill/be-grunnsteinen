@@ -43,6 +43,7 @@ describe('PostsService group privacy', () => {
   let commentCreate: jest.Mock;
   let userFindById: jest.Mock;
   let postCreate: jest.Mock;
+  let createNotification: jest.Mock;
   let assertBuildingInConcept: jest.Mock;
 
   const privateGroup = { isPrivate: true, isConceptWide: false, buildingId: new Types.ObjectId(), members: [new Types.ObjectId(memberId)] };
@@ -64,6 +65,7 @@ describe('PostsService group privacy', () => {
     commentCreate = jest.fn();
     userFindById = jest.fn(() => query({ role: UserRole.RESIDENT, buildingIds: [] }));
     postCreate = jest.fn();
+    createNotification = jest.fn().mockResolvedValue(undefined);
     assertBuildingInConcept = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -94,7 +96,7 @@ describe('PostsService group privacy', () => {
         },
         { provide: getModelToken(User.name), useValue: { findById: userFindById } },
         { provide: getModelToken(Group.name), useValue: { findOne: groupFindOne, distinct: groupDistinct } },
-        { provide: NotificationService, useValue: {} },
+        { provide: NotificationService, useValue: { createNotification } },
         { provide: ConceptsService, useValue: { findConceptIdForBuilding: jest.fn(), assertConceptInOrg: jest.fn(), assertBuildingInConcept } },
       ],
     }).compile();
@@ -257,6 +259,48 @@ describe('PostsService group privacy', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(assertBuildingInConcept).toHaveBeenCalledWith(buildingId, conceptId, orgId);
       expect(postCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('comment notification', () => {
+    const authorId = new Types.ObjectId().toString();
+
+    it('emails the post author, not the commenter', async () => {
+      const post = {
+        _id: new Types.ObjectId(postId),
+        organizationId: new Types.ObjectId(orgId),
+        authorId: { _id: new Types.ObjectId(authorId), name: 'Post Author' },
+        commentsCount: 0,
+        save: jest.fn(),
+      };
+      postFindOne.mockImplementation(inOrg(post));
+      commentCreate.mockResolvedValue({ _id: new Types.ObjectId() });
+      commentFindById.mockReturnValue(query({}));
+      userFindById.mockImplementation((id: string) =>
+        query(
+          id === authorId
+            ? { _id: new Types.ObjectId(authorId), name: 'Post Author', email: 'author@example.com' }
+            : { _id: new Types.ObjectId(memberId), name: 'Kari Kommentar', email: 'commenter@example.com' },
+        ),
+      );
+
+      await service.addComment(postId, memberId, orgId, { content: 'Hei' } as any);
+
+      expect(createNotification).toHaveBeenCalledTimes(1);
+      const [recipientId, , , message, , sendEmail, emailUser] = createNotification.mock.calls[0];
+      expect(recipientId).toBe(authorId);
+      expect(message).toBe('Kari Kommentar commented on your post');
+      expect(sendEmail).toBe(true);
+      expect(emailUser).toEqual({ _id: authorId, email: 'author@example.com', firstName: 'Post', lastName: 'Author' });
+    });
+
+    it('does not notify when authors comment on their own post', async () => {
+      const post = { _id: new Types.ObjectId(postId), authorId: new Types.ObjectId(memberId), commentsCount: 0, save: jest.fn() };
+      postFindOne.mockImplementation(inOrg(post));
+      commentCreate.mockResolvedValue({ _id: new Types.ObjectId() });
+      commentFindById.mockReturnValue(query({}));
+      await service.addComment(postId, memberId, orgId, { content: 'Hei' } as any);
+      expect(createNotification).not.toHaveBeenCalled();
     });
   });
 });
