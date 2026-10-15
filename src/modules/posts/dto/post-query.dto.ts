@@ -1,8 +1,8 @@
 import { IsOptional, IsEnum, IsBoolean, IsMongoId } from 'class-validator';
-import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { PostCategory } from '../schemas/post.schema';
+import { ToBoolean } from '../../../common/decorators/to-boolean.decorator';
 
 export class PostQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
@@ -28,11 +28,7 @@ export class PostQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   isPinned?: boolean;
 
   @ApiPropertyOptional({
@@ -41,11 +37,7 @@ export class PostQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   fromBoard?: boolean;
 
   @ApiPropertyOptional({
@@ -62,11 +54,7 @@ export class PostQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   excludeGroupPosts?: boolean;
 
   @ApiPropertyOptional({

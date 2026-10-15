@@ -4,9 +4,9 @@ import {
   IsBoolean,
   IsMongoId,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+import { ToBoolean } from '../../../common/decorators/to-boolean.decorator';
 
 export class GroupQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
@@ -23,11 +23,7 @@ export class GroupQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   isMember?: boolean;
 
   @ApiPropertyOptional({
@@ -36,11 +32,7 @@ export class GroupQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   isPrivate?: boolean;
 
   @ApiPropertyOptional({
