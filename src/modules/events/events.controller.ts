@@ -91,7 +91,11 @@ export class EventsController {
     @CurrentUser() user: CurrentUserData,
     @Query("limit", new ParseIntPipe({ optional: true })) limit?: number,
   ) {
-    return this.eventsService.getUpcoming(user.organizationId, limit || 5);
+    return this.eventsService.getUpcoming(
+      user.organizationId,
+      user.userId,
+      limit || 5,
+    );
   }
 
   @Get(":id")
@@ -106,7 +110,11 @@ export class EventsController {
     @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
   ) {
-    return this.eventsService.findById(id.toString(), user.organizationId);
+    return this.eventsService.findOneForUser(
+      id.toString(),
+      user.organizationId,
+      user.userId,
+    );
   }
 
   @Patch(":id")
@@ -119,11 +127,16 @@ export class EventsController {
   @ApiResponse({ status: 403, description: "Insufficient permissions" })
   @ApiResponse({ status: 404, description: "Event not found" })
   async update(
-    @CurrentUser("userId") userId: string,
+    @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
     @Body() updateEventDto: UpdateEventDto,
   ) {
-    return this.eventsService.update(id.toString(), userId, updateEventDto);
+    return this.eventsService.update(
+      id.toString(),
+      user.userId,
+      user.organizationId,
+      updateEventDto,
+    );
   }
 
   @Delete(":id")
@@ -136,10 +149,14 @@ export class EventsController {
   @ApiResponse({ status: 403, description: "Insufficient permissions" })
   @ApiResponse({ status: 404, description: "Event not found" })
   async delete(
-    @CurrentUser("userId") userId: string,
+    @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
   ) {
-    await this.eventsService.delete(id.toString(), userId);
+    await this.eventsService.delete(
+      id.toString(),
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Post(":id/cancel")
@@ -152,10 +169,14 @@ export class EventsController {
   @ApiResponse({ status: 403, description: "Insufficient permissions" })
   @ApiResponse({ status: 404, description: "Event not found" })
   async cancel(
-    @CurrentUser("userId") userId: string,
+    @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
   ) {
-    return this.eventsService.cancel(id.toString(), userId);
+    return this.eventsService.cancel(
+      id.toString(),
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Post(":id/join")
@@ -171,10 +192,14 @@ export class EventsController {
   })
   @ApiResponse({ status: 404, description: "Event not found" })
   async join(
-    @CurrentUser("userId") userId: string,
+    @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
   ) {
-    return this.eventsService.join(id.toString(), userId);
+    return this.eventsService.join(
+      id.toString(),
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Post(":id/leave")
@@ -187,10 +212,14 @@ export class EventsController {
   @ApiResponse({ status: 400, description: "Not participating in event" })
   @ApiResponse({ status: 404, description: "Event not found" })
   async leave(
-    @CurrentUser("userId") userId: string,
+    @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
   ) {
-    return this.eventsService.leave(id.toString(), userId);
+    return this.eventsService.leave(
+      id.toString(),
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Get(":id/participants")
@@ -201,12 +230,15 @@ export class EventsController {
   })
   @ApiResponse({ status: 404, description: "Event not found" })
   async getParticipants(
+    @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
     @Query("page", new ParseIntPipe({ optional: true })) page?: number,
     @Query("limit", new ParseIntPipe({ optional: true })) limit?: number,
   ) {
     return this.eventsService.getParticipants(
       id.toString(),
+      user.organizationId,
+      user.userId,
       page || 1,
       limit || 50,
     );
@@ -237,7 +269,7 @@ export class EventsController {
   @ApiResponse({ status: 400, description: "Invalid file" })
   @ApiResponse({ status: 404, description: "Event not found" })
   async uploadImage(
-    @CurrentUser("userId") userId: string,
+    @CurrentUser() user: CurrentUserData,
     @ObjectIdParam("id") id: Types.ObjectId,
     @UploadedFile(
       new ParseFilePipe({
@@ -249,14 +281,23 @@ export class EventsController {
     )
     file: Express.Multer.File,
   ) {
-    // Upload to S3
+    // Check organisation and edit rights before anything reaches S3.
     const idStr = id.toString();
+    await this.eventsService.findManageable(
+      idStr,
+      user.organizationId,
+      user.userId,
+    );
+
+    // Upload to S3
     const imageUrl = await this.s3Service.uploadFile(
       file,
       `public/events/${idStr}/images`,
     );
 
     // Update event with image URL
-    return this.eventsService.update(idStr, userId, { imageUrl });
+    return this.eventsService.update(idStr, user.userId, user.organizationId, {
+      imageUrl,
+    });
   }
 }

@@ -145,6 +145,34 @@ describe('GroupsService organisation and privacy scoping', () => {
     });
   });
 
+  describe('assertCanEdit', () => {
+    const creatorGroup = () => group({ creatorId: { _id: new Types.ObjectId(memberId), name: 'Creator' } });
+
+    it('lets the creator edit without a user lookup and returns the group', async () => {
+      const g = creatorGroup();
+      groupFindOne.mockReturnValue(query(g));
+      await expect(service.assertCanEdit(groupId, orgId, memberId)).resolves.toBe(g);
+      expect(userFindById).not.toHaveBeenCalled();
+    });
+
+    it('forbids a resident who is not the creator', async () => {
+      groupFindOne.mockReturnValue(query(creatorGroup()));
+      userFindById.mockResolvedValue({ role: UserRole.RESIDENT, buildingIds: [buildingId] });
+      await expect(service.assertCanEdit(groupId, orgId, outsiderId)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('lets a board member edit', async () => {
+      groupFindOne.mockReturnValue(query(creatorGroup()));
+      userFindById.mockResolvedValue({ role: UserRole.BOARD, buildingIds: [] });
+      await expect(service.assertCanEdit(groupId, orgId, outsiderId)).resolves.toBeDefined();
+    });
+
+    it('reads a group from another organisation as not found', async () => {
+      groupFindOne.mockReturnValue(query(null));
+      await expect(service.assertCanEdit(groupId, orgId, memberId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe('addMember', () => {
     it('refuses to add a user from another organisation', async () => {
       groupFindOne.mockReturnValue(query(group()));

@@ -247,6 +247,30 @@ export class GroupsService {
   }
 
   /**
+   * A group in the caller's organisation that the caller may edit: its creator or
+   * a moderator for its building. Returns the group so callers don't fetch it
+   * twice; the controller runs it before an image reaches S3.
+   */
+  async assertCanEdit(
+    groupId: string,
+    orgId: string,
+    userId: string,
+    action = 'update',
+  ): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
+    if (refId(group.creatorId) === userId) return group;
+
+    const user = await this.userModel.findById(userId);
+    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
+    if (!user || !canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE)) {
+      throw new ForbiddenException(
+        `Only the creator or a moderator for this building can ${action} this group`,
+      );
+    }
+    return group;
+  }
+
+  /**
    * Update group
    */
   async update(
@@ -255,20 +279,7 @@ export class GroupsService {
     orgId: string,
     dto: UpdateGroupDto,
   ): Promise<GroupDocument> {
-    const group = await this.findById(groupId, orgId);
-
-    // Verify user is creator or board member
-    const user = await this.userModel.findById(userId);
-    const isCreator = refId(group.creatorId) === userId;
-    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
-
-    if (!isCreator && !canModerate) {
-      throw new ForbiddenException(
-        'Only the creator or a moderator for this building can update this group',
-      );
-    }
+    await this.assertCanEdit(groupId, orgId, userId);
 
     const updatedGroup = await this.groupModel
       .findByIdAndUpdate(groupId, { $set: dto }, { new: true, runValidators: true })
@@ -281,29 +292,11 @@ export class GroupsService {
   }
 
   /**
-   * Upload group image
+   * Set the group image. Takes the group returned by `assertCanEdit`, so the
+   * permission check has already run (before the upload).
    */
-  async uploadImage(
-    groupId: string,
-    userId: string,
-    orgId: string,
-    imageUrl: string,
-  ): Promise<GroupDocument> {
-    const group = await this.findById(groupId, orgId);
-
-    // Verify user is creator or board member
-    const user = await this.userModel.findById(userId);
-    const isCreator = refId(group.creatorId) === userId;
-    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
-
-    if (!isCreator && !canModerate) {
-      throw new ForbiddenException(
-        'Only the creator or a moderator for this building can update group image',
-      );
-    }
-
+  async setImage(group: GroupDocument, imageUrl: string): Promise<GroupDocument> {
+    const groupId = String(group._id);
     const updatedGroup = await this.groupModel
       .findByIdAndUpdate(groupId, { $set: { imageUrl } }, { new: true })
       .populate('creatorId', 'name avatarUrl avatarColor role')
@@ -487,20 +480,7 @@ export class GroupsService {
    * Delete group
    */
   async delete(groupId: string, userId: string, orgId: string): Promise<void> {
-    const group = await this.findById(groupId, orgId);
-
-    // Verify user is creator or board member
-    const user = await this.userModel.findById(userId);
-    const isCreator = refId(group.creatorId) === userId;
-    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
-
-    if (!isCreator && !canModerate) {
-      throw new ForbiddenException(
-        'Only the creator or a moderator for this building can delete this group',
-      );
-    }
+    const group = await this.assertCanEdit(groupId, orgId, userId, 'delete');
 
     // Deactivate instead of deleting (soft delete)
     group.isActive = false;

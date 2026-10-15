@@ -178,8 +178,8 @@ export class GroupsController {
     )
     file: Express.Multer.File,
   ) {
-    // Reject ids outside the caller's organisation before anything reaches S3.
-    await this.groupsService.findById(id, user.organizationId);
+    // Check organisation and edit rights before anything reaches S3.
+    const group = await this.groupsService.assertCanEdit(id, user.organizationId, user.userId);
 
     // Upload to S3
     const imageUrl = await this.s3Service.uploadFile(
@@ -188,7 +188,7 @@ export class GroupsController {
     );
 
     // Update group with image URL
-    return this.groupsService.uploadImage(id, user.userId, user.organizationId, imageUrl);
+    return this.groupsService.setImage(group, imageUrl);
   }
 
   @Post(':id/members')

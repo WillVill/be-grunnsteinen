@@ -22,7 +22,7 @@ import { NotificationService, NotificationType } from '../../shared/services/not
 import { ConceptsService } from '../concepts/concepts.service';
 import { Permission, canModerateInBuilding } from '../../common/permissions/permissions';
 import { refId } from '../../common/schemas/ref-id';
-import { canViewGroup, isGroupMember } from '../groups/group-access';
+import { assertGroupVisible, findHiddenGroupIds } from '../groups/group-access';
 
 @Injectable()
 export class PostsService {
@@ -191,7 +191,7 @@ export class PostsService {
   async findAll(
     organizationId: string,
     query: PostQueryDto,
-    userId?: string,
+    userId: string,
   ): Promise<PaginatedResponseDto<any>> {
     const {
       page = 1,
@@ -230,21 +230,16 @@ export class PostsService {
     }
 
     if (groupId) {
-      if (userId) {
-        await this.assertGroupVisible(groupId, organizationId, userId);
-      }
+      await this.assertGroupVisible(groupId, organizationId, userId);
       filter.groupId = new Types.ObjectId(groupId);
     }
 
     if (excludeGroupPosts === true) {
       filter.$or = [{ groupId: { $exists: false } }, { groupId: null }];
-    } else if (!groupId && userId) {
-      // Mixed feeds leave out posts from private groups the caller isn't in.
-      const hiddenGroupIds = await this.groupModel.distinct('_id', {
-        organizationId: new Types.ObjectId(organizationId),
-        isPrivate: true,
-        members: { $ne: new Types.ObjectId(userId) },
-      });
+    } else if (!groupId) {
+      // Mixed feeds leave out posts from private groups the caller isn't in
+      // (board and admins see everything).
+      const hiddenGroupIds = await findHiddenGroupIds(this.groupModel, this.userModel, organizationId, userId);
       if (hiddenGroupIds.length > 0) {
         filter.groupId = { $nin: hiddenGroupIds };
       }
@@ -324,7 +319,7 @@ export class PostsService {
     const postsWithLikeStatus = posts.map(post => ({
       ...post,
       id: post._id.toString(),
-      isLiked: userId ? post.likes.some((likeId: any) => likeId.toString() === userId) : false,
+      isLiked: post.likes.some((likeId: any) => likeId.toString() === userId),
       likes: post.likes.map((likeId: any) => likeId.toString()),
     }));
 
@@ -332,38 +327,16 @@ export class PostsService {
   }
 
   /**
-   * Find post by ID (internal use - returns Mongoose document)
-   */
-  /**
    * Posts in a private group are only visible to people who can see the group
-   * (members and moderators of its building). A group outside the caller's
-   * organisation reads as not found. `allowMissing` lets reads of a post whose
-   * group has since been removed fall through.
+   * (members and moderators of its building). See `assertGroupVisible` in group-access.
    */
-  private async assertGroupVisible(
+  private assertGroupVisible(
     groupRef: unknown,
     organizationId: string,
     userId: string,
-    { allowMissing = false }: { allowMissing?: boolean } = {},
+    options?: { allowMissing?: boolean },
   ): Promise<void> {
-    const groupId = refId(groupRef);
-    const group =
-      groupId && Types.ObjectId.isValid(groupId)
-        ? await this.groupModel
-            .findOne({ _id: groupId, organizationId: new Types.ObjectId(organizationId) })
-            .select('isPrivate isConceptWide buildingId members')
-            .lean()
-            .exec()
-        : null;
-    if (!group) {
-      if (allowMissing) return;
-      throw new NotFoundException('Group not found');
-    }
-    if (!group.isPrivate || isGroupMember(group, userId)) return;
-    const user = await this.userModel.findById(userId).select('role buildingIds').lean().exec();
-    if (!canViewGroup(group, userId, user)) {
-      throw new ForbiddenException('This group is private');
-    }
+    return assertGroupVisible(this.groupModel, this.userModel, groupRef, organizationId, userId, options);
   }
 
   /** Read/write guard for a single post: only group posts are restricted. */
@@ -375,9 +348,23 @@ export class PostsService {
     await this.assertGroupVisible(post.groupId, String(refId(post.organizationId)), userId, { allowMissing: true });
   }
 
-  private async findPostDocument(postId: string): Promise<PostDocument> {
+  /**
+   * Post filter inside the caller's organisation. A post in another organisation,
+   * or a malformed id, reads as not found, so ids can't be probed across tenants.
+   */
+  private postInOrg(postId: string, organizationId: string): QueryFilter<PostDocument> {
+    if (!Types.ObjectId.isValid(postId)) {
+      throw new NotFoundException('Post not found');
+    }
+    return { _id: postId, organizationId: new Types.ObjectId(organizationId) };
+  }
+
+  /**
+   * Find post by ID (internal use - returns Mongoose document)
+   */
+  private async findPostDocument(postId: string, organizationId: string): Promise<PostDocument> {
     const post = await this.postModel
-      .findById(postId)
+      .findOne(this.postInOrg(postId, organizationId))
       .populate('authorId', 'name avatarUrl avatarColor role')
       .exec();
 
@@ -391,9 +378,9 @@ export class PostsService {
   /**
    * Find post by ID with like status (public API)
    */
-  async findById(postId: string, userId?: string): Promise<any> {
+  async findById(postId: string, userId: string, organizationId: string): Promise<any> {
     const post = await this.postModel
-      .findById(postId)
+      .findOne(this.postInOrg(postId, organizationId))
       .populate('authorId', 'name avatarUrl avatarColor role')
       .populate('groupId', 'name')
       .lean()
@@ -402,9 +389,7 @@ export class PostsService {
     if (!post) {
       throw new NotFoundException('Post not found');
     }
-    if (userId) {
-      await this.assertPostVisible(post, userId);
-    }
+    await this.assertPostVisible(post, userId);
 
     // Fetch comments for this post
     const comments = await this.commentModel
@@ -427,7 +412,7 @@ export class PostsService {
     return {
       ...post,
       id: post._id.toString(),
-      isLiked: userId ? post.likes.some((likeId: any) => likeId.toString() === userId) : false,
+      isLiked: post.likes.some((likeId: any) => likeId.toString() === userId),
       likes: post.likes.map((likeId: any) => likeId.toString()),
       comments: formattedComments,
     };
@@ -439,9 +424,10 @@ export class PostsService {
   async update(
     postId: string,
     userId: string,
+    organizationId: string,
     updateDto: UpdatePostDto,
   ): Promise<PostDocument> {
-    const post = await this.findPostDocument(postId);
+    const post = await this.findPostDocument(postId, organizationId);
 
     // Verify user is author or board member
     // Note: findPostDocument populates authorId, so use _id for comparison
@@ -471,8 +457,8 @@ export class PostsService {
   /**
    * Delete post and its comments
    */
-  async delete(postId: string, userId: string): Promise<void> {
-    const post = await this.findPostDocument(postId);
+  async delete(postId: string, userId: string, organizationId: string): Promise<void> {
+    const post = await this.findPostDocument(postId, organizationId);
 
     // Verify user is author or board member
     // Note: findPostDocument populates authorId, so use _id for comparison
@@ -502,8 +488,8 @@ export class PostsService {
   /**
    * Toggle pin status (board only)
    */
-  async togglePin(postId: string, userId: string): Promise<PostDocument> {
-    const post = await this.findPostDocument(postId);
+  async togglePin(postId: string, userId: string, organizationId: string): Promise<PostDocument> {
+    const post = await this.findPostDocument(postId, organizationId);
 
     // Verify user can moderate posts in this post's building
     const user = await this.userModel.findById(userId);
@@ -526,8 +512,8 @@ export class PostsService {
   /**
    * Toggle like on post
    */
-  async toggleLike(postId: string, userId: string): Promise<any> {
-    const post = await this.findPostDocument(postId);
+  async toggleLike(postId: string, userId: string, organizationId: string): Promise<any> {
+    const post = await this.findPostDocument(postId, organizationId);
     await this.assertPostVisible(post, userId);
     const userIdObj = new Types.ObjectId(userId);
 
@@ -570,9 +556,10 @@ export class PostsService {
   async addComment(
     postId: string,
     userId: string,
+    organizationId: string,
     createCommentDto: CreateCommentDto,
   ): Promise<CommentDocument> {
-    const post = await this.findPostDocument(postId);
+    const post = await this.findPostDocument(postId, organizationId);
     await this.assertPostVisible(post, userId);
 
     let parentCommentId: Types.ObjectId | null = null;
@@ -638,18 +625,26 @@ export class PostsService {
   /**
    * Delete comment
    */
-  async deleteComment(commentId: string, userId: string): Promise<void> {
-    const comment = await this.commentModel.findById(commentId);
+  async deleteComment(commentId: string, userId: string, organizationId: string): Promise<void> {
+    const comment = Types.ObjectId.isValid(commentId)
+      ? await this.commentModel.findById(commentId)
+      : null;
+    // Comments carry no organisation of their own: scope them through their post.
+    const post = comment
+      ? await this.postModel.findOne({
+          _id: comment.postId,
+          organizationId: new Types.ObjectId(organizationId),
+        })
+      : null;
 
-    if (!comment) {
+    if (!comment || !post) {
       throw new NotFoundException('Comment not found');
     }
 
     // Verify user is comment author or a moderator for the post's building
     const user = await this.userModel.findById(userId);
-    const post = await this.postModel.findById(comment.postId);
     const isAuthor = comment.authorId.toString() === userId;
-    const scopeBuildingId = post?.isConceptWide ? null : post?.buildingId;
+    const scopeBuildingId = post.isConceptWide ? null : post.buildingId;
     const canModerate =
       user && canModerateInBuilding(user, scopeBuildingId, Permission.POST_MODERATE);
 
@@ -669,10 +664,8 @@ export class PostsService {
     }
 
     // Decrement comments count by 1 + deleted replies
-    if (post) {
-      post.commentsCount = Math.max(0, post.commentsCount - 1 - repliesDeletedCount);
-      await post.save();
-    }
+    post.commentsCount = Math.max(0, post.commentsCount - 1 - repliesDeletedCount);
+    await post.save();
 
     // Delete comment
     await this.commentModel.deleteOne({ _id: commentId });
@@ -686,10 +679,11 @@ export class PostsService {
   async getComments(
     postId: string,
     userId: string,
+    organizationId: string,
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResponseDto<CommentDocument>> {
-    await this.assertPostVisible(await this.findPostDocument(postId), userId);
+    await this.assertPostVisible(await this.findPostDocument(postId, organizationId), userId);
     const skip = (page - 1) * limit;
 
     const [comments, total] = await Promise.all([

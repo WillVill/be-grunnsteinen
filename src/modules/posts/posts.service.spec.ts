@@ -14,6 +14,7 @@ import { ConceptsService } from '../concepts/concepts.service';
 jest.mock('../../shared/services/s3.service', () => ({ S3Service: class S3Service {} }));
 
 const orgId = new Types.ObjectId().toString();
+const otherOrgId = new Types.ObjectId().toString();
 const memberId = new Types.ObjectId().toString();
 const outsiderId = new Types.ObjectId().toString();
 const groupId = new Types.ObjectId().toString();
@@ -33,26 +34,59 @@ describe('PostsService group privacy', () => {
   let groupFindOne: jest.Mock;
   let groupDistinct: jest.Mock;
   let postFind: jest.Mock;
+  let postFindOne: jest.Mock;
   let postFindById: jest.Mock;
+  let postFindByIdAndUpdate: jest.Mock;
+  let postDeleteOne: jest.Mock;
   let commentFind: jest.Mock;
+  let commentFindById: jest.Mock;
+  let commentCreate: jest.Mock;
   let userFindById: jest.Mock;
 
   const privateGroup = { isPrivate: true, isConceptWide: false, buildingId: new Types.ObjectId(), members: [new Types.ObjectId(memberId)] };
   const groupPost = { _id: new Types.ObjectId(postId), organizationId: new Types.ObjectId(orgId), groupId: { _id: new Types.ObjectId(groupId), name: 'G' }, likes: [] };
+  /** The post only exists in `orgId`: findOne honours the organisation in the filter like Mongo would. */
+  const inOrg = (post: unknown) => (filter: { organizationId?: Types.ObjectId }) =>
+    query(filter.organizationId?.equals(orgId) ? post : null);
 
   beforeEach(async () => {
     groupFindOne = jest.fn(() => query(privateGroup));
     groupDistinct = jest.fn().mockResolvedValue([]);
     postFind = jest.fn(() => query([]));
+    postFindOne = jest.fn(inOrg(groupPost));
     postFindById = jest.fn(() => query(groupPost));
+    postFindByIdAndUpdate = jest.fn(() => query(groupPost));
+    postDeleteOne = jest.fn();
     commentFind = jest.fn(() => query([]));
+    commentFindById = jest.fn();
+    commentCreate = jest.fn();
     userFindById = jest.fn(() => query({ role: UserRole.RESIDENT, buildingIds: [] }));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PostsService,
-        { provide: getModelToken(Post.name), useValue: { find: postFind, findById: postFindById, countDocuments: jest.fn().mockResolvedValue(0) } },
-        { provide: getModelToken(Comment.name), useValue: { find: commentFind, countDocuments: jest.fn().mockResolvedValue(0) } },
+        {
+          provide: getModelToken(Post.name),
+          useValue: {
+            find: postFind,
+            findOne: postFindOne,
+            findById: postFindById,
+            findByIdAndUpdate: postFindByIdAndUpdate,
+            deleteOne: postDeleteOne,
+            countDocuments: jest.fn().mockResolvedValue(0),
+          },
+        },
+        {
+          provide: getModelToken(Comment.name),
+          useValue: {
+            find: commentFind,
+            findById: commentFindById,
+            create: commentCreate,
+            deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+            deleteOne: jest.fn(),
+            countDocuments: jest.fn().mockResolvedValue(0),
+          },
+        },
         { provide: getModelToken(User.name), useValue: { findById: userFindById } },
         { provide: getModelToken(Group.name), useValue: { findOne: groupFindOne, distinct: groupDistinct } },
         { provide: NotificationService, useValue: {} },
@@ -92,6 +126,27 @@ describe('PostsService group privacy', () => {
       expect(postFind.mock.calls[0][0].groupId).toEqual({ $nin: hidden });
     });
 
+    it('does not look the caller up when no private group is hidden', async () => {
+      await service.findAll(orgId, {} as any, outsiderId);
+      expect(userFindById).not.toHaveBeenCalled();
+      expect(postFind.mock.calls[0][0].groupId).toBeUndefined();
+    });
+
+    it.each([UserRole.BOARD, UserRole.ADMIN, UserRole.SUPER_ADMIN])('keeps private-group posts in the feed for %s', async (role) => {
+      groupDistinct.mockResolvedValue([new Types.ObjectId()]);
+      userFindById.mockReturnValue(query({ role }));
+      await service.findAll(orgId, {} as any, outsiderId);
+      expect(postFind.mock.calls[0][0].groupId).toBeUndefined();
+    });
+
+    it('still hides them from a host', async () => {
+      const hidden = [new Types.ObjectId()];
+      groupDistinct.mockResolvedValue(hidden);
+      userFindById.mockReturnValue(query({ role: UserRole.HOST }));
+      await service.findAll(orgId, {} as any, outsiderId);
+      expect(postFind.mock.calls[0][0].groupId).toEqual({ $nin: hidden });
+    });
+
     it('skips the private-group lookup when group posts are excluded anyway', async () => {
       await service.findAll(orgId, { excludeGroupPosts: true } as any, outsiderId);
       expect(groupDistinct).not.toHaveBeenCalled();
@@ -100,19 +155,83 @@ describe('PostsService group privacy', () => {
 
   describe('single post reads', () => {
     it('forbids a private group post, its comments and likes to a non-member', async () => {
-      await expect(service.findById(postId, outsiderId)).rejects.toBeInstanceOf(ForbiddenException);
-      await expect(service.getComments(postId, outsiderId)).rejects.toBeInstanceOf(ForbiddenException);
-      await expect(service.toggleLike(postId, outsiderId)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.findById(postId, outsiderId, orgId)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.getComments(postId, outsiderId, orgId)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.toggleLike(postId, outsiderId, orgId)).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('allows a member', async () => {
-      await expect(service.findById(postId, memberId)).resolves.toBeDefined();
-      await expect(service.getComments(postId, memberId)).resolves.toBeDefined();
+      await expect(service.findById(postId, memberId, orgId)).resolves.toBeDefined();
+      await expect(service.getComments(postId, memberId, orgId)).resolves.toBeDefined();
     });
 
     it('allows reading a post whose group no longer exists', async () => {
       groupFindOne.mockReturnValue(query(null));
-      await expect(service.findById(postId, outsiderId)).resolves.toBeDefined();
+      await expect(service.findById(postId, outsiderId, orgId)).resolves.toBeDefined();
+    });
+  });
+
+  describe('organisation scoping', () => {
+    // An org-wide post the caller could otherwise read, like and moderate, so only the
+    // organisation filter stands between a caller in another org and the post.
+    const ownPost = () => ({
+      _id: new Types.ObjectId(postId),
+      organizationId: new Types.ObjectId(orgId),
+      authorId: { _id: new Types.ObjectId(memberId) },
+      likes: [] as Types.ObjectId[],
+      likesCount: 0,
+      commentsCount: 0,
+      save: jest.fn(),
+    });
+
+    beforeEach(() => {
+      postFindOne.mockImplementation(inOrg(ownPost()));
+      userFindById.mockReturnValue(query({ role: UserRole.ADMIN, buildingIds: [], name: 'A', email: 'a@x' }));
+    });
+
+    it('looks single posts up inside the caller organisation', async () => {
+      await service.findById(postId, memberId, orgId);
+      expect(postFindOne).toHaveBeenCalledWith({ _id: postId, organizationId: new Types.ObjectId(orgId) });
+    });
+
+    it.each<[string, (s: PostsService, org: string) => Promise<unknown>]>([
+      ['read', (s, org) => s.findById(postId, memberId, org)],
+      ['comments', (s, org) => s.getComments(postId, memberId, org)],
+      ['like', (s, org) => s.toggleLike(postId, memberId, org)],
+      ['comment', (s, org) => s.addComment(postId, memberId, org, { content: 'hi' } as any)],
+      ['update', (s, org) => s.update(postId, memberId, org, { title: 'x' } as any)],
+      ['delete', (s, org) => s.delete(postId, memberId, org)],
+      ['pin', (s, org) => s.togglePin(postId, memberId, org)],
+    ])('reads another organisation\'s post as not found (%s)', async (_action, call) => {
+      await expect(call(service, otherOrgId)).rejects.toBeInstanceOf(NotFoundException);
+      expect(postFindByIdAndUpdate).not.toHaveBeenCalled();
+      expect(postDeleteOne).not.toHaveBeenCalled();
+      expect(commentCreate).not.toHaveBeenCalled();
+    });
+
+    it('lets the same calls through in the caller organisation', async () => {
+      commentCreate.mockResolvedValue({ _id: new Types.ObjectId() });
+      commentFindById.mockReturnValue(query({}));
+      await expect(service.update(postId, memberId, orgId, { title: 'x' } as any)).resolves.toBeDefined();
+      await expect(service.addComment(postId, memberId, orgId, { content: 'hi' } as any)).resolves.toBeDefined();
+      await expect(service.delete(postId, memberId, orgId)).resolves.toBeUndefined();
+      expect(postDeleteOne).toHaveBeenCalledWith({ _id: postId });
+    });
+
+    it('reads a malformed id as not found without querying', async () => {
+      await expect(service.findById('not-an-id', memberId, orgId)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.delete('not-an-id', memberId, orgId)).rejects.toBeInstanceOf(NotFoundException);
+      expect(postFindOne).not.toHaveBeenCalled();
+    });
+
+    it('reads a comment on another organisation\'s post as not found', async () => {
+      const commentId = new Types.ObjectId().toString();
+      commentFindById.mockResolvedValue({ _id: commentId, postId: new Types.ObjectId(postId), authorId: new Types.ObjectId(memberId) });
+      postFindOne.mockImplementation((filter: { organizationId?: Types.ObjectId }) =>
+        Promise.resolve(filter.organizationId?.equals(orgId) ? ownPost() : null),
+      );
+      await expect(service.deleteComment(commentId, memberId, otherOrgId)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deleteComment(commentId, memberId, orgId)).resolves.toBeUndefined();
     });
   });
 

@@ -81,7 +81,7 @@ export class PostsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.postsService.findById(id, user.userId);
+    return this.postsService.findById(id, user.userId, user.organizationId);
   }
 
   @Patch(':id')
@@ -94,11 +94,11 @@ export class PostsController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async update(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
     @Body() updatePostDto: UpdatePostDto,
   ) {
-    return this.postsService.update(id, userId, updatePostDto);
+    return this.postsService.update(id, user.userId, user.organizationId, updatePostDto);
   }
 
   @Delete(':id')
@@ -111,10 +111,10 @@ export class PostsController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async delete(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    await this.postsService.delete(id, userId);
+    await this.postsService.delete(id, user.userId, user.organizationId);
   }
 
   @Post(':id/pin')
@@ -132,7 +132,7 @@ export class PostsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.postsService.togglePin(id, user.userId);
+    return this.postsService.togglePin(id, user.userId, user.organizationId);
   }
 
   @Post(':id/like')
@@ -144,10 +144,10 @@ export class PostsController {
   })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async toggleLike(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.postsService.toggleLike(id, userId);
+    return this.postsService.toggleLike(id, user.userId, user.organizationId);
   }
 
   @Post(':id/comments')
@@ -160,11 +160,11 @@ export class PostsController {
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async addComment(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser() user: CurrentUserData,
     @Param('id') postId: string,
     @Body() createCommentDto: CreateCommentDto,
   ) {
-    return this.postsService.addComment(postId, userId, createCommentDto);
+    return this.postsService.addComment(postId, user.userId, user.organizationId, createCommentDto);
   }
 
   @Delete(':postId/comments/:commentId')
@@ -177,10 +177,10 @@ export class PostsController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Comment not found' })
   async deleteComment(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser() user: CurrentUserData,
     @Param('commentId') commentId: string,
   ) {
-    await this.postsService.deleteComment(commentId, userId);
+    await this.postsService.deleteComment(commentId, user.userId, user.organizationId);
   }
 
   @Get(':id/comments')
@@ -191,12 +191,12 @@ export class PostsController {
   })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async getComments(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser() user: CurrentUserData,
     @Param('id') postId: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
   ) {
-    return this.postsService.getComments(postId, userId, page, limit);
+    return this.postsService.getComments(postId, user.userId, user.organizationId, page, limit);
   }
 }
 
