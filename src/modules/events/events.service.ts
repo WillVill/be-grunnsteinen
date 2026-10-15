@@ -109,7 +109,9 @@ export class EventsService {
 
     this.logger.log(`Event created: ${event._id} by user ${userId}`);
 
-    // Notify building/group/organization members about new event (EVENT_CREATED)
+    // Notify members about the new event (EVENT_CREATED). Scope is mutually
+    // exclusive: a group event notifies ONLY the group (never falls through to
+    // the building/org, even if the group has no other members).
     const recipientIds: string[] = [];
     const organizerIdStr = userId.toString();
     if (event.groupId) {
@@ -121,8 +123,7 @@ export class EventsService {
             .map((id) => id.toString()),
         );
       }
-    }
-    if (recipientIds.length === 0 && event.buildingId) {
+    } else if (event.buildingId) {
       const usersInBuilding = await this.userModel
         .find({
           organizationId: new Types.ObjectId(organizationId),
@@ -136,8 +137,7 @@ export class EventsService {
         .lean()
         .exec();
       recipientIds.push(...usersInBuilding.map((u) => u._id.toString()));
-    }
-    if (recipientIds.length === 0 && event.isConceptWide) {
+    } else if (event.isConceptWide) {
       const orgUsers = await this.userModel
         .find({
           organizationId: new Types.ObjectId(organizationId),
@@ -309,7 +309,7 @@ export class EventsService {
         organizationId: new Types.ObjectId(organizationId),
       })
       .populate("organizerId", "name avatarUrl avatarColor role")
-      .populate("participants", "name avatarUrl avatarColor email role")
+      .populate("participants", "name avatarUrl avatarColor role")
       .exec();
 
     if (!event) {
@@ -680,7 +680,7 @@ export class EventsService {
     const [participants, total] = await Promise.all([
       this.userModel
         .find({ _id: { $in: event.participants } })
-        .select("name email avatarUrl avatarColor")
+        .select("name avatarUrl avatarColor")
         .skip(skip)
         .limit(limit)
         .exec(),

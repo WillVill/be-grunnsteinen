@@ -39,6 +39,8 @@ describe('EventsService organisation and group privacy', () => {
   let eventDeleteOne: jest.Mock;
   let groupFindOne: jest.Mock;
   let groupDistinct: jest.Mock;
+  let groupFindById: jest.Mock;
+  let createBulkNotifications: jest.Mock;
   let userFindById: jest.Mock;
   let userFind: jest.Mock;
 
@@ -68,6 +70,8 @@ describe('EventsService organisation and group privacy', () => {
     eventDeleteOne = jest.fn();
     groupFindOne = jest.fn(() => query(privateGroup));
     groupDistinct = jest.fn().mockResolvedValue([]);
+    groupFindById = jest.fn(() => query(privateGroup));
+    createBulkNotifications = jest.fn().mockResolvedValue(undefined);
     userFindById = jest.fn(() => query({ role: UserRole.RESIDENT, buildingIds: [], name: 'U', email: 'u@x' }));
     userFind = jest.fn(() => query([]));
 
@@ -90,8 +94,8 @@ describe('EventsService organisation and group privacy', () => {
           provide: getModelToken(User.name),
           useValue: { findById: userFindById, find: userFind, countDocuments: jest.fn().mockResolvedValue(0) },
         },
-        { provide: getModelToken(Group.name), useValue: { findOne: groupFindOne, distinct: groupDistinct } },
-        { provide: NotificationService, useValue: { createNotification: jest.fn().mockResolvedValue(undefined) } },
+        { provide: getModelToken(Group.name), useValue: { findOne: groupFindOne, findById: groupFindById, distinct: groupDistinct } },
+        { provide: NotificationService, useValue: { createNotification: jest.fn().mockResolvedValue(undefined), createBulkNotifications } },
         { provide: EmailService, useValue: {} },
         { provide: S3Service, useValue: {} },
         { provide: ConceptsService, useValue: { findConceptIdForBuilding: jest.fn(), assertConceptInOrg: jest.fn() } },
@@ -131,6 +135,29 @@ describe('EventsService organisation and group privacy', () => {
       await expect(service.create(memberId, orgId, createDto({ groupId: undefined }))).resolves.toBeDefined();
       await expect(service.create(memberId, orgId, createDto())).resolves.toBeDefined();
       expect(eventCreate).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('create notifications', () => {
+    it('does not fall through to the building when the group has no members besides the organizer', async () => {
+      eventCreate.mockResolvedValue({
+        _id: new Types.ObjectId(),
+        title: 't',
+        location: 'l',
+        startDate: new Date(),
+        groupId: new Types.ObjectId(groupId),
+        buildingId: new Types.ObjectId(),
+        isConceptWide: true,
+      });
+      // Only the organizer is a member of the group.
+      groupFindById.mockReturnValue(query(privateGroup));
+      userFind.mockClear();
+
+      await service.create(memberId, orgId, createDto());
+
+      expect(groupFindById).toHaveBeenCalled();
+      expect(userFind).not.toHaveBeenCalled();
+      expect(createBulkNotifications).not.toHaveBeenCalled();
     });
   });
 
@@ -188,6 +215,14 @@ describe('EventsService organisation and group privacy', () => {
     it('allows a member', async () => {
       await expect(service.findOneForUser(eventId, orgId, memberId)).resolves.toBeDefined();
       await expect(service.getParticipants(eventId, orgId, memberId)).resolves.toBeDefined();
+    });
+
+    it('never selects participant emails', async () => {
+      const q = query([]);
+      userFind.mockReturnValue(q);
+      await service.getParticipants(eventId, orgId, memberId);
+      expect(q.select).toHaveBeenCalledWith('name avatarUrl avatarColor');
+      expect(q.select.mock.calls.flat().join(' ')).not.toContain('email');
     });
 
     it('lets board see it', async () => {
