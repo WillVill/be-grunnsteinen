@@ -38,6 +38,9 @@ describe('SharingService organisation scoping', () => {
   let createNotification: jest.Mock;
   let helpRequest: any;
   let item: any;
+  let helpCreate: jest.Mock;
+  let itemCreate: jest.Mock;
+  let assertBuildingInConcept: jest.Mock;
 
   /** Records only exist in `orgId`: findOne honours the organisation like Mongo would. */
   const inOrg = (result: () => unknown) => (filter: { organizationId?: Types.ObjectId }) =>
@@ -62,19 +65,22 @@ describe('SharingService organisation scoping', () => {
     itemFindOneAndUpdate = jest.fn(() => query(item));
     itemDeleteOne = jest.fn();
     createNotification = jest.fn().mockResolvedValue(undefined);
+    helpCreate = jest.fn();
+    itemCreate = jest.fn();
+    assertBuildingInConcept = jest.fn().mockRejectedValue(new NotFoundException('Building not found'));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SharingService,
-        { provide: getModelToken(HelpRequest.name), useValue: { findOne: helpFindOne, findById: jest.fn(() => query(helpRequest)) } },
+        { provide: getModelToken(HelpRequest.name), useValue: { findOne: helpFindOne, create: helpCreate, findById: jest.fn(() => query(helpRequest)) } },
         {
           provide: getModelToken(SharedItem.name),
-          useValue: { findOne: itemFindOne, findOneAndUpdate: itemFindOneAndUpdate, deleteOne: itemDeleteOne, findById: jest.fn(() => query(item)) },
+          useValue: { findOne: itemFindOne, findOneAndUpdate: itemFindOneAndUpdate, deleteOne: itemDeleteOne, create: itemCreate, findById: jest.fn(() => query(item)) },
         },
         { provide: getModelToken(User.name), useValue: { findById: jest.fn().mockResolvedValue({ _id: new Types.ObjectId(), name: 'A B', email: 'a@b', role: UserRole.ADMIN, buildingIds: [] }) } },
         { provide: NotificationService, useValue: { createNotification } },
         { provide: EmailService, useValue: {} },
-        { provide: ConceptsService, useValue: {} },
+        { provide: ConceptsService, useValue: { assertConceptInOrg: jest.fn(), assertBuildingInConcept } },
       ],
     }).compile();
 
@@ -146,6 +152,27 @@ describe('SharingService organisation scoping', () => {
       expect(itemFindOneAndUpdate.mock.calls[0][0]).toEqual(own);
       await service.deleteSharedItem(itemId, ownerId, orgId);
       expect(itemDeleteOne).toHaveBeenCalledWith(own);
+    });
+  });
+
+  describe('create with a concept and a building from outside it', () => {
+    const conceptId = new Types.ObjectId().toString();
+    const buildingId = new Types.ObjectId().toString();
+
+    it('rejects a help request', async () => {
+      await expect(
+        service.createHelpRequest(ownerId, orgId, { title: 't', description: 'd', conceptId, buildingId } as any),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(assertBuildingInConcept).toHaveBeenCalledWith(buildingId, conceptId, orgId);
+      expect(helpCreate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a shared item', async () => {
+      await expect(
+        service.createSharedItem(ownerId, orgId, { name: 'Drill', conceptId, buildingId } as any),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(assertBuildingInConcept).toHaveBeenCalledWith(buildingId, conceptId, orgId);
+      expect(itemCreate).not.toHaveBeenCalled();
     });
   });
 });

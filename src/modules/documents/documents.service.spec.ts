@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { DocumentsService } from './documents.service';
 import { Document } from './schemas/document.schema';
 import { User, UserRole } from '../users/schemas/user.schema';
+import { Apartment } from '../apartments/schemas/apartment.schema';
 import { S3Service } from '../../shared/services/s3.service';
 import { ConceptsService } from '../concepts/concepts.service';
 import { DocumentFoldersService } from '../document-folders/document-folders.service';
@@ -34,6 +35,9 @@ describe('DocumentsService organisation scoping', () => {
   let userFindById: jest.Mock;
   let s3: { deleteFile: jest.Mock; getPresignedDownloadUrl: jest.Mock; uploadBuffer: jest.Mock; generateKey: jest.Mock };
   let document: Record<string, unknown>;
+  let docCreate: jest.Mock;
+  let apartmentFindOne: jest.Mock;
+  let assertBuildingInConcept: jest.Mock;
 
   /** The document only exists in `orgId`: findOne honours the organisation like Mongo would. */
   const inOrg = () => (filter: { organizationId?: Types.ObjectId }) =>
@@ -45,6 +49,9 @@ describe('DocumentsService organisation scoping', () => {
     docFindOneAndUpdate = jest.fn(() => query(document));
     docDeleteOne = jest.fn();
     userFindById = jest.fn().mockResolvedValue({ role: UserRole.BOARD });
+    docCreate = jest.fn(async (d) => ({ _id: new Types.ObjectId(), ...d }));
+    apartmentFindOne = jest.fn(() => query(null));
+    assertBuildingInConcept = jest.fn();
     s3 = {
       deleteFile: jest.fn(),
       getPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed'),
@@ -62,12 +69,13 @@ describe('DocumentsService organisation scoping', () => {
             findOneAndUpdate: docFindOneAndUpdate,
             deleteOne: docDeleteOne,
             findById: jest.fn(() => query(document)),
-            create: jest.fn(async (d) => ({ _id: new Types.ObjectId(), ...d })),
+            create: docCreate,
           },
         },
         { provide: getModelToken(User.name), useValue: { findById: userFindById } },
+        { provide: getModelToken(Apartment.name), useValue: { findOne: apartmentFindOne } },
         { provide: S3Service, useValue: s3 },
-        { provide: ConceptsService, useValue: { assertConceptInOrg: jest.fn(), findConceptIdForBuilding: jest.fn() } },
+        { provide: ConceptsService, useValue: { assertConceptInOrg: jest.fn(), findConceptIdForBuilding: jest.fn(), assertBuildingInConcept } },
         { provide: DocumentFoldersService, useValue: { assertFolderMatchesScope: jest.fn(), incrementCount: jest.fn(), decrementCount: jest.fn() } },
       ],
     }).compile();
@@ -137,6 +145,42 @@ describe('DocumentsService organisation scoping', () => {
     it('are readable by board', async () => {
       await expect(service.findByIdForUser(documentId, orgId, UserRole.BOARD)).resolves.toBe(document);
       await expect(service.getDownloadUrl(documentId, userId, orgId)).resolves.toBe('https://signed');
+    });
+  });
+
+  describe('upload validates foreign ids before writing to S3', () => {
+    const file = { originalname: 'a.pdf', buffer: Buffer.from(''), mimetype: 'application/pdf', size: 1 } as any;
+    const buildingId = new Types.ObjectId().toString();
+
+    it('rejects a building outside the caller\'s organisation or concept when a concept is also sent', async () => {
+      const conceptId = new Types.ObjectId().toString();
+      assertBuildingInConcept.mockRejectedValue(new NotFoundException('Building not found'));
+      await expect(service.upload(userId, orgId, file, { title: 't', conceptId, buildingId } as any)).rejects.toBeInstanceOf(NotFoundException);
+      expect(assertBuildingInConcept).toHaveBeenCalledWith(buildingId, conceptId, orgId);
+      expect(s3.uploadBuffer).not.toHaveBeenCalled();
+      expect(docCreate).not.toHaveBeenCalled();
+    });
+
+    it('rejects an apartment from another organisation', async () => {
+      const apartmentId = new Types.ObjectId().toString();
+      await expect(service.upload(userId, orgId, file, { title: 't', apartmentId } as any)).rejects.toBeInstanceOf(BadRequestException);
+      expect(apartmentFindOne.mock.calls[0][0]).toEqual({ _id: new Types.ObjectId(apartmentId), organizationId: new Types.ObjectId(orgId) });
+      expect(s3.uploadBuffer).not.toHaveBeenCalled();
+    });
+
+    it('rejects an apartment in another building', async () => {
+      apartmentFindOne.mockReturnValue(query({ buildingId: new Types.ObjectId() }));
+      await expect(
+        service.upload(userId, orgId, file, { title: 't', buildingId, apartmentId: new Types.ObjectId().toString() } as any),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(s3.uploadBuffer).not.toHaveBeenCalled();
+    });
+
+    it('accepts an apartment in the organisation and building', async () => {
+      apartmentFindOne.mockReturnValue(query({ buildingId: new Types.ObjectId(buildingId) }));
+      await service.upload(userId, orgId, file, { title: 't', buildingId, apartmentId: new Types.ObjectId().toString() } as any);
+      expect(s3.uploadBuffer).toHaveBeenCalled();
+      expect(docCreate).toHaveBeenCalled();
     });
   });
 });

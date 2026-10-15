@@ -32,6 +32,8 @@ describe('GroupsService organisation and privacy scoping', () => {
   let groupFind: jest.Mock;
   let userFindById: jest.Mock;
   let userFind: jest.Mock;
+  let groupCreate: jest.Mock;
+  let assertBuildingInConcept: jest.Mock;
 
   const group = (overrides: Record<string, unknown> = {}) => ({
     _id: new Types.ObjectId(groupId),
@@ -49,13 +51,15 @@ describe('GroupsService organisation and privacy scoping', () => {
     groupFind = jest.fn(() => query([]));
     userFindById = jest.fn();
     userFind = jest.fn(() => query([]));
+    groupCreate = jest.fn();
+    assertBuildingInConcept = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GroupsService,
         {
           provide: getModelToken(Group.name),
-          useValue: { findOne: groupFindOne, find: groupFind, countDocuments: jest.fn().mockResolvedValue(0) },
+          useValue: { findOne: groupFindOne, find: groupFind, create: groupCreate, countDocuments: jest.fn().mockResolvedValue(0) },
         },
         {
           provide: getModelToken(User.name),
@@ -63,7 +67,7 @@ describe('GroupsService organisation and privacy scoping', () => {
         },
         { provide: NotificationService, useValue: {} },
         { provide: S3Service, useValue: {} },
-        { provide: ConceptsService, useValue: { findConceptIdForBuilding: jest.fn() } },
+        { provide: ConceptsService, useValue: { findConceptIdForBuilding: jest.fn(), assertConceptInOrg: jest.fn(), assertBuildingInConcept } },
       ],
     }).compile();
 
@@ -182,6 +186,19 @@ describe('GroupsService organisation and privacy scoping', () => {
       await expect(
         service.addMember(groupId, memberId, orgId, { userId: outsiderId } as any),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('create', () => {
+    it('rejects a building outside the caller\'s organisation or concept when a concept is also sent', async () => {
+      const conceptId = new Types.ObjectId().toString();
+      const foreignBuilding = new Types.ObjectId().toString();
+      assertBuildingInConcept.mockRejectedValue(new NotFoundException('Building not found'));
+      await expect(
+        service.create(memberId, orgId, { name: 'G', buildingId: foreignBuilding, conceptId } as any),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(assertBuildingInConcept).toHaveBeenCalledWith(foreignBuilding, conceptId, orgId);
+      expect(groupCreate).not.toHaveBeenCalled();
     });
   });
 });

@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, QueryFilter } from 'mongoose';
 import { Document, DocumentDocument } from './schemas/document.schema';
 import { User, UserDocument, isBoardOrAbove } from '../users/schemas/user.schema';
+import { Apartment, ApartmentDocument } from '../apartments/schemas/apartment.schema';
 import { UploadDocumentDto, UpdateDocumentDto, DocumentQueryDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { S3Service } from '../../shared/services/s3.service';
@@ -25,6 +26,8 @@ export class DocumentsService {
     private readonly documentModel: Model<DocumentDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Apartment.name)
+    private readonly apartmentModel: Model<ApartmentDocument>,
     private readonly s3Service: S3Service,
     private readonly conceptsService: ConceptsService,
     private readonly foldersService: DocumentFoldersService,
@@ -48,12 +51,21 @@ export class DocumentsService {
     let conceptObjectId: Types.ObjectId | null = null;
     if (dto.conceptId) {
       await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      if (dto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(dto.buildingId, dto.conceptId, orgId);
+      }
       conceptObjectId = new Types.ObjectId(dto.conceptId);
     } else if (dto.buildingId) {
       conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
         dto.buildingId,
         orgId,
       );
+    }
+
+    // An apartment document must name an apartment in the caller's org (and in
+    // the given building, if one was sent).
+    if (dto.apartmentId) {
+      await this.assertApartmentInScope(dto.apartmentId, orgId, dto.buildingId);
     }
 
     // Validate folder scope before uploading the file to S3 — avoids leaving
@@ -101,6 +113,29 @@ export class DocumentsService {
       .findById(document._id)
       .populate('uploadedById', 'name avatarUrl avatarColor role')
       .exec() as Promise<DocumentDocument>;
+  }
+
+  private async assertApartmentInScope(
+    apartmentId: string,
+    orgId: string,
+    buildingId?: string,
+  ): Promise<void> {
+    const apartment = Types.ObjectId.isValid(apartmentId)
+      ? await this.apartmentModel
+          .findOne({
+            _id: new Types.ObjectId(apartmentId),
+            organizationId: new Types.ObjectId(orgId),
+          })
+          .select('buildingId')
+          .lean()
+          .exec()
+      : null;
+    if (!apartment) {
+      throw new BadRequestException('Apartment not found in this organization');
+    }
+    if (buildingId && apartment.buildingId?.toString() !== buildingId) {
+      throw new BadRequestException('Apartment does not belong to this building');
+    }
   }
 
   /**

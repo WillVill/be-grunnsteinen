@@ -49,6 +49,13 @@ export class ResourcesService {
         createDto.conceptId,
         organizationId,
       );
+      if (createDto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(
+          createDto.buildingId,
+          createDto.conceptId,
+          organizationId,
+        );
+      }
       conceptObjectId = new Types.ObjectId(createDto.conceptId);
     } else if (createDto.buildingId) {
       conceptObjectId = await this.conceptsService.findConceptIdForBuilding(

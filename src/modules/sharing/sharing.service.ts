@@ -70,6 +70,9 @@ export class SharingService {
     let conceptObjectId: Types.ObjectId | null = null;
     if (dto.conceptId) {
       await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      if (dto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(dto.buildingId, dto.conceptId, orgId);
+      }
       conceptObjectId = new Types.ObjectId(dto.conceptId);
     } else if (dto.buildingId) {
       conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
@@ -418,6 +421,9 @@ export class SharingService {
     let conceptObjectId: Types.ObjectId | null = null;
     if (dto.conceptId) {
       await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      if (dto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(dto.buildingId, dto.conceptId, orgId);
+      }
       conceptObjectId = new Types.ObjectId(dto.conceptId);
     } else if (dto.buildingId) {
       conceptObjectId = await this.conceptsService.findConceptIdForBuilding(

@@ -43,6 +43,7 @@ describe('EventsService organisation and group privacy', () => {
   let createBulkNotifications: jest.Mock;
   let userFindById: jest.Mock;
   let userFind: jest.Mock;
+  let assertBuildingInConcept: jest.Mock;
 
   const privateGroup = { isPrivate: true, isConceptWide: false, buildingId: new Types.ObjectId(), members: [new Types.ObjectId(memberId)] };
   /** Organised by the outsider, so only group privacy / organisation decide access. */
@@ -74,6 +75,7 @@ describe('EventsService organisation and group privacy', () => {
     createBulkNotifications = jest.fn().mockResolvedValue(undefined);
     userFindById = jest.fn(() => query({ role: UserRole.RESIDENT, buildingIds: [], name: 'U', email: 'u@x' }));
     userFind = jest.fn(() => query([]));
+    assertBuildingInConcept = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -98,7 +100,7 @@ describe('EventsService organisation and group privacy', () => {
         { provide: NotificationService, useValue: { createNotification: jest.fn().mockResolvedValue(undefined), createBulkNotifications } },
         { provide: EmailService, useValue: {} },
         { provide: S3Service, useValue: {} },
-        { provide: ConceptsService, useValue: { findConceptIdForBuilding: jest.fn(), assertConceptInOrg: jest.fn() } },
+        { provide: ConceptsService, useValue: { findConceptIdForBuilding: jest.fn(), assertConceptInOrg: jest.fn(), assertBuildingInConcept } },
       ],
     }).compile();
 
@@ -135,6 +137,15 @@ describe('EventsService organisation and group privacy', () => {
       await expect(service.create(memberId, orgId, createDto({ groupId: undefined }))).resolves.toBeDefined();
       await expect(service.create(memberId, orgId, createDto())).resolves.toBeDefined();
       expect(eventCreate).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects a building outside the caller\'s organisation or concept when a concept is also sent', async () => {
+      const conceptId = new Types.ObjectId().toString();
+      const dto = createDto({ groupId: undefined, conceptId });
+      assertBuildingInConcept.mockRejectedValue(new NotFoundException('Building not found'));
+      await expect(service.create(memberId, orgId, dto)).rejects.toBeInstanceOf(NotFoundException);
+      expect(assertBuildingInConcept).toHaveBeenCalledWith(dto.buildingId, conceptId, orgId);
+      expect(eventCreate).not.toHaveBeenCalled();
     });
   });
 

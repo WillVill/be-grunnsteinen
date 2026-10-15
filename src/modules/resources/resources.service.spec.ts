@@ -20,6 +20,8 @@ describe('ResourcesService organisation scoping', () => {
   let resourceFindOneAndUpdate: jest.Mock;
   let s3: { uploadFile: jest.Mock };
   let resource: any;
+  let resourceCreate: jest.Mock;
+  let assertBuildingInConcept: jest.Mock;
 
   const ownFilter = { _id: resourceId, organizationId: new Types.ObjectId(orgId) };
   /** The resource only exists in `orgId`: lookups honour the organisation like Mongo would. */
@@ -40,16 +42,18 @@ describe('ResourcesService organisation scoping', () => {
     resourceFindOne = jest.fn(inOrg(() => resource));
     resourceFindOneAndUpdate = jest.fn(inOrg(() => resource));
     s3 = { uploadFile: jest.fn().mockResolvedValue('https://new') };
+    resourceCreate = jest.fn();
+    assertBuildingInConcept = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ResourcesService,
         {
           provide: getModelToken(Resource.name),
-          useValue: { findOne: resourceFindOne, findOneAndUpdate: resourceFindOneAndUpdate },
+          useValue: { findOne: resourceFindOne, findOneAndUpdate: resourceFindOneAndUpdate, create: resourceCreate },
         },
         { provide: S3Service, useValue: s3 },
-        { provide: ConceptsService, useValue: {} },
+        { provide: ConceptsService, useValue: { assertConceptInOrg: jest.fn(), assertBuildingInConcept } },
       ],
     }).compile();
 
@@ -105,6 +109,17 @@ describe('ResourcesService organisation scoping', () => {
       expect(s3.uploadFile).toHaveBeenCalledWith(expect.anything(), `public/resources/${resourceId}/images`);
       expect(result.imageUrls).toEqual(['https://old', 'https://new']);
       expect(resource.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('create', () => {
+    it('rejects a building outside the caller\'s organisation or concept when a concept is also sent', async () => {
+      const conceptId = new Types.ObjectId().toString();
+      const buildingId = new Types.ObjectId().toString();
+      assertBuildingInConcept.mockRejectedValue(new NotFoundException('Building not found'));
+      await expect(service.create(orgId, { name: 'R', conceptId, buildingId } as any)).rejects.toBeInstanceOf(NotFoundException);
+      expect(assertBuildingInConcept).toHaveBeenCalledWith(buildingId, conceptId, orgId);
+      expect(resourceCreate).not.toHaveBeenCalled();
     });
   });
 });
