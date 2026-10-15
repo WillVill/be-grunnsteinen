@@ -33,6 +33,7 @@ import {
 import { EmailService, EmailUser } from '../../shared/services/email.service';
 import { ConceptsService } from '../concepts/concepts.service';
 import { refId } from '../../common/schemas/ref-id';
+import { findInOrg, inOrg } from '../../common/schemas/tenant';
 
 @Injectable()
 export class SharingService {
@@ -185,16 +186,10 @@ export class SharingService {
   /**
    * Find help request by ID
    */
-  async findHelpRequestById(id: string, organizationId?: string): Promise<HelpRequestDocument> {
-    const filter: Record<string, unknown> = { _id: id };
-    if (organizationId) {
-      filter.organizationId = new Types.ObjectId(organizationId);
-    }
-
-    const helpRequest = await this.helpRequestModel
-      .findOne(filter)
-      .populate('requesterId', 'name avatarUrl avatarColor email')
-      .populate('helperId', 'name avatarUrl avatarColor email')
+  async findHelpRequestById(id: string, organizationId: string): Promise<HelpRequestDocument> {
+    const helpRequest = await findInOrg(this.helpRequestModel, id, organizationId, null, 'Help request')
+      .populate('requesterId', 'name avatarUrl avatarColor role')
+      .populate('helperId', 'name avatarUrl avatarColor role')
       .exec();
 
     if (!helpRequest) {
@@ -210,8 +205,9 @@ export class SharingService {
   async acceptHelpRequest(
     requestId: string,
     helperId: string,
+    orgId: string,
   ): Promise<HelpRequestDocument> {
-    const helpRequest = await this.findHelpRequestById(requestId);
+    const helpRequest = await this.findHelpRequestById(requestId, orgId);
 
     if (helpRequest.status !== HelpRequestStatus.OPEN) {
       throw new BadRequestException('Help request is not open');
@@ -268,8 +264,9 @@ export class SharingService {
   async completeHelpRequest(
     requestId: string,
     userId: string,
+    orgId: string,
   ): Promise<HelpRequestDocument> {
-    const helpRequest = await this.findHelpRequestById(requestId);
+    const helpRequest = await this.findHelpRequestById(requestId, orgId);
 
     if (helpRequest.status !== HelpRequestStatus.ACCEPTED) {
       throw new BadRequestException('Help request must be accepted before completion');
@@ -334,8 +331,9 @@ export class SharingService {
   async cancelHelpRequest(
     requestId: string,
     userId: string,
+    orgId: string,
   ): Promise<HelpRequestDocument> {
-    const helpRequest = await this.findHelpRequestById(requestId);
+    const helpRequest = await this.findHelpRequestById(requestId, orgId);
 
     if (helpRequest.status === HelpRequestStatus.COMPLETED) {
       throw new BadRequestException('Cannot cancel a completed help request');
@@ -555,16 +553,10 @@ export class SharingService {
   /**
    * Find shared item by ID
    */
-  async findSharedItemById(id: string, organizationId?: string): Promise<SharedItemDocument> {
-    const filter: Record<string, unknown> = { _id: id };
-    if (organizationId) {
-      filter.organizationId = new Types.ObjectId(organizationId);
-    }
-
-    const sharedItem = await this.sharedItemModel
-      .findOne(filter)
-      .populate('ownerId', 'name avatarUrl avatarColor email')
-      .populate('borrowedBy', 'name avatarUrl avatarColor email')
+  async findSharedItemById(id: string, organizationId: string): Promise<SharedItemDocument> {
+    const sharedItem = await findInOrg(this.sharedItemModel, id, organizationId, null, 'Shared item')
+      .populate('ownerId', 'name avatarUrl avatarColor role')
+      .populate('borrowedBy', 'name avatarUrl avatarColor role')
       .exec();
 
     if (!sharedItem) {
@@ -580,17 +572,13 @@ export class SharingService {
   async updateSharedItem(
     itemId: string,
     userId: string,
+    orgId: string,
     dto: UpdateSharedItemDto,
   ): Promise<SharedItemDocument> {
-    const sharedItem = await this.findSharedItemById(itemId);
-
-    // Verify user is owner
-    if (refId(sharedItem.ownerId) !== userId) {
-      throw new ForbiddenException('Only the owner can update this item');
-    }
+    await this.assertItemOwner(itemId, userId, orgId);
 
     const updatedItem = await this.sharedItemModel
-      .findByIdAndUpdate(itemId, { $set: dto }, { new: true, runValidators: true })
+      .findOneAndUpdate(inOrg(itemId, orgId, 'Shared item'), { $set: dto }, { new: true, runValidators: true })
       .populate('ownerId', 'name avatarUrl avatarColor role')
       .populate('borrowedBy', 'name avatarUrl avatarColor role')
       .exec();
@@ -600,13 +588,30 @@ export class SharingService {
   }
 
   /**
+   * Throws unless the item is in the caller's organisation (404) and owned by
+   * them (403). Run it before side effects such as an S3 upload.
+   */
+  async assertItemOwner(
+    itemId: string,
+    userId: string,
+    orgId: string,
+  ): Promise<SharedItemDocument> {
+    const sharedItem = await this.findSharedItemById(itemId, orgId);
+    if (refId(sharedItem.ownerId) !== userId) {
+      throw new ForbiddenException('Only the owner can update this item');
+    }
+    return sharedItem;
+  }
+
+  /**
    * Toggle item availability
    */
   async toggleAvailability(
     itemId: string,
     userId: string,
+    orgId: string,
   ): Promise<SharedItemDocument> {
-    const sharedItem = await this.findSharedItemById(itemId);
+    const sharedItem = await this.findSharedItemById(itemId, orgId);
 
     // Verify user is owner
     if (refId(sharedItem.ownerId) !== userId) {
@@ -636,8 +641,8 @@ export class SharingService {
   /**
    * Request to borrow an item (sends notification to owner)
    */
-  async requestToBorrow(itemId: string, userId: string): Promise<void> {
-    const sharedItem = await this.findSharedItemById(itemId);
+  async requestToBorrow(itemId: string, userId: string, orgId: string): Promise<void> {
+    const sharedItem = await this.findSharedItemById(itemId, orgId);
 
     if (!sharedItem.isAvailable) {
       throw new BadRequestException('Item is not available for borrowing');
@@ -679,8 +684,8 @@ export class SharingService {
   /**
    * Delete shared item
    */
-  async deleteSharedItem(itemId: string, userId: string): Promise<void> {
-    const sharedItem = await this.findSharedItemById(itemId);
+  async deleteSharedItem(itemId: string, userId: string, orgId: string): Promise<void> {
+    const sharedItem = await this.findSharedItemById(itemId, orgId);
 
     // Verify user is owner or a sharing moderator for this building
     const isOwner = refId(sharedItem.ownerId) === userId;
@@ -699,7 +704,7 @@ export class SharingService {
       throw new BadRequestException('Cannot delete an item that is currently borrowed');
     }
 
-    await this.sharedItemModel.deleteOne({ _id: itemId });
+    await this.sharedItemModel.deleteOne(inOrg(itemId, orgId, 'Shared item'));
 
     this.logger.log(`Shared item deleted: ${itemId} by user ${userId}`);
   }

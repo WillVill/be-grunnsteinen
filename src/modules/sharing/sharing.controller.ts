@@ -174,7 +174,7 @@ export class SharingController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.sharingService.acceptHelpRequest(id, user.userId);
+    return this.sharingService.acceptHelpRequest(id, user.userId, user.organizationId);
   }
 
   @Post('help-requests/:id/complete')
@@ -195,7 +195,7 @@ export class SharingController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.sharingService.completeHelpRequest(id, user.userId);
+    return this.sharingService.completeHelpRequest(id, user.userId, user.organizationId);
   }
 
   @Post('help-requests/:id/cancel')
@@ -216,7 +216,7 @@ export class SharingController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.sharingService.cancelHelpRequest(id, user.userId);
+    return this.sharingService.cancelHelpRequest(id, user.userId, user.organizationId);
   }
 
   // ==================== Shared Item Endpoints ====================
@@ -307,7 +307,7 @@ export class SharingController {
     @Param('id') id: string,
     @Body() updateSharedItemDto: UpdateSharedItemDto,
   ) {
-    return this.sharingService.updateSharedItem(id, user.userId, updateSharedItemDto);
+    return this.sharingService.updateSharedItem(id, user.userId, user.organizationId, updateSharedItemDto);
   }
 
   @Post('items/:id/toggle-availability')
@@ -328,7 +328,7 @@ export class SharingController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.sharingService.toggleAvailability(id, user.userId);
+    return this.sharingService.toggleAvailability(id, user.userId, user.organizationId);
   }
 
   @Post('items/:id/request-borrow')
@@ -349,7 +349,7 @@ export class SharingController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    await this.sharingService.requestToBorrow(id, user.userId);
+    await this.sharingService.requestToBorrow(id, user.userId, user.organizationId);
   }
 
   @Delete('items/:id')
@@ -371,7 +371,7 @@ export class SharingController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    await this.sharingService.deleteSharedItem(id, user.userId);
+    await this.sharingService.deleteSharedItem(id, user.userId, user.organizationId);
   }
 
   @Post('items/:id/image')
@@ -416,6 +416,9 @@ export class SharingController {
     )
     file: Express.Multer.File,
   ) {
+    // Check org + ownership before writing to S3 (no orphan objects)
+    await this.sharingService.assertItemOwner(id, user.userId, user.organizationId);
+
     // Upload to S3
     const imageUrl = await this.s3Service.uploadFile(
       file,
@@ -423,7 +426,7 @@ export class SharingController {
     );
 
     // Update item with image URL
-    return this.sharingService.updateSharedItem(id, user.userId, { imageUrl });
+    return this.sharingService.updateSharedItem(id, user.userId, user.organizationId, { imageUrl });
   }
 }
 
