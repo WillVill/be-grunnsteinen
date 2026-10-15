@@ -19,6 +19,7 @@ import {
 import { S3Service } from '../../shared/services/s3.service';
 import { ConceptsService } from '../concepts/concepts.service';
 import { refId } from '../../common/schemas/ref-id';
+import { canViewGroup, isGroupMember } from './group-access';
 
 @Injectable()
 export class GroupsService {
@@ -121,6 +122,10 @@ export class GroupsService {
     // Filter by privacy
     if (typeof isPrivate === 'boolean') {
       filter.isPrivate = isPrivate;
+      // Listing private groups never reveals ones the caller isn't in.
+      if (isPrivate && isMember !== true) {
+        filter.members = new Types.ObjectId(userId);
+      }
     } else if (isMember !== true) {
       // Default: show public groups and groups user is member of (only if not filtering by membership)
       // This ensures users can see groups they're part of even if private
@@ -200,13 +205,17 @@ export class GroupsService {
   }
 
   /**
-   * Find group by ID
+   * Find a group in the caller's organisation. A group in another organisation
+   * reads as not found, so ids can't be probed across tenants.
    */
-  async findById(groupId: string): Promise<GroupDocument> {
+  async findById(groupId: string, orgId: string): Promise<GroupDocument> {
+    if (!Types.ObjectId.isValid(groupId)) {
+      throw new NotFoundException('Group not found');
+    }
     const group = await this.groupModel
-      .findById(groupId)
+      .findOne({ _id: groupId, organizationId: new Types.ObjectId(orgId) })
       .populate('creatorId', 'name avatarUrl avatarColor role')
-      .populate('members', 'name avatarUrl avatarColor email')
+      .populate('members', 'name avatarUrl avatarColor role')
       .exec();
 
     if (!group) {
@@ -217,14 +226,36 @@ export class GroupsService {
   }
 
   /**
+   * A private group is only visible to its members and to moderators of its
+   * building. Members are checked without a user lookup.
+   */
+  async assertCanView(group: GroupDocument, userId: string): Promise<void> {
+    if (!group.isPrivate || isGroupMember(group, userId)) return;
+    const user = await this.userModel.findById(userId);
+    if (!canViewGroup(group, userId, user)) {
+      throw new ForbiddenException('This group is private');
+    }
+  }
+
+  /**
+   * Group detail for the caller: organisation-scoped and privacy-checked.
+   */
+  async findOneForUser(groupId: string, orgId: string, userId: string): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
+    await this.assertCanView(group, userId);
+    return group;
+  }
+
+  /**
    * Update group
    */
   async update(
     groupId: string,
     userId: string,
+    orgId: string,
     dto: UpdateGroupDto,
   ): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+    const group = await this.findById(groupId, orgId);
 
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
@@ -255,9 +286,10 @@ export class GroupsService {
   async uploadImage(
     groupId: string,
     userId: string,
+    orgId: string,
     imageUrl: string,
   ): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+    const group = await this.findById(groupId, orgId);
 
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);
@@ -285,8 +317,8 @@ export class GroupsService {
   /**
    * Join group
    */
-  async join(groupId: string, userId: string): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+  async join(groupId: string, userId: string, orgId: string): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
 
     // Check if group is active
     if (!group.isActive) {
@@ -323,8 +355,8 @@ export class GroupsService {
   /**
    * Leave group
    */
-  async leave(groupId: string, userId: string): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+  async leave(groupId: string, userId: string, orgId: string): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
 
     // Check if member
     const isMember = group.members.some(
@@ -363,9 +395,10 @@ export class GroupsService {
   async addMember(
     groupId: string,
     inviterUserId: string,
+    orgId: string,
     dto: AddMemberDto,
   ): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+    const group = await this.findById(groupId, orgId);
 
     const inviter = await this.userModel.findById(inviterUserId);
     const isCreator = refId(group.creatorId) === inviterUserId;
@@ -386,7 +419,7 @@ export class GroupsService {
     }
 
     const newMember = await this.userModel.findById(dto.userId);
-    if (!newMember) {
+    if (!newMember || refId(newMember.organizationId) !== orgId) {
       throw new NotFoundException('User to add not found');
     }
 
@@ -427,17 +460,20 @@ export class GroupsService {
    */
   async getMembers(
     groupId: string,
+    orgId: string,
+    userId: string,
     page: number = 1,
     limit: number = 50,
   ): Promise<PaginatedResponseDto<UserDocument>> {
-    const group = await this.findById(groupId);
+    const group = await this.findById(groupId, orgId);
+    await this.assertCanView(group, userId);
 
     const skip = (page - 1) * limit;
 
     const [members, total] = await Promise.all([
       this.userModel
         .find({ _id: { $in: group.members } })
-        .select('name email avatarUrl avatarColor')
+        .select('name avatarUrl avatarColor')
         .skip(skip)
         .limit(limit)
         .exec(),
@@ -450,8 +486,8 @@ export class GroupsService {
   /**
    * Delete group
    */
-  async delete(groupId: string, userId: string): Promise<void> {
-    const group = await this.findById(groupId);
+  async delete(groupId: string, userId: string, orgId: string): Promise<void> {
+    const group = await this.findById(groupId, orgId);
 
     // Verify user is creator or board member
     const user = await this.userModel.findById(userId);

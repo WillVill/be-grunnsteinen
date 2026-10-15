@@ -21,6 +21,8 @@ import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { NotificationService, NotificationType } from '../../shared/services/notification.service';
 import { ConceptsService } from '../concepts/concepts.service';
 import { Permission, canModerateInBuilding } from '../../common/permissions/permissions';
+import { refId } from '../../common/schemas/ref-id';
+import { canViewGroup, isGroupMember } from '../groups/group-access';
 
 @Injectable()
 export class PostsService {
@@ -54,6 +56,10 @@ export class PostsService {
     }
 
     const isFromBoard = ['board', 'admin'].includes(user.role);
+
+    if (createDto.groupId) {
+      await this.assertGroupVisible(createDto.groupId, organizationId, userId);
+    }
 
     if (!createDto.buildingId && !createDto.conceptId) {
       throw new BadRequestException(
@@ -224,11 +230,24 @@ export class PostsService {
     }
 
     if (groupId) {
+      if (userId) {
+        await this.assertGroupVisible(groupId, organizationId, userId);
+      }
       filter.groupId = new Types.ObjectId(groupId);
     }
 
     if (excludeGroupPosts === true) {
       filter.$or = [{ groupId: { $exists: false } }, { groupId: null }];
+    } else if (!groupId && userId) {
+      // Mixed feeds leave out posts from private groups the caller isn't in.
+      const hiddenGroupIds = await this.groupModel.distinct('_id', {
+        organizationId: new Types.ObjectId(organizationId),
+        isPrivate: true,
+        members: { $ne: new Types.ObjectId(userId) },
+      });
+      if (hiddenGroupIds.length > 0) {
+        filter.groupId = { $nin: hiddenGroupIds };
+      }
     }
 
     // Concept-scoped filter: prefer explicit conceptId, otherwise derive from
@@ -315,6 +334,47 @@ export class PostsService {
   /**
    * Find post by ID (internal use - returns Mongoose document)
    */
+  /**
+   * Posts in a private group are only visible to people who can see the group
+   * (members and moderators of its building). A group outside the caller's
+   * organisation reads as not found. `allowMissing` lets reads of a post whose
+   * group has since been removed fall through.
+   */
+  private async assertGroupVisible(
+    groupRef: unknown,
+    organizationId: string,
+    userId: string,
+    { allowMissing = false }: { allowMissing?: boolean } = {},
+  ): Promise<void> {
+    const groupId = refId(groupRef);
+    const group =
+      groupId && Types.ObjectId.isValid(groupId)
+        ? await this.groupModel
+            .findOne({ _id: groupId, organizationId: new Types.ObjectId(organizationId) })
+            .select('isPrivate isConceptWide buildingId members')
+            .lean()
+            .exec()
+        : null;
+    if (!group) {
+      if (allowMissing) return;
+      throw new NotFoundException('Group not found');
+    }
+    if (!group.isPrivate || isGroupMember(group, userId)) return;
+    const user = await this.userModel.findById(userId).select('role buildingIds').lean().exec();
+    if (!canViewGroup(group, userId, user)) {
+      throw new ForbiddenException('This group is private');
+    }
+  }
+
+  /** Read/write guard for a single post: only group posts are restricted. */
+  private async assertPostVisible(
+    post: { groupId?: unknown; organizationId?: unknown },
+    userId: string,
+  ): Promise<void> {
+    if (!post.groupId) return;
+    await this.assertGroupVisible(post.groupId, String(refId(post.organizationId)), userId, { allowMissing: true });
+  }
+
   private async findPostDocument(postId: string): Promise<PostDocument> {
     const post = await this.postModel
       .findById(postId)
@@ -341,6 +401,9 @@ export class PostsService {
 
     if (!post) {
       throw new NotFoundException('Post not found');
+    }
+    if (userId) {
+      await this.assertPostVisible(post, userId);
     }
 
     // Fetch comments for this post
@@ -465,6 +528,7 @@ export class PostsService {
    */
   async toggleLike(postId: string, userId: string): Promise<any> {
     const post = await this.findPostDocument(postId);
+    await this.assertPostVisible(post, userId);
     const userIdObj = new Types.ObjectId(userId);
 
     const isLiked = post.likes.some(
@@ -509,6 +573,7 @@ export class PostsService {
     createCommentDto: CreateCommentDto,
   ): Promise<CommentDocument> {
     const post = await this.findPostDocument(postId);
+    await this.assertPostVisible(post, userId);
 
     let parentCommentId: Types.ObjectId | null = null;
     if (createCommentDto.parentCommentId) {
@@ -620,9 +685,11 @@ export class PostsService {
    */
   async getComments(
     postId: string,
+    userId: string,
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResponseDto<CommentDocument>> {
+    await this.assertPostVisible(await this.findPostDocument(postId), userId);
     const skip = (page - 1) * limit;
 
     const [comments, total] = await Promise.all([

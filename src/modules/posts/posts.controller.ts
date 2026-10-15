@@ -191,11 +191,12 @@ export class PostsController {
   })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async getComments(
+    @CurrentUser('userId') userId: string,
     @Param('id') postId: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
   ) {
-    return this.postsService.getComments(postId, page, limit);
+    return this.postsService.getComments(postId, userId, page, limit);
   }
 }
 
