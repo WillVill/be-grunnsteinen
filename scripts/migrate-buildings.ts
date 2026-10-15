@@ -34,7 +34,7 @@ interface MigrationStats {
   errors: string[];
 }
 
-const MONGODB_URI = process.env.DATABASE_URL || "mongodb://localhost:27017/heime";
+const MONGODB_URI = process.env.DATABASE_URL || "mongodb://localhost:27017/grunnsteinen";
 const DRY_RUN = process.argv.includes("--dry-run");
 const BACKFILL_DATA = process.argv.includes("--backfill-data");
 

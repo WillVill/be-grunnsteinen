@@ -16,7 +16,7 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || "mongodb://localhost:27017/heime";
+const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || "mongodb://localhost:27017/grunnsteinen";
 
 // Organization details
 const ORGANIZATION = {
