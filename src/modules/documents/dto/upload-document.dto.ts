@@ -7,6 +7,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ToBoolean } from '../../../common/decorators/to-boolean.decorator';
 
 export class UploadDocumentDto {
   @ApiPropertyOptional({
@@ -33,6 +34,7 @@ export class UploadDocumentDto {
   })
   @IsOptional()
   @IsBoolean()
+  @ToBoolean()
   isConceptWide?: boolean;
 
   @ApiProperty({
@@ -77,5 +79,6 @@ export class UploadDocumentDto {
   })
   @IsOptional()
   @IsBoolean()
+  @ToBoolean()
   isPublic?: boolean;
 }

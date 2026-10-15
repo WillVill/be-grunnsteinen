@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsBoolean, IsMongoId } from "class-validator";
-import { Transform } from "class-transformer";
 import { PaginationQueryDto } from "../../../common/dto/pagination.dto";
+import { ToBoolean } from "../../../common/decorators/to-boolean.decorator";
 
 export class ApartmentQueryDto extends PaginationQueryDto {
   @IsOptional()
@@ -8,7 +8,7 @@ export class ApartmentQueryDto extends PaginationQueryDto {
   search?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === "true" || value === true)
   @IsBoolean()
+  @ToBoolean()
   isActive?: boolean;
 }

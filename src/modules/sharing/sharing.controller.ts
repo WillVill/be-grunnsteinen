@@ -65,7 +65,7 @@ class HelpRequestQueryDto extends PaginationQueryDto {
   conceptId?: string;
 }
 
-class SharedItemQueryDto extends PaginationQueryDto {
+export class SharedItemQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: SharedItemCategory })
   @IsOptional()
   @IsEnum(SharedItemCategory)
