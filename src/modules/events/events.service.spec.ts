@@ -149,6 +149,21 @@ describe('EventsService organisation and group privacy', () => {
     });
   });
 
+  describe('Fra styret label', () => {
+    it.each([
+      [UserRole.SUPER_ADMIN, true],
+      [UserRole.ADMIN, true],
+      [UserRole.BOARD, true],
+      [UserRole.HOST, false],
+      [UserRole.RESIDENT, false],
+    ])('marks an event by %s as from the board: %s', async (role, expected) => {
+      userFindById.mockReturnValue(query({ role, buildingIds: [], name: 'U', email: 'u@x' }));
+      eventCreate.mockRejectedValue(new Error('stop after create'));
+      await expect(service.create(memberId, orgId, createDto({ groupId: undefined }))).rejects.toThrow('stop after create');
+      expect(eventCreate.mock.calls[0][0].isFromBoard).toBe(expected);
+    });
+  });
+
   describe('create notifications', () => {
     it('does not fall through to the building when the group has no members besides the organizer', async () => {
       eventCreate.mockResolvedValue({

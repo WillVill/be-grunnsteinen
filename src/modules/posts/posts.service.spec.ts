@@ -262,6 +262,23 @@ describe('PostsService group privacy', () => {
     });
   });
 
+  describe('Fra styret label', () => {
+    it.each([
+      [UserRole.SUPER_ADMIN, true],
+      [UserRole.ADMIN, true],
+      [UserRole.BOARD, true],
+      [UserRole.HOST, false],
+      [UserRole.RESIDENT, false],
+    ])('marks a post by %s as from the board: %s', async (role, expected) => {
+      userFindById.mockReturnValue(query({ role, buildingIds: [] }));
+      postCreate.mockRejectedValue(new Error('stop after create'));
+      await expect(
+        service.create(memberId, orgId, { title: 't', content: 'c', buildingId: new Types.ObjectId().toString() } as any),
+      ).rejects.toThrow('stop after create');
+      expect(postCreate.mock.calls[0][0].isFromBoard).toBe(expected);
+    });
+  });
+
   describe('comment notification', () => {
     const authorId = new Types.ObjectId().toString();
 

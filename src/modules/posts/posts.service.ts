@@ -9,7 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, QueryFilter } from 'mongoose';
 import { Post, PostDocument } from './schemas/post.schema';
 import { Comment, CommentDocument } from './schemas/comment.schema';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { User, UserDocument, isBoardOrAbove } from '../users/schemas/user.schema';
 import { Group, GroupDocument } from '../groups/schemas/group.schema';
 import {
   CreatePostDto,
@@ -55,7 +55,7 @@ export class PostsService {
       throw new NotFoundException('User not found');
     }
 
-    const isFromBoard = ['board', 'admin'].includes(user.role);
+    const isFromBoard = isBoardOrAbove(user.role);
 
     if (createDto.groupId) {
       await this.assertGroupVisible(createDto.groupId, organizationId, userId);
