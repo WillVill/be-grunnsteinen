@@ -1,8 +1,8 @@
 import { IsOptional, IsString, IsBoolean, IsEnum, IsMongoId } from 'class-validator';
-import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { UserRole } from '../schemas/user.schema';
+import { ToBoolean } from '../../../common/decorators/to-boolean.decorator';
 
 export class UserQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
@@ -27,11 +27,7 @@ export class UserQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   isHelpfulNeighbor?: boolean;
 
   @ApiPropertyOptional({

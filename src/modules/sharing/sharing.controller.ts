@@ -38,10 +38,10 @@ import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { HelpRequestCategory, HelpRequestStatus } from './schemas/help-request.schema';
 import { SharedItemCategory } from './schemas/shared-item.schema';
 import { IsOptional, IsEnum, IsBoolean, IsMongoId } from 'class-validator';
-import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { S3Service } from '../../shared/services/s3.service';
 import { ThrottleUpload } from '../../common/decorators/throttle-upload.decorator';
+import { ToBoolean } from '../../common/decorators/to-boolean.decorator';
 
 class HelpRequestQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: HelpRequestCategory })
@@ -74,11 +74,7 @@ class SharedItemQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   isAvailable?: boolean;
 
   @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011' })
