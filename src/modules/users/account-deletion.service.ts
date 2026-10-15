@@ -160,9 +160,13 @@ export class AccountDeletionService {
     const orgOid = new Types.ObjectId(organizationId);
     const userOid = new Types.ObjectId(userId);
     const originalEmail = user.email;
-    // Captured before the tombstone unsets it: the one avatar we know about.
-    const avatarUrl = user.isDeleted ? undefined : user.avatarUrl;
     const alreadyDeleted = user.isDeleted === true;
+    // The tombstone unsets avatarUrl, so the avatar's key is parked on it in the
+    // same write: a run that dies before the avatar step can still find it.
+    const avatarKeys = alreadyDeleted
+      ? []
+      : this.ownedKeys([user.avatarUrl], `public/avatars/${userId}/`);
+    const pendingKeys = [...new Set([...(user.pendingS3Keys ?? []), ...avatarKeys])];
 
     const summary: AccountDeletionSummary = {
       tombstoned: !alreadyDeleted,
@@ -194,7 +198,7 @@ export class AccountDeletionService {
       await this.assertNotLastAdmin(user, orgOid, userOid);
       // Before the tombstone, which replaces the real address they match on.
       await this.deleteInvitations(originalEmail, orgOid, summary);
-      await this.writeTombstone(userOid, orgOid);
+      await this.writeTombstone(userOid, orgOid, avatarKeys);
     }
 
     const steps: [string, () => Promise<unknown>][] = [
@@ -210,7 +214,7 @@ export class AccountDeletionService {
       ["conversations", () => this.handleConversations(userId, userOid, orgOid, summary)],
       [
         "avatar",
-        () => this.deleteAvatar(userId, userOid, orgOid, avatarUrl, user.pendingS3Keys ?? [], summary),
+        () => this.deleteAvatar(userId, userOid, orgOid, pendingKeys, summary),
       ],
       // Last, so notifications the cancel paths above addressed to this user go
       // too. Notifications carry no organisation; the user id is globally unique.
@@ -264,11 +268,13 @@ export class AccountDeletionService {
   /**
    * Keeps `_id`, `organizationId`, `createdAt` and `role`; clears every
    * personal field. One `updateOne`, so the password pre-save hook doesn't run
-   * and the random password is hashed here instead.
+   * and the random password is hashed here instead. `avatarKeys` are parked in
+   * `pendingS3Keys` until the avatar step deletes them.
    */
   private async writeTombstone(
     userOid: Types.ObjectId,
     orgOid: Types.ObjectId,
+    avatarKeys: string[],
   ): Promise<void> {
     const unusablePassword = await bcrypt.hash(
       crypto.randomBytes(32).toString("hex"),
@@ -305,6 +311,9 @@ export class AccountDeletionService {
           setupToken: "",
           setupTokenExpires: "",
         },
+        ...(avatarKeys.length > 0 && {
+          $addToSet: { pendingS3Keys: { $each: avatarKeys } },
+        }),
       },
     );
   }
@@ -789,38 +798,24 @@ export class AccountDeletionService {
   }
 
   /**
-   * The avatar we know about (captured before the tombstone) plus any left
-   * from an earlier run, then a best-effort sweep of the user's avatar folder
-   * for older uploads. Only a failed delete of a known key leaves the deletion
-   * incomplete; that key is parked on the tombstone for the re-run.
+   * The avatar keys parked on the tombstone (the current avatar, plus any left
+   * by an earlier run), then a best-effort sweep of the user's avatar folder
+   * for older uploads. A key is unparked once deleted; one that fails stays
+   * parked and leaves the deletion incomplete for the re-run.
    */
   private async deleteAvatar(
     userId: string,
     userOid: Types.ObjectId,
     orgOid: Types.ObjectId,
-    avatarUrl: string | undefined,
     pendingKeys: string[],
     summary: AccountDeletionSummary,
   ): Promise<void> {
     const folder = `public/avatars/${userId}/`;
-    const keys = [
-      ...new Set([
-        ...this.ownedKeys([avatarUrl], folder),
-        ...pendingKeys.filter((key) => key.startsWith(folder)),
-      ]),
-    ];
-    for (const key of keys) {
-      const ok = await this.deleteKnownKey(key, summary);
-      const wasPending = pendingKeys.includes(key);
-      if (ok && wasPending) {
+    for (const key of pendingKeys.filter((k) => k.startsWith(folder))) {
+      if (await this.deleteKnownKey(key, summary)) {
         await this.userModel.updateOne(
           { _id: userOid, organizationId: orgOid },
           { $pull: { pendingS3Keys: key } },
-        );
-      } else if (!ok && !wasPending) {
-        await this.userModel.updateOne(
-          { _id: userOid, organizationId: orgOid },
-          { $addToSet: { pendingS3Keys: key } },
         );
       }
     }

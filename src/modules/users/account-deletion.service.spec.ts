@@ -541,14 +541,25 @@ describe('AccountDeletionService', () => {
       }
     });
 
-    it('carries on when the avatar delete fails, and parks the key on the tombstone for the re-run', async () => {
+    it('parks the avatar key in the tombstone write and unparks it once deleted', async () => {
+      await service.deleteAccount(userId, orgId);
+      const [, tombstone] = models.User.updateOne.mock.calls[0];
+      expect(tombstone.$set.isDeleted).toBe(true);
+      expect(tombstone.$addToSet).toEqual({ pendingS3Keys: { $each: [`public/avatars/${userId}/current.png`] } });
+      expect(models.User.updateOne).toHaveBeenCalledWith(
+        { _id: userOid, organizationId: orgOid },
+        { $pull: { pendingS3Keys: `public/avatars/${userId}/current.png` } },
+      );
+    });
+
+    it('carries on when the avatar delete fails, and leaves the key parked for the re-run', async () => {
       deleteFile.mockRejectedValue(new Error('S3 down'));
       await expect(service.deleteAccount(userId, orgId)).resolves.toMatchObject({ s3Failures: 2, completed: false });
       expect(deleteAllNotifications).toHaveBeenCalled();
-      expect(models.User.updateOne).toHaveBeenCalledWith(
-        { _id: userOid, organizationId: orgOid },
-        { $addToSet: { pendingS3Keys: `public/avatars/${userId}/current.png` } },
-      );
+      expect(models.User.updateOne.mock.calls[0][1].$addToSet).toEqual({ pendingS3Keys: { $each: [`public/avatars/${userId}/current.png`] } });
+      for (const [, update] of models.User.updateOne.mock.calls) {
+        expect(update).not.toHaveProperty('$pull');
+      }
     });
 
     it('a sweep without s3:ListBucket (AccessDenied) only warns and does not leave the deletion incomplete', async () => {
@@ -639,8 +650,8 @@ describe('AccountDeletionService', () => {
         query(activeUser({ isActive: false, isDeleted: true, deletionCompletedAt: new Date() })),
       );
       await expect(service.deleteAccount(userId, orgId)).resolves.toMatchObject({ tombstoned: false });
-      // Tombstone + completion mark from the first run; the second writes neither.
-      expect(models.User.updateOne).toHaveBeenCalledTimes(2);
+      // Tombstone, avatar unpark and completion mark from the first run; the second writes none.
+      expect(models.User.updateOne).toHaveBeenCalledTimes(3);
     });
   });
   describe('resumable cascade', () => {
@@ -653,13 +664,14 @@ describe('AccountDeletionService', () => {
 
       expect(summary.failedSteps).toEqual(['groups']);
       expect(summary.completed).toBe(false);
-      expect(models.User.updateOne).toHaveBeenCalledTimes(1);
+      // The tombstone, and the avatar unpark after its delete succeeded.
+      expect(models.User.updateOne).toHaveBeenCalledTimes(2);
       expect(models.User.updateOne.mock.calls[0][1].$set.isDeleted).toBe(true);
       // The steps after the failing one still ran.
       expect(models.SharedItem.deleteMany).toHaveBeenCalled();
       expect(deleteAllNotifications).toHaveBeenCalled();
       for (const [, update] of models.User.updateOne.mock.calls) {
-        expect(update.$set).not.toHaveProperty('deletionCompletedAt');
+        expect(update.$set ?? {}).not.toHaveProperty('deletionCompletedAt');
       }
     });
 
@@ -675,11 +687,11 @@ describe('AccountDeletionService', () => {
     it('a clean run sets deletionCompletedAt after the cascade', async () => {
       const summary = await service.deleteAccount(userId, orgId);
       expect(summary).toMatchObject({ completed: true, failedSteps: [] });
-      expect(models.User.updateOne).toHaveBeenCalledTimes(2);
-      const [filter, update] = models.User.updateOne.mock.calls[1];
+      expect(models.User.updateOne).toHaveBeenCalledTimes(3);
+      const [filter, update] = models.User.updateOne.mock.calls[2];
       expect(filter).toEqual({ _id: userOid, organizationId: orgOid });
       expect(update.$set.deletionCompletedAt).toBeInstanceOf(Date);
-      expect(models.User.updateOne.mock.invocationCallOrder[1]).toBeGreaterThan(
+      expect(models.User.updateOne.mock.invocationCallOrder[2]).toBeGreaterThan(
         deleteAllNotifications.mock.invocationCallOrder[0],
       );
     });
