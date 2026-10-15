@@ -146,8 +146,11 @@ export class DocumentsController {
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not Found - Document not found' })
-  async findOne(@Param('id') id: string) {
-    return this.documentsService.findById(id);
+  async findOne(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.documentsService.findByIdForUser(id, user.organizationId, user.role);
   }
 
   @Get(':id/download')
@@ -177,7 +180,7 @@ export class DocumentsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    const url = await this.documentsService.getDownloadUrl(id, user.userId);
+    const url = await this.documentsService.getDownloadUrl(id, user.userId, user.organizationId);
     return { url };
   }
 
@@ -232,7 +235,7 @@ export class DocumentsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    await this.documentsService.delete(id, user.userId);
+    await this.documentsService.delete(id, user.userId, user.organizationId);
   }
 }
 

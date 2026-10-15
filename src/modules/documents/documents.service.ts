@@ -12,6 +12,7 @@ import { User, UserDocument, isBoardOrAbove } from '../users/schemas/user.schema
 import { UploadDocumentDto, UpdateDocumentDto, DocumentQueryDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { S3Service } from '../../shared/services/s3.service';
+import { findInOrg, inOrg } from '../../common/schemas/tenant';
 import { ConceptsService } from '../concepts/concepts.service';
 import { DocumentFoldersService } from '../document-folders/document-folders.service';
 
@@ -206,12 +207,12 @@ export class DocumentsService {
   }
 
   /**
-   * Find document by ID
+   * Find document by ID within the caller's organisation. A foreign or
+   * malformed id reads as not found.
    */
-  async findById(documentId: string): Promise<DocumentDocument> {
-    const document = await this.documentModel
-      .findById(documentId)
-      .populate('uploadedById', 'name avatarUrl avatarColor email')
+  async findById(documentId: string, orgId: string): Promise<DocumentDocument> {
+    const document = await findInOrg(this.documentModel, documentId, orgId, null, 'Document')
+      .populate('uploadedById', 'name avatarUrl avatarColor role')
       .exec();
 
     if (!document) {
@@ -219,6 +220,26 @@ export class DocumentsService {
     }
 
     return document;
+  }
+
+  /**
+   * Single read for any role. Residents only get public documents — the same
+   * rule findAll and getDownloadUrl apply.
+   */
+  async findByIdForUser(
+    documentId: string,
+    orgId: string,
+    role: string,
+  ): Promise<DocumentDocument> {
+    const document = await this.findById(documentId, orgId);
+    this.assertCanRead(document, role);
+    return document;
+  }
+
+  private assertCanRead(document: DocumentDocument, role: string | undefined): void {
+    if (!document.isPublic && !isBoardOrAbove(role)) {
+      throw new ForbiddenException('You do not have access to this document');
+    }
   }
 
   /**
@@ -230,7 +251,7 @@ export class DocumentsService {
     orgId: string,
     dto: UpdateDocumentDto,
   ): Promise<DocumentDocument> {
-    const document = await this.findById(documentId);
+    const document = await this.findById(documentId, orgId);
 
     const user = await this.userModel.findById(userId);
     const isBoard = user && isBoardOrAbove(user.role);
@@ -276,7 +297,7 @@ export class DocumentsService {
     if (Object.keys(unsetFields).length) updateOps.$unset = unsetFields;
 
     const updatedDocument = await this.documentModel
-      .findByIdAndUpdate(documentId, updateOps, {
+      .findOneAndUpdate(inOrg(documentId, orgId, 'Document'), updateOps, {
         new: true,
         runValidators: true,
       })
@@ -299,8 +320,8 @@ export class DocumentsService {
   /**
    * Delete document (board only)
    */
-  async delete(documentId: string, userId: string): Promise<void> {
-    const document = await this.findById(documentId);
+  async delete(documentId: string, userId: string, orgId: string): Promise<void> {
+    const document = await this.findById(documentId, orgId);
 
     const user = await this.userModel.findById(userId);
     const isBoard = user && isBoardOrAbove(user.role);
@@ -315,7 +336,7 @@ export class DocumentsService {
       this.logger.error(`Failed to delete file from S3: ${document.fileKey}`, error);
     }
 
-    await this.documentModel.deleteOne({ _id: documentId });
+    await this.documentModel.deleteOne(inOrg(documentId, orgId, 'Document'));
 
     if (document.folderId) {
       await this.foldersService.decrementCount(document.folderId);
@@ -327,15 +348,11 @@ export class DocumentsService {
   /**
    * Get presigned download URL
    */
-  async getDownloadUrl(documentId: string, userId: string): Promise<string> {
-    const document = await this.findById(documentId);
+  async getDownloadUrl(documentId: string, userId: string, orgId: string): Promise<string> {
+    const document = await this.findById(documentId, orgId);
 
     const user = await this.userModel.findById(userId);
-    const isBoard = user && isBoardOrAbove(user.role);
-
-    if (!document.isPublic && !isBoard) {
-      throw new ForbiddenException('You do not have access to this document');
-    }
+    this.assertCanRead(document, user?.role);
 
     const downloadUrl = await this.s3Service.getPresignedDownloadUrl(
       document.fileKey,
