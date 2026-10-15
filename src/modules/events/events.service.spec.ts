@@ -235,6 +235,16 @@ describe('EventsService organisation and group privacy', () => {
       expect(event.save).toHaveBeenCalledWith({ validateModifiedOnly: true });
     });
 
+    it('notifies participants by id when they come back populated', async () => {
+      const participantId = new Types.ObjectId();
+      const event = { ...groupEvent(), participants: [{ _id: participantId, name: 'Nabo' }] };
+      eventFindOne.mockReturnValue(query(event));
+      userFind.mockReturnValue(query([{ _id: participantId, email: 'n@x', name: 'Nabo' }]));
+      await service.cancel(eventId, outsiderId, orgId);
+      expect(userFind).toHaveBeenCalledWith({ _id: { $in: [String(participantId)] } });
+      expect(createBulkNotifications.mock.calls[0][0]).toEqual([String(participantId)]);
+    });
+
     it('a legacy event with an empty description fails full validation but passes validateModifiedOnly', async () => {
       const EventModel = mongoose.models.EventCancelCheck ?? mongoose.model('EventCancelCheck', EventSchema);
       const legacy = EventModel.hydrate({

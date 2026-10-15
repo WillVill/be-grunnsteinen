@@ -434,7 +434,7 @@ export class EventsService {
 
     // Notify participants if date changed
     if (dateChanged && event.participants.length > 0) {
-      const participantIds = event.participants.map((p) => p.toString());
+      const participantIds = event.participants.map((p) => refId(p));
       const participants = await this.userModel.find({
         _id: { $in: participantIds },
       });
@@ -535,7 +535,8 @@ export class EventsService {
 
     // Notify participants
     if (event.participants.length > 0) {
-      const participantIds = event.participants.map((p) => p.toString());
+      // findManageable populates participants: a populated doc's toString() is the whole document.
+      const participantIds = event.participants.map((p) => refId(p));
       const participants = await this.userModel.find({
         _id: { $in: participantIds },
       });
