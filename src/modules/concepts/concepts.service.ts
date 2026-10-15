@@ -81,6 +81,9 @@ export class ConceptsService {
     buildingId: string,
     organizationId: string,
   ): Promise<Types.ObjectId | null> {
+    if (!Types.ObjectId.isValid(buildingId)) {
+      throw new NotFoundException(`Building "${buildingId}" not found`);
+    }
     const building = await this.buildingModel
       .findOne({
         _id: new Types.ObjectId(buildingId),
@@ -91,6 +94,27 @@ export class ConceptsService {
       throw new NotFoundException(`Building "${buildingId}" not found`);
     }
     return (building.conceptId as Types.ObjectId | undefined) ?? null;
+  }
+
+  /**
+   * When a write names both a concept and a building, the building must be in
+   * the caller's organization (404 otherwise) and belong to that concept (400
+   * otherwise). Call it after assertConceptInOrg.
+   */
+  async assertBuildingInConcept(
+    buildingId: string,
+    conceptId: string,
+    organizationId: string,
+  ): Promise<void> {
+    const buildingConceptId = await this.findConceptIdForBuilding(
+      buildingId,
+      organizationId,
+    );
+    if (!buildingConceptId || buildingConceptId.toString() !== conceptId) {
+      throw new BadRequestException(
+        `Building "${buildingId}" does not belong to concept "${conceptId}"`,
+      );
+    }
   }
 
   /**

@@ -64,6 +64,9 @@ export class DocumentFoldersService {
       parentObjectId = parent._id as Types.ObjectId;
     } else if (dto.conceptId) {
       await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      if (dto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(dto.buildingId, dto.conceptId, orgId);
+      }
       conceptObjectId = new Types.ObjectId(dto.conceptId);
       buildingObjectId = dto.buildingId
         ? new Types.ObjectId(dto.buildingId)

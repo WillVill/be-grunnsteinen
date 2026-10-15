@@ -18,6 +18,8 @@ import {
 } from '../../shared/services/notification.service';
 import { S3Service } from '../../shared/services/s3.service';
 import { ConceptsService } from '../concepts/concepts.service';
+import { refId } from '../../common/schemas/ref-id';
+import { canViewGroup, isGroupMember } from './group-access';
 
 @Injectable()
 export class GroupsService {
@@ -50,6 +52,9 @@ export class GroupsService {
     let conceptObjectId: Types.ObjectId | null = null;
     if (dto.conceptId) {
       await this.conceptsService.assertConceptInOrg(dto.conceptId, orgId);
+      if (dto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(dto.buildingId, dto.conceptId, orgId);
+      }
       conceptObjectId = new Types.ObjectId(dto.conceptId);
     } else if (dto.buildingId) {
       conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
@@ -120,6 +125,10 @@ export class GroupsService {
     // Filter by privacy
     if (typeof isPrivate === 'boolean') {
       filter.isPrivate = isPrivate;
+      // Listing private groups never reveals ones the caller isn't in.
+      if (isPrivate && isMember !== true) {
+        filter.members = new Types.ObjectId(userId);
+      }
     } else if (isMember !== true) {
       // Default: show public groups and groups user is member of (only if not filtering by membership)
       // This ensures users can see groups they're part of even if private
@@ -199,13 +208,17 @@ export class GroupsService {
   }
 
   /**
-   * Find group by ID
+   * Find a group in the caller's organisation. A group in another organisation
+   * reads as not found, so ids can't be probed across tenants.
    */
-  async findById(groupId: string): Promise<GroupDocument> {
+  async findById(groupId: string, orgId: string): Promise<GroupDocument> {
+    if (!Types.ObjectId.isValid(groupId)) {
+      throw new NotFoundException('Group not found');
+    }
     const group = await this.groupModel
-      .findById(groupId)
+      .findOne({ _id: groupId, organizationId: new Types.ObjectId(orgId) })
       .populate('creatorId', 'name avatarUrl avatarColor role')
-      .populate('members', 'name avatarUrl avatarColor email')
+      .populate('members', 'name avatarUrl avatarColor role')
       .exec();
 
     if (!group) {
@@ -216,27 +229,60 @@ export class GroupsService {
   }
 
   /**
+   * A private group is only visible to its members and to moderators of its
+   * building. Members are checked without a user lookup.
+   */
+  async assertCanView(group: GroupDocument, userId: string): Promise<void> {
+    if (!group.isPrivate || isGroupMember(group, userId)) return;
+    const user = await this.userModel.findById(userId);
+    if (!canViewGroup(group, userId, user)) {
+      throw new ForbiddenException('This group is private');
+    }
+  }
+
+  /**
+   * Group detail for the caller: organisation-scoped and privacy-checked.
+   */
+  async findOneForUser(groupId: string, orgId: string, userId: string): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
+    await this.assertCanView(group, userId);
+    return group;
+  }
+
+  /**
+   * A group in the caller's organisation that the caller may edit: its creator or
+   * a moderator for its building. Returns the group so callers don't fetch it
+   * twice; the controller runs it before an image reaches S3.
+   */
+  async assertCanEdit(
+    groupId: string,
+    orgId: string,
+    userId: string,
+    action = 'update',
+  ): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
+    if (refId(group.creatorId) === userId) return group;
+
+    const user = await this.userModel.findById(userId);
+    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
+    if (!user || !canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE)) {
+      throw new ForbiddenException(
+        `Only the creator or a moderator for this building can ${action} this group`,
+      );
+    }
+    return group;
+  }
+
+  /**
    * Update group
    */
   async update(
     groupId: string,
     userId: string,
+    orgId: string,
     dto: UpdateGroupDto,
   ): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
-
-    // Verify user is creator or board member
-    const user = await this.userModel.findById(userId);
-    const isCreator = group.creatorId.toString() === userId;
-    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
-
-    if (!isCreator && !canModerate) {
-      throw new ForbiddenException(
-        'Only the creator or a moderator for this building can update this group',
-      );
-    }
+    await this.assertCanEdit(groupId, orgId, userId);
 
     const updatedGroup = await this.groupModel
       .findByIdAndUpdate(groupId, { $set: dto }, { new: true, runValidators: true })
@@ -249,28 +295,11 @@ export class GroupsService {
   }
 
   /**
-   * Upload group image
+   * Set the group image. Takes the group returned by `assertCanEdit`, so the
+   * permission check has already run (before the upload).
    */
-  async uploadImage(
-    groupId: string,
-    userId: string,
-    imageUrl: string,
-  ): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
-
-    // Verify user is creator or board member
-    const user = await this.userModel.findById(userId);
-    const isCreator = group.creatorId.toString() === userId;
-    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
-
-    if (!isCreator && !canModerate) {
-      throw new ForbiddenException(
-        'Only the creator or a moderator for this building can update group image',
-      );
-    }
-
+  async setImage(group: GroupDocument, imageUrl: string): Promise<GroupDocument> {
+    const groupId = String(group._id);
     const updatedGroup = await this.groupModel
       .findByIdAndUpdate(groupId, { $set: { imageUrl } }, { new: true })
       .populate('creatorId', 'name avatarUrl avatarColor role')
@@ -284,8 +313,8 @@ export class GroupsService {
   /**
    * Join group
    */
-  async join(groupId: string, userId: string): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+  async join(groupId: string, userId: string, orgId: string): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
 
     // Check if group is active
     if (!group.isActive) {
@@ -294,7 +323,7 @@ export class GroupsService {
 
     // Check if already a member
     const isMember = group.members.some(
-      (m) => m.toString() === userId,
+      (m) => refId(m) === userId,
     );
     if (isMember) {
       throw new BadRequestException('Already a member of this group');
@@ -322,19 +351,19 @@ export class GroupsService {
   /**
    * Leave group
    */
-  async leave(groupId: string, userId: string): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+  async leave(groupId: string, userId: string, orgId: string): Promise<GroupDocument> {
+    const group = await this.findById(groupId, orgId);
 
     // Check if member
     const isMember = group.members.some(
-      (m) => m.toString() === userId,
+      (m) => refId(m) === userId,
     );
     if (!isMember) {
       throw new BadRequestException('Not a member of this group');
     }
 
     // Creator cannot leave (must delete group instead)
-    if (group.creatorId.toString() === userId) {
+    if (refId(group.creatorId) === userId) {
       throw new BadRequestException(
         'Creator cannot leave the group. Delete the group instead.',
       );
@@ -342,7 +371,7 @@ export class GroupsService {
 
     // Remove user from members
     group.members = group.members.filter(
-      (m) => m.toString() !== userId,
+      (m) => refId(m) !== userId,
     );
     group.memberCount = group.members.length;
     await group.save();
@@ -362,12 +391,13 @@ export class GroupsService {
   async addMember(
     groupId: string,
     inviterUserId: string,
+    orgId: string,
     dto: AddMemberDto,
   ): Promise<GroupDocument> {
-    const group = await this.findById(groupId);
+    const group = await this.findById(groupId, orgId);
 
     const inviter = await this.userModel.findById(inviterUserId);
-    const isCreator = group.creatorId.toString() === inviterUserId;
+    const isCreator = refId(group.creatorId) === inviterUserId;
     const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
     const canModerate =
       inviter && canModerateInBuilding(inviter, scopeBuildingId, Permission.GROUP_MODERATE);
@@ -379,13 +409,13 @@ export class GroupsService {
     }
 
     const newMemberId = new Types.ObjectId(dto.userId);
-    const isAlreadyMember = group.members.some((m) => m.toString() === dto.userId);
+    const isAlreadyMember = group.members.some((m) => refId(m) === dto.userId);
     if (isAlreadyMember) {
       throw new BadRequestException('User is already a member of this group');
     }
 
     const newMember = await this.userModel.findById(dto.userId);
-    if (!newMember) {
+    if (!newMember || refId(newMember.organizationId) !== orgId) {
       throw new NotFoundException('User to add not found');
     }
 
@@ -426,17 +456,20 @@ export class GroupsService {
    */
   async getMembers(
     groupId: string,
+    orgId: string,
+    userId: string,
     page: number = 1,
     limit: number = 50,
   ): Promise<PaginatedResponseDto<UserDocument>> {
-    const group = await this.findById(groupId);
+    const group = await this.findById(groupId, orgId);
+    await this.assertCanView(group, userId);
 
     const skip = (page - 1) * limit;
 
     const [members, total] = await Promise.all([
       this.userModel
         .find({ _id: { $in: group.members } })
-        .select('name email avatarUrl avatarColor')
+        .select('name avatarUrl avatarColor')
         .skip(skip)
         .limit(limit)
         .exec(),
@@ -449,21 +482,8 @@ export class GroupsService {
   /**
    * Delete group
    */
-  async delete(groupId: string, userId: string): Promise<void> {
-    const group = await this.findById(groupId);
-
-    // Verify user is creator or board member
-    const user = await this.userModel.findById(userId);
-    const isCreator = group.creatorId.toString() === userId;
-    const scopeBuildingId = group.isConceptWide ? null : group.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.GROUP_MODERATE);
-
-    if (!isCreator && !canModerate) {
-      throw new ForbiddenException(
-        'Only the creator or a moderator for this building can delete this group',
-      );
-    }
+  async delete(groupId: string, userId: string, orgId: string): Promise<void> {
+    const group = await this.assertCanEdit(groupId, orgId, userId, 'delete');
 
     // Deactivate instead of deleting (soft delete)
     group.isActive = false;

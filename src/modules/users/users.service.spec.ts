@@ -6,6 +6,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { UsersService } from './users.service';
 import { User, UserRole } from './schemas/user.schema';
 import { Organization } from '../organizations/schemas/organization.schema';
+import { Building } from '../buildings/schemas/building.schema';
 import { EmailService } from '../../shared/services/email.service';
 
 const orgId = '507f1f77bcf86cd799439011';
@@ -19,6 +20,8 @@ describe('UsersService admin invitation flow', () => {
   let userModelFindById: jest.Mock;
   let deleteOneMock: jest.Mock;
   let sendAdminSetupEmail: jest.Mock;
+  let buildingCountDocuments: jest.Mock;
+  let userModelFindByIdAndUpdate: jest.Mock;
 
   const buildModule = async (existingUser: any = null) => {
     saveMock = jest.fn().mockResolvedValue(undefined);
@@ -26,6 +29,9 @@ describe('UsersService admin invitation flow', () => {
     userModelFindOne = jest.fn();
     userModelFindById = jest.fn().mockReturnValue({ name: 'Inviter' });
     sendAdminSetupEmail = jest.fn().mockResolvedValue(undefined);
+    // Buildings in the caller's org: every id passed counts as found unless a test says otherwise.
+    buildingCountDocuments = jest.fn(async (filter: any) => filter._id.$in.length);
+    userModelFindByIdAndUpdate = jest.fn(async (_id: any, update: any) => ({ email: 'x@y', ...update.$set }));
 
     const userModelCtor: any = function (doc: any) {
       Object.assign(this, doc);
@@ -35,6 +41,7 @@ describe('UsersService admin invitation flow', () => {
     userModelCtor.findOne = userModelFindOne;
     userModelCtor.findById = userModelFindById;
     userModelCtor.deleteOne = deleteOneMock;
+    userModelCtor.findByIdAndUpdate = userModelFindByIdAndUpdate;
 
     // Default findOne returns `existingUser` for email-duplicate check
     userModelFindOne.mockImplementation((query: any) => {
@@ -54,6 +61,7 @@ describe('UsersService admin invitation flow', () => {
         UsersService,
         { provide: getModelToken(User.name), useValue: userModelCtor },
         { provide: getModelToken(Organization.name), useValue: organizationModel },
+        { provide: getModelToken(Building.name), useValue: { countDocuments: buildingCountDocuments } },
         { provide: EmailService, useValue: { sendAdminSetupEmail } },
         { provide: ConfigService, useValue: { get: () => 'https://example.com' } },
       ],
@@ -170,6 +178,51 @@ describe('UsersService admin invitation flow', () => {
       expect(deleteOneMock).not.toHaveBeenCalled();
       expect(activeUser.isActive).toBe(false);
       expect(activeUser.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('admin buildingIds must be in the organisation', () => {
+    const ownBuilding = new Types.ObjectId().toString();
+    const foreignBuilding = new Types.ObjectId().toString();
+    /** Only `ownBuilding` exists in `orgId`. */
+    const onlyOwn = async (filter: any) =>
+      filter.organizationId.equals(orgId)
+        ? filter._id.$in.filter((id: Types.ObjectId) => id.equals(ownBuilding)).length
+        : 0;
+
+    it('createAdminUser rejects a building from another organisation', async () => {
+      await buildModule(null);
+      buildingCountDocuments.mockImplementation(onlyOwn);
+      await expect(
+        service.createAdminUser(orgId, { email: 'host@example.com', role: UserRole.ADMIN, buildingIds: [ownBuilding, foreignBuilding] } as any, inviterId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(saveMock).not.toHaveBeenCalled();
+    });
+
+    it('createAdminUser accepts buildings in the organisation', async () => {
+      await buildModule(null);
+      buildingCountDocuments.mockImplementation(onlyOwn);
+      await service.createAdminUser(orgId, { email: 'host@example.com', role: UserRole.ADMIN, buildingIds: [ownBuilding] } as any, inviterId);
+      expect(saveMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('updateAdminUser rejects a building from another organisation', async () => {
+      await buildModule(null);
+      buildingCountDocuments.mockImplementation(onlyOwn);
+      userModelFindOne.mockResolvedValue({ _id: new Types.ObjectId(targetId), role: UserRole.ADMIN, email: 'a@b' });
+      await expect(
+        service.updateAdminUser(orgId, targetId, { buildingIds: [foreignBuilding] } as any),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(userModelFindByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateAdminUser sets buildings (and the primary building) in the organisation', async () => {
+      await buildModule(null);
+      buildingCountDocuments.mockImplementation(onlyOwn);
+      userModelFindOne.mockResolvedValue({ _id: new Types.ObjectId(targetId), role: UserRole.ADMIN, email: 'a@b' });
+      await service.updateAdminUser(orgId, targetId, { buildingIds: [ownBuilding] } as any);
+      const set = userModelFindByIdAndUpdate.mock.calls[0][1].$set;
+      expect(set.primaryBuildingId).toEqual(new Types.ObjectId(ownBuilding));
     });
   });
 });

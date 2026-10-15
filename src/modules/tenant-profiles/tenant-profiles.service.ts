@@ -68,7 +68,12 @@ export class TenantProfilesService {
       }
     }
 
-    const building = await this.buildingModel.findById(dto.buildingId).select('conceptId');
+    const building = await this.buildingModel
+      .findOne({
+        _id: new Types.ObjectId(dto.buildingId),
+        organizationId: new Types.ObjectId(organizationId),
+      })
+      .select('conceptId');
 
     const profile = await this.tenantProfileModel.create({
       organizationId: new Types.ObjectId(organizationId),

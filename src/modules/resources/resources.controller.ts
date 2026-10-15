@@ -29,6 +29,7 @@ import {
 } from '@nestjs/swagger';
 import { ResourcesService } from './resources.service';
 import {
+  AddResourceImagesDto,
   CreateResourceDto,
   UpdateResourceDto,
   ResourceQueryDto,
@@ -37,7 +38,6 @@ import {
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { S3Service } from '../../shared/services/s3.service';
 import { ThrottleUpload } from '../../common/decorators/throttle-upload.decorator';
 import { Type } from 'class-transformer';
 import { IsDate, IsOptional } from 'class-validator';
@@ -60,7 +60,6 @@ class AvailabilityQueryDto {
 export class ResourcesController {
   constructor(
     private readonly resourcesService: ResourcesService,
-    private readonly s3Service: S3Service,
   ) {}
 
   @Post()
@@ -102,8 +101,11 @@ export class ResourcesController {
     type: ResourceResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Resource not found' })
-  async findOne(@Param('id') id: string) {
-    return this.resourcesService.findById(id);
+  async findOne(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.resourcesService.findById(id, user.organizationId);
   }
 
   @Get(':id/availability')
@@ -126,6 +128,7 @@ export class ResourcesController {
   @ApiResponse({ status: 400, description: 'Invalid date range' })
   @ApiResponse({ status: 404, description: 'Resource not found' })
   async getAvailability(
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
     @Query() query: AvailabilityQueryDto,
   ) {
@@ -135,7 +138,7 @@ export class ResourcesController {
       throw new BadRequestException('Start and end dates are required');
     }
 
-    return this.resourcesService.getAvailability(id, start, end);
+    return this.resourcesService.getAvailability(id, user.organizationId, start, end);
   }
 
   @Patch(':id')
@@ -150,10 +153,11 @@ export class ResourcesController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Resource not found' })
   async update(
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
     @Body() updateResourceDto: UpdateResourceDto,
   ) {
-    return this.resourcesService.update(id, updateResourceDto);
+    return this.resourcesService.update(id, user.organizationId, updateResourceDto);
   }
 
   @Post(':id/image')
@@ -185,6 +189,7 @@ export class ResourcesController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Resource not found' })
   async uploadImage(
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
     @UploadedFile(
       new ParseFilePipe({
@@ -196,11 +201,7 @@ export class ResourcesController {
     )
     file: Express.Multer.File,
   ) {
-    const imageUrl = await this.s3Service.uploadFile(
-      file,
-      `public/resources/${id}/images`,
-    );
-    return this.resourcesService.addImages(id, [imageUrl]);
+    return this.resourcesService.uploadImage(id, user.organizationId, file);
   }
 
   @Post(':id/images')
@@ -215,10 +216,11 @@ export class ResourcesController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Resource not found' })
   async addImages(
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
-    @Body() body: { imageUrls: string[] },
+    @Body() body: AddResourceImagesDto,
   ) {
-    return this.resourcesService.addImages(id, body.imageUrls);
+    return this.resourcesService.addImages(id, user.organizationId, body.imageUrls);
   }
 
   @Delete(':id/images')
@@ -234,10 +236,11 @@ export class ResourcesController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Resource not found' })
   async removeImage(
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
     @Body() body: { imageUrl: string },
   ) {
-    return this.resourcesService.removeImage(id, body.imageUrl);
+    return this.resourcesService.removeImage(id, user.organizationId, body.imageUrl);
   }
 
   @Delete(':id')
@@ -252,8 +255,11 @@ export class ResourcesController {
   })
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   @ApiResponse({ status: 404, description: 'Resource not found' })
-  async deactivate(@Param('id') id: string) {
-    return this.resourcesService.deactivate(id);
+  async deactivate(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.resourcesService.deactivate(id, user.organizationId);
   }
 }
 

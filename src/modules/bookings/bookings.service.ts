@@ -23,6 +23,8 @@ import {
 } from '../../shared/services/notification.service';
 import { EmailService, EmailUser } from '../../shared/services/email.service';
 import { ConceptsService } from '../concepts/concepts.service';
+import { refId } from '../../common/schemas/ref-id';
+import { findInOrg, inOrg } from '../../common/schemas/tenant';
 
 @Injectable()
 export class BookingsService {
@@ -48,15 +50,10 @@ export class BookingsService {
     orgId: string,
     dto: CreateBookingDto,
   ): Promise<BookingDocument> {
-    // Fetch resource
-    const resource = await this.resourceModel.findById(dto.resourceId);
+    // Fetch resource — only resources in the caller's organisation can be booked
+    const resource = await findInOrg(this.resourceModel, dto.resourceId, orgId, null, 'Resource');
     if (!resource) {
       throw new NotFoundException('Resource not found');
-    }
-
-    // Verify resource belongs to organization
-    if (resource.organizationId.toString() !== orgId) {
-      throw new ForbiddenException('Resource does not belong to your organization');
     }
 
     // Verify resource is active
@@ -265,15 +262,9 @@ export class BookingsService {
     bookingId: string,
     userId: string,
     isBoard: boolean,
-    orgId?: string,
+    orgId: string,
   ): Promise<BookingDocument> {
-    const filter: Record<string, unknown> = { _id: bookingId };
-    if (orgId) {
-      filter.organizationId = new Types.ObjectId(orgId);
-    }
-
-    const booking = await this.bookingModel
-      .findOne(filter)
+    const booking = await findInOrg(this.bookingModel, bookingId, orgId, null, 'Booking')
       .populate('resourceId', 'name type description imageUrls')
       .populate('userId', 'name email avatarUrl avatarColor')
       .populate('cancelledBy', 'name email')
@@ -284,7 +275,7 @@ export class BookingsService {
     }
 
     // Verify access rights
-    const isOwner = booking.userId.toString() === userId;
+    const isOwner = refId(booking.userId) === userId;
     if (!isOwner && !isBoard) {
       throw new ForbiddenException('You do not have access to this booking');
     }
@@ -358,8 +349,9 @@ export class BookingsService {
   async approve(
     bookingId: string,
     adminId: string,
+    orgId: string,
   ): Promise<BookingDocument> {
-    const booking = await this.bookingModel.findById(bookingId);
+    const booking = await findInOrg(this.bookingModel, bookingId, orgId, null, 'Booking');
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
@@ -426,9 +418,10 @@ export class BookingsService {
   async reject(
     bookingId: string,
     adminId: string,
+    orgId: string,
     reason?: string,
   ): Promise<BookingDocument> {
-    const booking = await this.bookingModel.findById(bookingId);
+    const booking = await findInOrg(this.bookingModel, bookingId, orgId, null, 'Booking');
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
@@ -498,9 +491,10 @@ export class BookingsService {
   async cancel(
     bookingId: string,
     userId: string,
+    orgId: string,
     reason?: string,
   ): Promise<BookingDocument> {
-    const booking = await this.bookingModel.findById(bookingId);
+    const booking = await findInOrg(this.bookingModel, bookingId, orgId, null, 'Booking');
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
@@ -587,9 +581,10 @@ export class BookingsService {
     bookingId: string,
     userId: string,
     isBoard: boolean,
+    orgId: string,
     dto: UpdateBookingDto,
   ): Promise<BookingDocument> {
-    const booking = await this.findById(bookingId, userId, isBoard);
+    await this.findById(bookingId, userId, isBoard, orgId);
 
     // Users can only update notes, board can update adminNotes
     const updateData: Partial<BookingDocument> = {};
@@ -600,8 +595,8 @@ export class BookingsService {
       updateData.adminNotes = dto.adminNotes;
     }
 
-    const updatedBooking = await this.bookingModel.findByIdAndUpdate(
-      bookingId,
+    const updatedBooking = await this.bookingModel.findOneAndUpdate(
+      inOrg(bookingId, orgId, 'Booking'),
       { $set: updateData },
       { new: true },
     )

@@ -154,7 +154,7 @@ export class MessagesController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.messagesService.getConversationById(id, user.userId);
+    return this.messagesService.getConversationById(id, user.userId, user.organizationId);
   }
 
   @Get('conversations/:id/messages')
@@ -177,7 +177,7 @@ export class MessagesController {
     @Param('id') id: string,
     @Query() query: MessageQueryDto,
   ) {
-    return this.messagesService.getMessages(id, user.userId, {
+    return this.messagesService.getMessages(id, user.userId, user.organizationId, {
       ...query,
       conversationId: id,
     });
@@ -202,7 +202,7 @@ export class MessagesController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    await this.messagesService.markAsRead(id, user.userId);
+    await this.messagesService.markAsRead(id, user.userId, user.organizationId);
   }
 
   @Get('unread-count')

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
 import { Organization, OrganizationSchema } from '../organizations/schemas/organization.schema';
+import { Building, BuildingSchema } from '../buildings/schemas/building.schema';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { S3Module } from '../../shared/services/s3.module';
@@ -12,6 +13,7 @@ import { EmailModule } from '../../shared/services/email.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Organization.name, schema: OrganizationSchema },
+      { name: Building.name, schema: BuildingSchema },
     ]),
     S3Module,
     EmailModule,

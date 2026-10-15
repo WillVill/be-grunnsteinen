@@ -19,6 +19,11 @@ import {
 import { EmailService } from "../../shared/services/email.service";
 import { S3Service } from "../../shared/services/s3.service";
 import { ConceptsService } from "../concepts/concepts.service";
+import { refId } from "../../common/schemas/ref-id";
+import {
+  assertGroupVisible,
+  findHiddenGroupIds,
+} from "../groups/group-access";
 import {
   Permission,
   canModerateInBuilding,
@@ -60,12 +65,23 @@ export class EventsService {
       );
     }
 
+    if (createDto.groupId) {
+      await this.assertGroupVisible(createDto.groupId, organizationId, userId);
+    }
+
     let conceptObjectId: Types.ObjectId | null = null;
     if (createDto.conceptId) {
       await this.conceptsService.assertConceptInOrg(
         createDto.conceptId,
         organizationId,
       );
+      if (createDto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(
+          createDto.buildingId,
+          createDto.conceptId,
+          organizationId,
+        );
+      }
       conceptObjectId = new Types.ObjectId(createDto.conceptId);
     } else if (createDto.buildingId) {
       conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
@@ -100,7 +116,9 @@ export class EventsService {
 
     this.logger.log(`Event created: ${event._id} by user ${userId}`);
 
-    // Notify building/group/organization members about new event (EVENT_CREATED)
+    // Notify members about the new event (EVENT_CREATED). Scope is mutually
+    // exclusive: a group event notifies ONLY the group (never falls through to
+    // the building/org, even if the group has no other members).
     const recipientIds: string[] = [];
     const organizerIdStr = userId.toString();
     if (event.groupId) {
@@ -112,8 +130,7 @@ export class EventsService {
             .map((id) => id.toString()),
         );
       }
-    }
-    if (recipientIds.length === 0 && event.buildingId) {
+    } else if (event.buildingId) {
       const usersInBuilding = await this.userModel
         .find({
           organizationId: new Types.ObjectId(organizationId),
@@ -127,8 +144,7 @@ export class EventsService {
         .lean()
         .exec();
       recipientIds.push(...usersInBuilding.map((u) => u._id.toString()));
-    }
-    if (recipientIds.length === 0 && event.isConceptWide) {
+    } else if (event.isConceptWide) {
       const orgUsers = await this.userModel
         .find({
           organizationId: new Types.ObjectId(organizationId),
@@ -222,6 +238,18 @@ export class EventsService {
       filter.participants = new Types.ObjectId(userId);
     }
 
+    // Leave out events of private groups the caller isn't in (board and admins
+    // see everything). The query has no group filter, so this always applies.
+    const hiddenGroupIds = await findHiddenGroupIds(
+      this.groupModel,
+      this.userModel,
+      organizationId,
+      userId,
+    );
+    if (hiddenGroupIds.length > 0) {
+      filter.groupId = { $nin: hiddenGroupIds };
+    }
+
     // Concept-scoped filter (see PostsService.findAll for the full rationale):
     // if we can't derive a conceptId for the building, drop the isConceptWide
     // OR-branch so we never pull content from other concepts.
@@ -271,21 +299,24 @@ export class EventsService {
   }
 
   /**
-   * Find event by ID with populated organizer and participants
+   * Find event by ID with populated organizer and participants. An event in
+   * another organisation, or a malformed id, reads as not found.
    */
   async findById(
     eventId: string,
-    organizationId?: string,
+    organizationId: string,
   ): Promise<EventDocument> {
-    const filter: Record<string, unknown> = { _id: eventId };
-    if (organizationId) {
-      filter.organizationId = new Types.ObjectId(organizationId);
+    if (!Types.ObjectId.isValid(eventId)) {
+      throw new NotFoundException("Event not found");
     }
 
     const event = await this.eventModel
-      .findOne(filter)
+      .findOne({
+        _id: eventId,
+        organizationId: new Types.ObjectId(organizationId),
+      })
       .populate("organizerId", "name avatarUrl avatarColor role")
-      .populate("participants", "name avatarUrl avatarColor email role")
+      .populate("participants", "name avatarUrl avatarColor role")
       .exec();
 
     if (!event) {
@@ -296,26 +327,89 @@ export class EventsService {
   }
 
   /**
+   * Event detail for the caller: organisation-scoped, and an event of a private
+   * group is only visible to people who can see that group.
+   */
+  async findOneForUser(
+    eventId: string,
+    organizationId: string,
+    userId: string,
+  ): Promise<EventDocument> {
+    const event = await this.findById(eventId, organizationId);
+    await this.assertEventVisible(event, organizationId, userId);
+    return event;
+  }
+
+  /**
+   * An event the caller may manage (update / delete / cancel): its organizer or
+   * a moderator for its building. Lets callers check before side effects such
+   * as an S3 upload.
+   */
+  async findManageable(
+    eventId: string,
+    organizationId: string,
+    userId: string,
+    action = "update",
+  ): Promise<EventDocument> {
+    const event = await this.findById(eventId, organizationId);
+    const isOrganizer = refId(event.organizerId) === userId;
+    if (isOrganizer) return event;
+
+    const user = await this.userModel.findById(userId);
+    const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
+    const canModerate =
+      user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
+    if (!canModerate) {
+      throw new ForbiddenException(
+        `Only the organizer or a moderator for this building can ${action} this event`,
+      );
+    }
+    return event;
+  }
+
+  private assertGroupVisible(
+    groupRef: unknown,
+    organizationId: string,
+    userId: string,
+    options?: { allowMissing?: boolean },
+  ): Promise<void> {
+    return assertGroupVisible(
+      this.groupModel,
+      this.userModel,
+      groupRef,
+      organizationId,
+      userId,
+      options,
+    );
+  }
+
+  /** Only group events are restricted; a removed group no longer hides its events. */
+  private async assertEventVisible(
+    event: { groupId?: unknown },
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!event.groupId) return;
+    await this.assertGroupVisible(event.groupId, organizationId, userId, {
+      allowMissing: true,
+    });
+  }
+
+  /**
    * Update event
    */
   async update(
     eventId: string,
     userId: string,
+    organizationId: string,
     updateDto: UpdateEventDto,
   ): Promise<EventDocument> {
-    const event = await this.findById(eventId);
+    // Verify user is organizer or a moderator for the event's building
+    const event = await this.findManageable(eventId, organizationId, userId);
 
-    // Verify user is organizer or board member
-    const user = await this.userModel.findById(userId);
-    const isOrganizer = event.organizerId.toString() === userId;
-    const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
-
-    if (!isOrganizer && !canModerate) {
-      throw new ForbiddenException(
-        "Only the organizer or a moderator for this building can update this event",
-      );
+    // Moving the event into a group needs the same access as creating it there.
+    if (updateDto.groupId) {
+      await this.assertGroupVisible(updateDto.groupId, organizationId, userId);
     }
 
     // Check if date changed
@@ -372,21 +466,18 @@ export class EventsService {
   /**
    * Delete event
    */
-  async delete(eventId: string, userId: string): Promise<void> {
-    const event = await this.findById(eventId);
-
-    // Verify user is organizer or board member
-    const user = await this.userModel.findById(userId);
-    const isOrganizer = event.organizerId.toString() === userId;
-    const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
-
-    if (!isOrganizer && !canModerate) {
-      throw new ForbiddenException(
-        "Only the organizer or a moderator for this building can delete this event",
-      );
-    }
+  async delete(
+    eventId: string,
+    userId: string,
+    organizationId: string,
+  ): Promise<void> {
+    // Verify user is organizer or a moderator for the event's building
+    const event = await this.findManageable(
+      eventId,
+      organizationId,
+      userId,
+      "delete",
+    );
 
     // Notify participants
     if (event.participants.length > 0) {
@@ -424,21 +515,18 @@ export class EventsService {
   /**
    * Cancel event
    */
-  async cancel(eventId: string, userId: string): Promise<EventDocument> {
-    const event = await this.findById(eventId);
-
-    // Verify user is organizer or board member
-    const user = await this.userModel.findById(userId);
-    const isOrganizer = event.organizerId.toString() === userId;
-    const scopeBuildingId = event.isConceptWide ? null : event.buildingId;
-    const canModerate =
-      user && canModerateInBuilding(user, scopeBuildingId, Permission.EVENT_MANAGE_ALL);
-
-    if (!isOrganizer && !canModerate) {
-      throw new ForbiddenException(
-        "Only the organizer or a moderator for this building can cancel this event",
-      );
-    }
+  async cancel(
+    eventId: string,
+    userId: string,
+    organizationId: string,
+  ): Promise<EventDocument> {
+    // Verify user is organizer or a moderator for the event's building
+    const event = await this.findManageable(
+      eventId,
+      organizationId,
+      userId,
+      "cancel",
+    );
 
     // Update status
     event.status = EventStatus.CANCELLED;
@@ -483,8 +571,12 @@ export class EventsService {
   /**
    * Join event
    */
-  async join(eventId: string, userId: string): Promise<EventDocument> {
-    const event = await this.findById(eventId);
+  async join(
+    eventId: string,
+    userId: string,
+    organizationId: string,
+  ): Promise<EventDocument> {
+    const event = await this.findOneForUser(eventId, organizationId, userId);
 
     // Check if event is cancelled
     if (event.status === EventStatus.CANCELLED) {
@@ -547,8 +639,12 @@ export class EventsService {
   /**
    * Leave event
    */
-  async leave(eventId: string, userId: string): Promise<EventDocument> {
-    const event = await this.findById(eventId);
+  async leave(
+    eventId: string,
+    userId: string,
+    organizationId: string,
+  ): Promise<EventDocument> {
+    const event = await this.findById(eventId, organizationId);
 
     // Check if participating
     const isParticipating = event.participants.some(
@@ -579,17 +675,19 @@ export class EventsService {
    */
   async getParticipants(
     eventId: string,
+    organizationId: string,
+    userId: string,
     page: number = 1,
     limit: number = 50,
   ): Promise<PaginatedResponseDto<UserDocument>> {
-    const event = await this.findById(eventId);
+    const event = await this.findOneForUser(eventId, organizationId, userId);
 
     const skip = (page - 1) * limit;
 
     const [participants, total] = await Promise.all([
       this.userModel
         .find({ _id: { $in: event.participants } })
-        .select("name email avatarUrl avatarColor")
+        .select("name avatarUrl avatarColor")
         .skip(skip)
         .limit(limit)
         .exec(),
@@ -604,16 +702,28 @@ export class EventsService {
    */
   async getUpcoming(
     organizationId: string,
+    userId: string,
     limit: number = 5,
   ): Promise<EventDocument[]> {
     const now = new Date();
 
+    const filter: QueryFilter<EventDocument> = {
+      organizationId: new Types.ObjectId(organizationId),
+      status: EventStatus.UPCOMING,
+      startDate: { $gte: now },
+    };
+    const hiddenGroupIds = await findHiddenGroupIds(
+      this.groupModel,
+      this.userModel,
+      organizationId,
+      userId,
+    );
+    if (hiddenGroupIds.length > 0) {
+      filter.groupId = { $nin: hiddenGroupIds };
+    }
+
     return this.eventModel
-      .find({
-        organizationId: new Types.ObjectId(organizationId),
-        status: EventStatus.UPCOMING,
-        startDate: { $gte: now },
-      })
+      .find(filter)
       .populate("organizerId", "name avatarUrl avatarColor role")
       .sort({ startDate: 1 })
       .limit(limit)

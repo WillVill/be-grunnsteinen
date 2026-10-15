@@ -107,9 +107,10 @@ export class GroupsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Private group' })
   @ApiResponse({ status: 404, description: 'Not Found - Group not found' })
-  async findOne(@Param('id') id: string) {
-    return this.groupsService.findById(id);
+  async findOne(@CurrentUser() user: CurrentUserData, @Param('id') id: string) {
+    return this.groupsService.findOneForUser(id, user.organizationId, user.userId);
   }
 
   @Patch(':id')
@@ -132,7 +133,7 @@ export class GroupsController {
     @Param('id') id: string,
     @Body() updateGroupDto: UpdateGroupDto,
   ) {
-    return this.groupsService.update(id, user.userId, updateGroupDto);
+    return this.groupsService.update(id, user.userId, user.organizationId, updateGroupDto);
   }
 
   @Post(':id/image')
@@ -177,6 +178,9 @@ export class GroupsController {
     )
     file: Express.Multer.File,
   ) {
+    // Check organisation and edit rights before anything reaches S3.
+    const group = await this.groupsService.assertCanEdit(id, user.organizationId, user.userId);
+
     // Upload to S3
     const imageUrl = await this.s3Service.uploadFile(
       file,
@@ -184,7 +188,7 @@ export class GroupsController {
     );
 
     // Update group with image URL
-    return this.groupsService.uploadImage(id, user.userId, imageUrl);
+    return this.groupsService.setImage(group, imageUrl);
   }
 
   @Post(':id/members')
@@ -208,7 +212,7 @@ export class GroupsController {
     @Param('id') id: string,
     @Body() addMemberDto: AddMemberDto,
   ) {
-    return this.groupsService.addMember(id, user.userId, addMemberDto);
+    return this.groupsService.addMember(id, user.userId, user.organizationId, addMemberDto);
   }
 
   @Post(':id/join')
@@ -228,7 +232,7 @@ export class GroupsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.groupsService.join(id, user.userId);
+    return this.groupsService.join(id, user.userId, user.organizationId);
   }
 
   @Post(':id/leave')
@@ -248,7 +252,7 @@ export class GroupsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.groupsService.leave(id, user.userId);
+    return this.groupsService.leave(id, user.userId, user.organizationId);
   }
 
   @Get(':id/members')
@@ -263,13 +267,15 @@ export class GroupsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Private group' })
   @ApiResponse({ status: 404, description: 'Not Found - Group not found' })
   async getMembers(
+    @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ) {
-    return this.groupsService.getMembers(id, page || 1, limit || 50);
+    return this.groupsService.getMembers(id, user.organizationId, user.userId, page || 1, limit || 50);
   }
 
   @Delete(':id')
@@ -291,7 +297,7 @@ export class GroupsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    await this.groupsService.delete(id, user.userId);
+    await this.groupsService.delete(id, user.userId, user.organizationId);
   }
 }
 

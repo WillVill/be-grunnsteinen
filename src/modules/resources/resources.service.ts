@@ -11,6 +11,7 @@ import { CreateResourceDto, UpdateResourceDto, ResourceQueryDto } from './dto';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { S3Service } from '../../shared/services/s3.service';
 import { ConceptsService } from '../concepts/concepts.service';
+import { findInOrg, inOrg } from '../../common/schemas/tenant';
 
 export interface TimeSlot {
   start: Date;
@@ -48,6 +49,13 @@ export class ResourcesService {
         createDto.conceptId,
         organizationId,
       );
+      if (createDto.buildingId) {
+        await this.conceptsService.assertBuildingInConcept(
+          createDto.buildingId,
+          createDto.conceptId,
+          organizationId,
+        );
+      }
       conceptObjectId = new Types.ObjectId(createDto.conceptId);
     } else if (createDto.buildingId) {
       conceptObjectId = await this.conceptsService.findConceptIdForBuilding(
@@ -157,8 +165,8 @@ export class ResourcesService {
   /**
    * Find resource by ID
    */
-  async findById(resourceId: string): Promise<ResourceDocument> {
-    const resource = await this.resourceModel.findById(resourceId);
+  async findById(resourceId: string, orgId: string): Promise<ResourceDocument> {
+    const resource = await findInOrg(this.resourceModel, resourceId, orgId, null, 'Resource');
 
     if (!resource) {
       throw new NotFoundException('Resource not found');
@@ -172,10 +180,11 @@ export class ResourcesService {
    */
   async update(
     resourceId: string,
+    orgId: string,
     updateDto: UpdateResourceDto,
   ): Promise<ResourceDocument> {
-    const resource = await this.resourceModel.findByIdAndUpdate(
-      resourceId,
+    const resource = await this.resourceModel.findOneAndUpdate(
+      inOrg(resourceId, orgId, 'Resource'),
       { $set: updateDto },
       { new: true, runValidators: true },
     );
@@ -193,9 +202,36 @@ export class ResourcesService {
    */
   async addImages(
     resourceId: string,
+    orgId: string,
     imageUrls: string[],
   ): Promise<ResourceDocument> {
-    const resource = await this.findById(resourceId);
+    const resource = await this.findById(resourceId, orgId);
+    return this.appendImages(resource, imageUrls);
+  }
+
+  /**
+   * Upload an image file and attach it. The resource is loaded (and scoped to
+   * the caller's organisation) first, so a foreign or unknown id never writes
+   * to S3.
+   */
+  async uploadImage(
+    resourceId: string,
+    orgId: string,
+    file: Express.Multer.File,
+  ): Promise<ResourceDocument> {
+    const resource = await this.findById(resourceId, orgId);
+    const imageUrl = await this.s3Service.uploadFile(
+      file,
+      `public/resources/${resource._id.toString()}/images`,
+    );
+    return this.appendImages(resource, [imageUrl]);
+  }
+
+  private async appendImages(
+    resource: ResourceDocument,
+    imageUrls: string[],
+  ): Promise<ResourceDocument> {
+    const resourceId = resource._id.toString();
 
     // Add new images, avoiding duplicates
     const existingUrls = new Set(resource.imageUrls.map((url) => url));
@@ -213,9 +249,10 @@ export class ResourcesService {
    */
   async removeImage(
     resourceId: string,
+    orgId: string,
     imageUrl: string,
   ): Promise<ResourceDocument> {
-    const resource = await this.findById(resourceId);
+    const resource = await this.findById(resourceId, orgId);
 
     resource.imageUrls = resource.imageUrls.filter((url) => url !== imageUrl);
     await resource.save();
@@ -227,9 +264,9 @@ export class ResourcesService {
   /**
    * Deactivate resource
    */
-  async deactivate(resourceId: string): Promise<ResourceDocument> {
-    const resource = await this.resourceModel.findByIdAndUpdate(
-      resourceId,
+  async deactivate(resourceId: string, orgId: string): Promise<ResourceDocument> {
+    const resource = await this.resourceModel.findOneAndUpdate(
+      inOrg(resourceId, orgId, 'Resource'),
       { $set: { isActive: false } },
       { new: true },
     );
@@ -248,10 +285,11 @@ export class ResourcesService {
    */
   async getAvailability(
     resourceId: string,
+    orgId: string,
     startDate: Date,
     endDate: Date,
   ): Promise<TimeSlot[]> {
-    const resource = await this.findById(resourceId);
+    const resource = await this.findById(resourceId, orgId);
 
     if (!resource.isActive) {
       throw new BadRequestException('Resource is not active');
