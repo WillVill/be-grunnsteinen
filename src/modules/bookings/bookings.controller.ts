@@ -156,7 +156,7 @@ export class BookingsController {
     @Body() updateBookingDto: UpdateBookingDto,
   ) {
     const isBoard = ['board', 'admin'].includes(user.role);
-    return this.bookingsService.update(id, user.userId, isBoard, updateBookingDto);
+    return this.bookingsService.update(id, user.userId, isBoard, user.organizationId, updateBookingDto);
   }
 
   @Post(':id/approve')
@@ -180,7 +180,7 @@ export class BookingsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    return this.bookingsService.approve(id, user.userId);
+    return this.bookingsService.approve(id, user.userId, user.organizationId);
   }
 
   @Post(':id/reject')
@@ -217,7 +217,7 @@ export class BookingsController {
     @Param('id') id: string,
     @Body() body: { reason?: string },
   ) {
-    return this.bookingsService.reject(id, user.userId, body.reason);
+    return this.bookingsService.reject(id, user.userId, user.organizationId, body.reason);
   }
 
   @Post(':id/cancel')
@@ -241,7 +241,7 @@ export class BookingsController {
     @Param('id') id: string,
     @Body() cancelBookingDto: CancelBookingDto,
   ) {
-    return this.bookingsService.cancel(id, user.userId, cancelBookingDto.reason);
+    return this.bookingsService.cancel(id, user.userId, user.organizationId, cancelBookingDto.reason);
   }
 }
 
