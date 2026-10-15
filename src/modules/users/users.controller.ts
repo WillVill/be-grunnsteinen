@@ -27,6 +27,7 @@ import {
   ApiBody,
 } from "@nestjs/swagger";
 import { UsersService } from "./users.service";
+import { AccountDeletionService } from "./account-deletion.service";
 import {
   UpdateUserDto,
   UserQueryDto,
@@ -55,6 +56,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly s3Service: S3Service,
+    private readonly accountDeletionService: AccountDeletionService,
   ) {}
 
   // Strip email/phone when the viewer is a resident and the target user has
@@ -217,19 +219,39 @@ export class UsersController {
 
   @Delete("me")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Deactivate current user account" })
+  @ApiOperation({
+    summary: "Permanently delete the current user's account",
+    description:
+      "Irreversible. The user document becomes an anonymised tombstone " +
+      "(name \"Slettet bruker\", synthetic email, no personal data) so other " +
+      "residents' content keeps resolving, and every session stops working. " +
+      "Their posts, comments, shared items, help requests, notifications, " +
+      "support threads and avatar are deleted; messages in 1:1 threads are " +
+      "replaced with \"Meldingen er slettet\"; future events they organise " +
+      "and future bookings are cancelled; likes, event participation, group " +
+      "membership and the tenant-profile link are removed. The admin " +
+      "endpoint DELETE /users/:id still only deactivates.",
+  })
   @ApiResponse({
     status: 200,
-    description: "Account deactivated",
+    description: "Account deleted",
     schema: {
       properties: {
-        message: { type: "string", example: "Account deactivated" },
+        message: { type: "string", example: "Account deleted" },
       },
     },
   })
-  async deactivateMe(@CurrentUser("userId") userId: string) {
-    await this.usersService.deactivate(userId);
-    return { message: "Account deactivated" };
+  @ApiResponse({
+    status: 409,
+    description:
+      "The user is the organization's last active administrator and must hand over the role first",
+  })
+  async deleteMe(@CurrentUser() user: CurrentUserData) {
+    await this.accountDeletionService.deleteAccount(
+      user.userId,
+      user.organizationId,
+    );
+    return { message: "Account deleted" };
   }
 
   // ========================================

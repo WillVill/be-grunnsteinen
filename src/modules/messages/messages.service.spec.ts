@@ -108,3 +108,66 @@ describe('MessagesService organisation scoping', () => {
     await expect(service.markAsRead(conversationId, adminId, orgId)).resolves.toBeUndefined();
   });
 });
+
+describe('MessagesService and deleted accounts', () => {
+  const senderId = new Types.ObjectId().toString();
+  const deletedId = new Types.ObjectId().toString();
+  let service: MessagesService;
+  let conversationFindOne: jest.Mock;
+  let messageCreate: jest.Mock;
+  let userFindById: jest.Mock;
+
+  beforeEach(async () => {
+    const direct = {
+      _id: new Types.ObjectId(conversationId),
+      organizationId: new Types.ObjectId(orgId),
+      type: 'direct',
+      participants: [new Types.ObjectId(senderId), new Types.ObjectId(deletedId)],
+      unreadCount: new Map<string, number>(),
+      save: jest.fn(),
+    };
+    conversationFindOne = jest.fn(() => query(direct));
+    messageCreate = jest.fn();
+    userFindById = jest.fn((id: unknown) =>
+      query(
+        String(id) === deletedId
+          ? { _id: new Types.ObjectId(deletedId), organizationId: new Types.ObjectId(orgId), isDeleted: true }
+          : { _id: new Types.ObjectId(senderId), organizationId: new Types.ObjectId(orgId), role: UserRole.RESIDENT },
+      ),
+    );
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        { provide: getModelToken(Conversation.name), useValue: { findOne: conversationFindOne } },
+        { provide: getModelToken(Message.name), useValue: { create: messageCreate } },
+        { provide: getModelToken(User.name), useValue: { findById: userFindById } },
+        { provide: NotificationService, useValue: { createNotification: jest.fn() } },
+        { provide: EmailService, useValue: {} },
+      ],
+    }).compile();
+
+    service = module.get(MessagesService);
+  });
+
+  it('refuses to start a conversation with a deleted user (404)', async () => {
+    await expect(service.getOrCreateConversation(senderId, deletedId, orgId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(conversationFindOne).not.toHaveBeenCalled();
+  });
+
+  it('refuses a new message to a deleted user by recipientId (404)', async () => {
+    await expect(
+      service.sendMessage(senderId, orgId, { recipientId: deletedId, content: 'hei' } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(messageCreate).not.toHaveBeenCalled();
+  });
+
+  it('refuses a new message into an existing 1:1 thread whose partner was deleted (404)', async () => {
+    await expect(
+      service.sendMessage(senderId, orgId, { conversationId, content: 'hei' } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(messageCreate).not.toHaveBeenCalled();
+  });
+});

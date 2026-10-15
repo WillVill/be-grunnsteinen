@@ -18,6 +18,13 @@ export enum UserRole {
 }
 
 /**
+ * Domain of the synthetic address a deleted account's tombstone gets
+ * (`deleted+<id>@deleted.invalid`). `.invalid` can never resolve, and
+ * EmailService refuses to send to it.
+ */
+export const DELETED_EMAIL_DOMAIN = "deleted.invalid";
+
+/**
  * Check if a role has admin-level privileges (ADMIN or SUPER_ADMIN)
  */
 export function isAdminRole(role: string): boolean {

@@ -8,7 +8,13 @@ import {
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
-import { User, UserDocument, UserRole, isAdminRole } from "./schemas/user.schema";
+import {
+  DELETED_EMAIL_DOMAIN,
+  User,
+  UserDocument,
+  UserRole,
+  isAdminRole,
+} from "./schemas/user.schema";
 import { Post, PostDocument } from "../posts/schemas/post.schema";
 import { Comment, CommentDocument } from "../posts/schemas/comment.schema";
 import { Event, EventDocument, EventStatus } from "../events/schemas/event.schema";
@@ -62,7 +68,7 @@ export const LAST_ADMIN_MESSAGE =
 
 /** Synthetic, unique address that frees the real email for re-invitation. */
 export function deletedEmailFor(userId: string): string {
-  return `deleted+${userId}@deleted.invalid`;
+  return `deleted+${userId}@${DELETED_EMAIL_DOMAIN}`;
 }
 
 /** What one `deleteAccount` run changed, per step. Logged, and handy in tests. */

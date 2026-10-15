@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as sgMail from "@sendgrid/mail";
+import { DELETED_EMAIL_DOMAIN } from "../../modules/users/schemas/user.schema";
 import {
   renderButton,
   renderEmailLayout,
@@ -64,6 +65,16 @@ export class EmailService {
     );
   }
 
+  /**
+   * A deleted account's tombstone address (`deleted+<id>@deleted.invalid`) is
+   * never deliverable, so nothing is sent to it.
+   */
+  private isDeletedAccountAddress(to: string): boolean {
+    if (!to?.toLowerCase().endsWith(`@${DELETED_EMAIL_DOMAIN}`)) return false;
+    this.logger.log(`Email not sent to ${to}: account deleted`);
+    return true;
+  }
+
   async sendEmail(
     to: string,
     subject: string,
@@ -74,6 +85,7 @@ export class EmailService {
     this.logger.log(
       `sendEmail called: to=${to}, subject="${subject}", attachments=${attachments?.length || 0}`,
     );
+    if (this.isDeletedAccountAddress(to)) return;
     if (!this.isConfigured) {
       this.logger.warn(
         `Email not sent to ${to}: SendGrid client not configured`,
@@ -125,6 +137,7 @@ export class EmailService {
     this.logger.log(
       `sendTemplateEmail called: to=${to}, templateId=${templateId}`,
     );
+    if (this.isDeletedAccountAddress(to)) return;
     if (!this.isConfigured) {
       this.logger.warn(
         `Template email not sent to ${to}: SendGrid client not configured`,

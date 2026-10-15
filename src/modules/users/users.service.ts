@@ -117,6 +117,7 @@ export class UsersService {
     const filter: QueryFilter<UserDocument> = {
       organizationId: new Types.ObjectId(organizationId),
       isProfilePrivate: { $ne: true },
+      isDeleted: { $ne: true },
     };
 
     const andClauses: Record<string, unknown>[] = [];
@@ -248,6 +249,7 @@ export class UsersService {
         organizationId: new Types.ObjectId(organizationId),
         isHelpfulNeighbor: true,
         isActive: true,
+        isDeleted: { $ne: true },
         isProfilePrivate: { $ne: true },
         // Org-wide staff are linked to every building, so they'd show up everywhere
         role: { $nin: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },

@@ -94,7 +94,13 @@ export class NotificationService {
     linkTo?: string,
     sendEmail: boolean = false,
     emailUser?: EmailUser,
-  ): Promise<NotificationDocument> {
+  ): Promise<NotificationDocument | null> {
+    // A deleted account (tombstone) gets neither in-app notifications nor email.
+    if (await this.userModel.exists({ _id: userId, isDeleted: true })) {
+      this.logger.log(`Notification skipped for deleted user ${userId}: ${title}`);
+      return null;
+    }
+
     const notification = await this.notificationModel.create({
       userId: new Types.ObjectId(userId),
       type,
@@ -131,6 +137,22 @@ export class NotificationService {
     sendEmail: boolean = false,
     emailUsers?: EmailUser[],
   ): Promise<NotificationDocument[]> {
+    // Deleted accounts (tombstones) get neither in-app notifications nor email.
+    const deletedIds = new Set(
+      (
+        await this.userModel
+          .find({ _id: { $in: userIds }, isDeleted: true })
+          .select('_id')
+          .lean()
+          .exec()
+      ).map((user) => user._id.toString()),
+    );
+    if (deletedIds.size > 0) {
+      userIds = userIds.filter((id) => !deletedIds.has(id.toString()));
+      emailUsers = emailUsers?.filter((user) => !deletedIds.has(user._id));
+      if (userIds.length === 0) return [];
+    }
+
     const notifications = userIds.map((userId) => ({
       userId: new Types.ObjectId(userId),
       type,
