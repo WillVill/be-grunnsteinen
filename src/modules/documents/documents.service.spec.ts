@@ -182,5 +182,26 @@ describe('DocumentsService organisation scoping', () => {
       expect(s3.uploadBuffer).toHaveBeenCalled();
       expect(docCreate).toHaveBeenCalled();
     });
+
+    it('rejects an apartment in another concept than the one sent', async () => {
+      const conceptId = new Types.ObjectId().toString();
+      apartmentFindOne.mockReturnValue(query({ buildingId: new Types.ObjectId(buildingId), conceptId: new Types.ObjectId() }));
+      await expect(
+        service.upload(userId, orgId, file, { title: 't', conceptId, apartmentId: new Types.ObjectId().toString() } as any),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(s3.uploadBuffer).not.toHaveBeenCalled();
+      expect(docCreate).not.toHaveBeenCalled();
+    });
+
+    it('stores the apartment\'s building and concept when only apartmentId is sent', async () => {
+      const aptBuilding = new Types.ObjectId();
+      const aptConcept = new Types.ObjectId();
+      apartmentFindOne.mockReturnValue(query({ buildingId: aptBuilding, conceptId: aptConcept }));
+      await service.upload(userId, orgId, file, { title: 't', apartmentId: new Types.ObjectId().toString() } as any);
+      expect(apartmentFindOne.mock.results[0].value).toBeDefined();
+      const created = docCreate.mock.calls[0][0];
+      expect(created.buildingId.equals(aptBuilding)).toBe(true);
+      expect(created.conceptId.equals(aptConcept)).toBe(true);
+    });
   });
 });

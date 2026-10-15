@@ -64,8 +64,22 @@ export class DocumentsService {
 
     // An apartment document must name an apartment in the caller's org (and in
     // the given building, if one was sent).
+    // When only the apartment was sent, the document takes the apartment's
+    // building and concept so it is scoped like any other building document.
+    let buildingId = dto.buildingId;
     if (dto.apartmentId) {
-      await this.assertApartmentInScope(dto.apartmentId, orgId, dto.buildingId);
+      const apartment = await this.assertApartmentInScope(
+        dto.apartmentId,
+        orgId,
+        dto.buildingId,
+        dto.conceptId,
+      );
+      if (!buildingId && apartment.buildingId) {
+        buildingId = apartment.buildingId.toString();
+      }
+      if (!conceptObjectId && apartment.conceptId) {
+        conceptObjectId = new Types.ObjectId(apartment.conceptId.toString());
+      }
     }
 
     // Validate folder scope before uploading the file to S3 — avoids leaving
@@ -75,7 +89,7 @@ export class DocumentsService {
         dto.folderId,
         orgId,
         conceptObjectId,
-        dto.buildingId,
+        buildingId,
       );
     }
 
@@ -88,7 +102,7 @@ export class DocumentsService {
 
     const document = await this.documentModel.create({
       ...dto,
-      ...(dto.buildingId ? { buildingId: new Types.ObjectId(dto.buildingId) } : {}),
+      ...(buildingId ? { buildingId: new Types.ObjectId(buildingId) } : {}),
       ...(conceptObjectId ? { conceptId: conceptObjectId } : {}),
       ...(dto.apartmentId ? { apartmentId: new Types.ObjectId(dto.apartmentId) } : {}),
       ...(dto.folderId ? { folderId: new Types.ObjectId(dto.folderId) } : {}),
@@ -119,14 +133,15 @@ export class DocumentsService {
     apartmentId: string,
     orgId: string,
     buildingId?: string,
-  ): Promise<void> {
+    conceptId?: string,
+  ): Promise<{ buildingId?: Types.ObjectId; conceptId?: Types.ObjectId }> {
     const apartment = Types.ObjectId.isValid(apartmentId)
       ? await this.apartmentModel
           .findOne({
             _id: new Types.ObjectId(apartmentId),
             organizationId: new Types.ObjectId(orgId),
           })
-          .select('buildingId')
+          .select('buildingId conceptId')
           .lean()
           .exec()
       : null;
@@ -136,6 +151,10 @@ export class DocumentsService {
     if (buildingId && apartment.buildingId?.toString() !== buildingId) {
       throw new BadRequestException('Apartment does not belong to this building');
     }
+    if (conceptId && apartment.conceptId?.toString() !== conceptId) {
+      throw new BadRequestException('Apartment does not belong to this concept');
+    }
+    return apartment;
   }
 
   /**

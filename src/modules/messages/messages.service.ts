@@ -811,32 +811,5 @@ export class MessagesService {
     });
     return { count };
   }
-
-  /**
-   * Delete conversation
-   * Since conversations require exactly 2 participants, deleting removes the entire conversation
-   */
-  async deleteConversation(conversationId: string, userId: string): Promise<void> {
-    const conversation = await this.conversationModel.findById(conversationId);
-    if (!conversation) {
-      throw new NotFoundException('Conversation not found');
-    }
-
-    const isParticipant = conversation.participants.some(
-      (p) => p.toString() === userId,
-    );
-    if (!isParticipant) {
-      throw new ForbiddenException('You are not a participant in this conversation');
-    }
-
-    // Delete conversation and all messages
-    // Since conversations require exactly 2 participants, we delete the entire conversation
-    await this.conversationModel.deleteOne({ _id: conversationId });
-    await this.messageModel.deleteMany({
-      conversationId: new Types.ObjectId(conversationId),
-    });
-
-    this.logger.log(`Conversation deleted: ${conversationId} by user ${userId}`);
-  }
 }
 

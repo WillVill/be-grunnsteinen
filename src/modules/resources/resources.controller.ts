@@ -29,6 +29,7 @@ import {
 } from '@nestjs/swagger';
 import { ResourcesService } from './resources.service';
 import {
+  AddResourceImagesDto,
   CreateResourceDto,
   UpdateResourceDto,
   ResourceQueryDto,
@@ -217,7 +218,7 @@ export class ResourcesController {
   async addImages(
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
-    @Body() body: { imageUrls: string[] },
+    @Body() body: AddResourceImagesDto,
   ) {
     return this.resourcesService.addImages(id, user.organizationId, body.imageUrls);
   }
