@@ -587,7 +587,7 @@ export class EventsService {
 
     // Check if already participating
     const isParticipating = event.participants.some(
-      (p) => p.toString() === userId,
+      (p) => refId(p) === userId,
     );
     if (isParticipating) {
       throw new BadRequestException("Already participating in this event");

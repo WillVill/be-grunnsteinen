@@ -226,6 +226,15 @@ describe('EventsService organisation and group privacy', () => {
     });
   });
 
+  describe('join', () => {
+    it('refuses a second join when participants come back populated', async () => {
+      const event = { ...groupEvent(), participants: [{ _id: new Types.ObjectId(memberId), name: 'Nabo' }] };
+      eventFindOne.mockReturnValue(query(event));
+      await expect(service.join(eventId, memberId, orgId)).rejects.toThrow('Already participating in this event');
+      expect(event.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cancel', () => {
     it('saves validating only the modified status, so a legacy event still cancels', async () => {
       const event = groupEvent();
