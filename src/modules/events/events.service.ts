@@ -8,7 +8,7 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types, QueryFilter } from "mongoose";
 import { Event, EventDocument, EventStatus } from "./schemas/event.schema";
-import { User, UserDocument } from "../users/schemas/user.schema";
+import { User, UserDocument, isBoardOrAbove } from "../users/schemas/user.schema";
 import { Group, GroupDocument } from "../groups/schemas/group.schema";
 import { CreateEventDto, UpdateEventDto, EventQueryDto } from "./dto";
 import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
@@ -94,7 +94,7 @@ export class EventsService {
 
     // Mark events created by board/admin so the UI can show "Fra Grunnsteinen"
     const organizer = await this.userModel.findById(userId).select('role');
-    const isFromBoard = ['board', 'admin'].includes(organizer?.role);
+    const isFromBoard = !!organizer && isBoardOrAbove(organizer.role);
 
     // Create event
     const event = await this.eventModel.create({
