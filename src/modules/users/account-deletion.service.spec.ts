@@ -88,6 +88,7 @@ describe('AccountDeletionService', () => {
   let createNotification: jest.Mock;
   let deleteAllNotifications: jest.Mock;
   let deletePrefix: jest.Mock;
+  let deleteFile: jest.Mock;
 
   const activeUser = (overrides: Record<string, unknown> = {}) => ({
     _id: userOid,
@@ -97,6 +98,7 @@ describe('AccountDeletionService', () => {
     role: UserRole.RESIDENT,
     isActive: true,
     isDeleted: false,
+    avatarUrl: `https://cdn.test/avatars/${userId}/current.png`,
     ...overrides,
   });
 
@@ -124,7 +126,7 @@ describe('AccountDeletionService', () => {
     });
     models.SharedItem.find.mockImplementation(() => {
       calls.push('SharedItem.find');
-      return query([{ _id: itemId }]);
+      return query([{ _id: itemId, imageUrl: `https://cdn.test/sharing/items/${itemId}/images/drill.jpg` }]);
     });
     models.HelpRequest.find.mockImplementation(() => {
       calls.push('HelpRequest.find');
@@ -168,6 +170,7 @@ describe('AccountDeletionService', () => {
     createNotification = jest.fn().mockResolvedValue(undefined);
     deleteAllNotifications = jest.fn().mockResolvedValue(undefined);
     deletePrefix = jest.fn().mockResolvedValue(1);
+    deleteFile = jest.fn().mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -176,7 +179,15 @@ describe('AccountDeletionService', () => {
         { provide: EventsService, useValue: { cancel: eventsCancel } },
         { provide: BookingsService, useValue: { cancel: bookingsCancel } },
         { provide: NotificationService, useValue: { createNotification, deleteAllNotifications } },
-        { provide: S3Service, useValue: { deletePrefix } },
+        {
+          provide: S3Service,
+          // CloudFront URLs map back to `public/<path>`, as in the real service.
+          useValue: {
+            deletePrefix,
+            deleteFile,
+            keyFromUrl: (url: string) => url.replace('https://cdn.test/', 'public/'),
+          },
+        },
       ],
     }).compile();
 
@@ -213,6 +224,7 @@ describe('AccountDeletionService', () => {
       expect(writes).toEqual([]);
       expect(eventsCancel).not.toHaveBeenCalled();
       expect(deletePrefix).not.toHaveBeenCalled();
+      expect(deleteFile).not.toHaveBeenCalled();
       expect(deleteAllNotifications).not.toHaveBeenCalled();
     });
 
@@ -269,7 +281,7 @@ describe('AccountDeletionService', () => {
       expect(calls[1]).toBe('Invitation.deleteMany');
       expect(calls[2]).toBe('User.updateOne');
       const tombstoneOrder = models.User.updateOne.mock.invocationCallOrder[0];
-      for (const mock of [eventsCancel, bookingsCancel, deletePrefix, deleteAllNotifications, createNotification]) {
+      for (const mock of [eventsCancel, bookingsCancel, deletePrefix, deleteFile, deleteAllNotifications, createNotification]) {
         expect(mock.mock.invocationCallOrder[0]).toBeGreaterThan(tombstoneOrder);
       }
     });
@@ -394,13 +406,15 @@ describe('AccountDeletionService', () => {
     it('deletes their shared items after removing the images, and releases borrowed items', async () => {
       await service.deleteAccount(userId, orgId);
       expect(models.SharedItem.find).toHaveBeenCalledWith({ organizationId: orgOid, ownerId: userOid });
-      expect(deletePrefix).toHaveBeenCalledWith(`public/sharing/items/${itemId}/`);
+      // The known key, not a prefix listing (production IAM has no s3:ListBucket).
+      expect(deleteFile).toHaveBeenCalledWith(`public/sharing/items/${itemId}/images/drill.jpg`);
+      expect(deletePrefix).not.toHaveBeenCalledWith(expect.stringContaining('sharing'));
       expect(models.SharedItem.deleteMany).toHaveBeenCalledWith({
         _id: { $in: [itemId] },
         organizationId: orgOid,
         ownerId: userOid,
       });
-      expect(deletePrefix.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(deleteFile.mock.invocationCallOrder[0]).toBeLessThan(
         models.SharedItem.deleteMany.mock.invocationCallOrder[0],
       );
       expect(models.SharedItem.updateMany).toHaveBeenCalledWith(
@@ -410,12 +424,43 @@ describe('AccountDeletionService', () => {
     });
 
     it('keeps a shared item whose images could not be deleted, so a re-run can retry', async () => {
-      deletePrefix.mockImplementation((prefix: string) =>
-        prefix.includes('sharing') ? Promise.reject(new Error('S3 down')) : Promise.resolve(0),
+      deleteFile.mockImplementation((key: string) =>
+        key.includes('sharing') ? Promise.reject(new Error('S3 down')) : Promise.resolve(),
       );
       const summary = await service.deleteAccount(userId, orgId);
       expect(models.SharedItem.deleteMany).not.toHaveBeenCalled();
       expect(summary.s3Failures).toBe(1);
+      expect(summary.completed).toBe(false);
+    });
+
+    it('always deletes a shared item that has no images, and touches no S3 for it', async () => {
+      const bare = new Types.ObjectId();
+      models.SharedItem.find.mockImplementation(() => query([{ _id: bare }]));
+      deleteFile.mockRejectedValue(new Error('S3 down')); // would only matter if it were called for the item
+      await service.deleteAccount(userId, orgId);
+      expect(deleteFile).not.toHaveBeenCalledWith(expect.stringContaining('sharing'));
+      expect(models.SharedItem.deleteMany).toHaveBeenCalledWith({
+        _id: { $in: [bare] },
+        organizationId: orgOid,
+        ownerId: userOid,
+      });
+    });
+
+    it('never deletes a gallery image or a key outside the item folder, and still deletes the item', async () => {
+      const item = new Types.ObjectId();
+      models.SharedItem.find.mockImplementation(() =>
+        query([
+          {
+            _id: item,
+            imageUrl: 'https://cdn.test/gallery/tools.jpg',
+            imageUrls: [`https://cdn.test/sharing/items/${new Types.ObjectId()}/images/other.jpg`, `https://cdn.test/sharing/items/${item}/images/mine.jpg`],
+          },
+        ]),
+      );
+      await service.deleteAccount(userId, orgId);
+      const sharingKeys = deleteFile.mock.calls.map(([key]) => key).filter((key: string) => !key.includes('avatars'));
+      expect(sharingKeys).toEqual([`public/sharing/items/${item}/images/mine.jpg`]);
+      expect(models.SharedItem.deleteMany).toHaveBeenCalledWith(expect.objectContaining({ _id: { $in: [item] } }));
     });
 
     it('deletes help requests they made and reopens ones they were helping with', async () => {
@@ -485,20 +530,59 @@ describe('AccountDeletionService', () => {
       );
     });
 
-    it('deletes the avatar prefix and their notifications, notifications last', async () => {
+    it('deletes the known avatar, sweeps the avatar folder, and deletes notifications last', async () => {
       await service.deleteAccount(userId, orgId);
+      expect(deleteFile).toHaveBeenCalledWith(`public/avatars/${userId}/current.png`);
       expect(deletePrefix).toHaveBeenCalledWith(`public/avatars/${userId}/`);
       expect(deleteAllNotifications).toHaveBeenCalledWith(userOid);
       const last = deleteAllNotifications.mock.invocationCallOrder[0];
-      for (const mock of [eventsCancel, bookingsCancel, createNotification, deletePrefix]) {
+      for (const mock of [eventsCancel, bookingsCancel, createNotification, deletePrefix, deleteFile]) {
         expect(Math.max(...mock.mock.invocationCallOrder)).toBeLessThan(last);
       }
     });
 
-    it('carries on when the avatar delete fails', async () => {
-      deletePrefix.mockRejectedValue(new Error('S3 down'));
-      await expect(service.deleteAccount(userId, orgId)).resolves.toMatchObject({ s3Failures: 2 });
+    it('carries on when the avatar delete fails, and parks the key on the tombstone for the re-run', async () => {
+      deleteFile.mockRejectedValue(new Error('S3 down'));
+      await expect(service.deleteAccount(userId, orgId)).resolves.toMatchObject({ s3Failures: 2, completed: false });
       expect(deleteAllNotifications).toHaveBeenCalled();
+      expect(models.User.updateOne).toHaveBeenCalledWith(
+        { _id: userOid, organizationId: orgOid },
+        { $addToSet: { pendingS3Keys: `public/avatars/${userId}/current.png` } },
+      );
+    });
+
+    it('a sweep without s3:ListBucket (AccessDenied) only warns and does not leave the deletion incomplete', async () => {
+      deletePrefix.mockRejectedValue(Object.assign(new Error('not authorized to perform: s3:ListBucket'), { name: 'AccessDenied' }));
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(summary).toMatchObject({ s3Failures: 0, completed: true, failedSteps: [] });
+      expect(deleteFile).toHaveBeenCalledWith(`public/avatars/${userId}/current.png`);
+    });
+
+    it('a re-run deletes avatar keys parked by the first run and unparks them', async () => {
+      const parked = `public/avatars/${userId}/current.png`;
+      models.User.findOne.mockImplementation((filter: any) =>
+        query(
+          filter._id === userId
+            ? activeUser({ isActive: false, isDeleted: true, avatarUrl: undefined, pendingS3Keys: [parked, 'public/gallery/x.jpg'] })
+            : null,
+        ),
+      );
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(deleteFile).toHaveBeenCalledWith(parked);
+      expect(deleteFile).not.toHaveBeenCalledWith('public/gallery/x.jpg');
+      expect(models.User.updateOne).toHaveBeenCalledWith(
+        { _id: userOid, organizationId: orgOid },
+        { $pull: { pendingS3Keys: parked } },
+      );
+      expect(summary.completed).toBe(true);
+    });
+
+    it('does not delete an avatar URL outside the user folder', async () => {
+      models.User.findOne.mockImplementation(() =>
+        query(activeUser({ avatarUrl: 'https://cdn.test/gallery/avatar-default.png' })),
+      );
+      await service.deleteAccount(userId, orgId);
+      expect(deleteFile).not.toHaveBeenCalledWith(expect.stringContaining('gallery'));
     });
 
     it('scopes every collection query that has an organisation by organizationId', async () => {
@@ -579,11 +663,13 @@ describe('AccountDeletionService', () => {
       }
     });
 
-    it('an S3 failure also leaves the deletion pending', async () => {
-      deletePrefix.mockRejectedValue(new Error('S3 down'));
+    it('a failed delete of a known S3 object also leaves the deletion pending', async () => {
+      deleteFile.mockRejectedValue(new Error('S3 down'));
       const summary = await service.deleteAccount(userId, orgId);
       expect(summary.completed).toBe(false);
-      expect(models.User.updateOne).toHaveBeenCalledTimes(1);
+      for (const [, update] of models.User.updateOne.mock.calls) {
+        expect(update.$set ?? {}).not.toHaveProperty('deletionCompletedAt');
+      }
     });
 
     it('a clean run sets deletionCompletedAt after the cascade', async () => {

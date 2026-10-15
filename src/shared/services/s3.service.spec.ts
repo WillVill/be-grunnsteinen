@@ -87,3 +87,16 @@ describe('S3Service.deletePrefix', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('S3Service.keyFromUrl', () => {
+  const service = new S3Service({ get: jest.fn().mockReturnValue('cdn.test') } as unknown as ConfigService);
+
+  it('maps a CloudFront URL back to its public/ key', () => {
+    expect(service.keyFromUrl('https://cdn.test/avatars/u1/a.png')).toBe('public/avatars/u1/a.png');
+  });
+
+  it('returns null for an empty or unparsable URL', () => {
+    expect(service.keyFromUrl('')).toBeNull();
+    expect(service.keyFromUrl('not a url')).toBeNull();
+  });
+});

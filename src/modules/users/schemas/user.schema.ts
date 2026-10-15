@@ -240,6 +240,11 @@ export class User {
   @Prop()
   deletionCompletedAt?: Date;
 
+  // S3 keys of a deleted account's known files (avatar) whose delete failed;
+  // the tombstone no longer carries avatarUrl, so a re-run needs them here.
+  @Prop({ type: [String], default: undefined, select: false })
+  pendingS3Keys?: string[];
+
   @Prop({ select: false })
   passwordResetToken?: string;
 

@@ -150,7 +150,9 @@ export class AccountDeletionService {
     userId: string,
     organizationId: string,
   ): Promise<AccountDeletionSummary> {
-    const user = await findInOrg(this.userModel, userId, organizationId, null, "User").exec();
+    const user = await findInOrg(this.userModel, userId, organizationId, null, "User")
+      .select("+pendingS3Keys")
+      .exec();
     if (!user) {
       throw new NotFoundException("User not found");
     }
@@ -158,6 +160,8 @@ export class AccountDeletionService {
     const orgOid = new Types.ObjectId(organizationId);
     const userOid = new Types.ObjectId(userId);
     const originalEmail = user.email;
+    // Captured before the tombstone unsets it: the one avatar we know about.
+    const avatarUrl = user.isDeleted ? undefined : user.avatarUrl;
     const alreadyDeleted = user.isDeleted === true;
 
     const summary: AccountDeletionSummary = {
@@ -204,7 +208,10 @@ export class AccountDeletionService {
       ["sharedItems", () => this.handleSharedItems(userOid, orgOid, summary)],
       ["helpRequests", () => this.handleHelpRequests(userOid, orgOid, summary)],
       ["conversations", () => this.handleConversations(userId, userOid, orgOid, summary)],
-      ["avatar", () => this.deleteS3Prefix(`public/avatars/${userId}/`, summary)],
+      [
+        "avatar",
+        () => this.deleteAvatar(userId, userOid, orgOid, avatarUrl, user.pendingS3Keys ?? [], summary),
+      ],
       // Last, so notifications the cancel paths above addressed to this user go
       // too. Notifications carry no organisation; the user id is globally unique.
       ["notifications", () => this.notificationService.deleteAllNotifications(userOid)],
@@ -559,17 +566,23 @@ export class AccountDeletionService {
   ): Promise<void> {
     const items = await this.sharedItemModel
       .find({ organizationId: orgOid, ownerId: userOid })
-      .select("_id")
+      .select("_id imageUrl imageUrls")
       .lean()
       .exec();
-    // Images first: an item whose images could not be removed is kept so a
-    // re-run can still find it.
+    // Images first, by their known keys (no ListBucket needed). Only an item
+    // whose own image delete failed is kept, so a re-run can still find it;
+    // an item without images of its own is always deleted.
     const removable: Types.ObjectId[] = [];
     for (const item of items) {
-      const ok = await this.deleteS3Prefix(
-        `public/sharing/items/${String(item._id)}/`,
-        summary,
-      );
+      const record = item as { _id: unknown; imageUrl?: string; imageUrls?: string[] };
+      const urls = [record.imageUrl, ...(record.imageUrls ?? [])];
+      // Curated gallery images and anything outside this item's folder are
+      // shared, not this item's, and are never deleted.
+      const keys = this.ownedKeys(urls, `public/sharing/items/${String(item._id)}/`);
+      let ok = true;
+      for (const key of keys) {
+        if (!(await this.deleteKnownKey(key, summary))) ok = false;
+      }
       if (ok) removable.push(item._id as Types.ObjectId);
     }
     if (removable.length > 0) {
@@ -775,17 +788,76 @@ export class AccountDeletionService {
     return result.modifiedCount ?? 0;
   }
 
-  /** Never throws: a failed S3 delete is logged and counted. */
-  private async deleteS3Prefix(
-    prefix: string,
+  /**
+   * The avatar we know about (captured before the tombstone) plus any left
+   * from an earlier run, then a best-effort sweep of the user's avatar folder
+   * for older uploads. Only a failed delete of a known key leaves the deletion
+   * incomplete; that key is parked on the tombstone for the re-run.
+   */
+  private async deleteAvatar(
+    userId: string,
+    userOid: Types.ObjectId,
+    orgOid: Types.ObjectId,
+    avatarUrl: string | undefined,
+    pendingKeys: string[],
+    summary: AccountDeletionSummary,
+  ): Promise<void> {
+    const folder = `public/avatars/${userId}/`;
+    const keys = [
+      ...new Set([
+        ...this.ownedKeys([avatarUrl], folder),
+        ...pendingKeys.filter((key) => key.startsWith(folder)),
+      ]),
+    ];
+    for (const key of keys) {
+      const ok = await this.deleteKnownKey(key, summary);
+      const wasPending = pendingKeys.includes(key);
+      if (ok && wasPending) {
+        await this.userModel.updateOne(
+          { _id: userOid, organizationId: orgOid },
+          { $pull: { pendingS3Keys: key } },
+        );
+      } else if (!ok && !wasPending) {
+        await this.userModel.updateOne(
+          { _id: userOid, organizationId: orgOid },
+          { $addToSet: { pendingS3Keys: key } },
+        );
+      }
+    }
+
+    // Needs s3:ListBucket, which production IAM may not grant: never counts.
+    try {
+      summary.s3ObjectsDeleted += await this.s3Service.deletePrefix(folder);
+    } catch (error) {
+      const name = (error as { name?: string })?.name;
+      this.logger.warn(
+        name === "AccessDenied"
+          ? `Skipped avatar folder sweep ${folder}: no s3:ListBucket permission`
+          : `Avatar folder sweep ${folder} failed (best effort): ${(error as Error)?.message ?? error}`,
+      );
+    }
+  }
+
+  /** S3 keys behind `urls` that live under `folder`; anything else is skipped. */
+  private ownedKeys(urls: (string | undefined | null)[], folder: string): string[] {
+    return urls
+      .filter((url): url is string => !!url)
+      .map((url) => this.s3Service.keyFromUrl(url))
+      .filter((key): key is string => !!key && key.startsWith(folder) && key.length > folder.length);
+  }
+
+  /** Never throws: a failed delete of a known object is logged and counted. */
+  private async deleteKnownKey(
+    key: string,
     summary: AccountDeletionSummary,
   ): Promise<boolean> {
     try {
-      summary.s3ObjectsDeleted += await this.s3Service.deletePrefix(prefix);
+      await this.s3Service.deleteFile(key);
+      summary.s3ObjectsDeleted++;
       return true;
     } catch (error) {
       summary.s3Failures++;
-      this.logger.error(`Failed to delete S3 prefix ${prefix}`, error);
+      this.logger.error(`Failed to delete S3 object ${key}`, error);
       return false;
     }
   }

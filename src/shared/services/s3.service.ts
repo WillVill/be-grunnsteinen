@@ -254,6 +254,14 @@ export class S3Service {
   }
 
   /**
+   * The S3 key behind a stored URL (see extractKeyFromUrl), or null when the
+   * URL can't be parsed. For callers that must check the key before deleting.
+   */
+  keyFromUrl(url: string): string | null {
+    return url ? this.extractKeyFromUrl(url) : null;
+  }
+
+  /**
    * Extract the S3 key from a stored URL. CloudFront URLs have the `public/`
    * prefix stripped (origin path rewrite), so we add it back; direct S3 URLs
    * already carry the full key in their path.

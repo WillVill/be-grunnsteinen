@@ -528,9 +528,10 @@ export class EventsService {
       "cancel",
     );
 
-    // Update status
+    // Update status. Validate only what changed: legacy events can fail full
+    // validation (e.g. an empty required description) and must still cancel.
     event.status = EventStatus.CANCELLED;
-    await event.save();
+    await event.save({ validateModifiedOnly: true });
 
     // Notify participants
     if (event.participants.length > 0) {
