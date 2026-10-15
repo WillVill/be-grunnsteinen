@@ -187,6 +187,18 @@ describe('GroupsService organisation and privacy scoping', () => {
         service.addMember(groupId, memberId, orgId, { userId: outsiderId } as any),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
+
+    it('refuses to add a deleted account (tombstone)', async () => {
+      const save = jest.fn();
+      groupFindOne.mockReturnValue(query(group({ save })));
+      userFindById
+        .mockResolvedValueOnce({ role: UserRole.BOARD, buildingIds: [] }) // inviter
+        .mockResolvedValueOnce({ _id: new Types.ObjectId(outsiderId), organizationId: new Types.ObjectId(orgId), isDeleted: true });
+      await expect(
+        service.addMember(groupId, memberId, orgId, { userId: outsiderId } as any),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(save).not.toHaveBeenCalled();
+    });
   });
 
   describe('create', () => {

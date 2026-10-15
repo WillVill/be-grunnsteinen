@@ -494,7 +494,7 @@ export class UsersService {
       organizationId: new Types.ObjectId(organizationId),
     });
 
-    if (!user) {
+    if (!user || user.isDeleted) {
       throw new NotFoundException("User not found");
     }
 
@@ -566,7 +566,11 @@ export class UsersService {
     }
 
     const updated = await this.userModel.findOneAndUpdate(
-      { _id: userId, organizationId: new Types.ObjectId(organizationId) },
+      {
+        _id: userId,
+        organizationId: new Types.ObjectId(organizationId),
+        isDeleted: { $ne: true },
+      },
       { $set: updateData },
       { new: true, runValidators: true },
     );

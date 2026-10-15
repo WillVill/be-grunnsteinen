@@ -274,3 +274,48 @@ describe('UsersService hides deleted accounts from lists', () => {
     });
   });
 });
+
+describe('UsersService admin edits refuse deleted accounts', () => {
+  let service: UsersService;
+  let findOne: jest.Mock;
+  let findOneAndUpdate: jest.Mock;
+
+  beforeEach(async () => {
+    findOne = jest.fn().mockResolvedValue({
+      _id: new Types.ObjectId(targetId),
+      role: UserRole.ADMIN,
+      isDeleted: true,
+      save: jest.fn(),
+    });
+    findOneAndUpdate = jest.fn().mockResolvedValue(null);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: getModelToken(User.name), useValue: { findOne, findOneAndUpdate } },
+        { provide: getModelToken(Organization.name), useValue: {} },
+        { provide: getModelToken(Building.name), useValue: { countDocuments: jest.fn() } },
+        { provide: EmailService, useValue: {} },
+        { provide: ConfigService, useValue: { get: () => 'https://example.com' } },
+      ],
+    }).compile();
+
+    service = module.get<UsersService>(UsersService);
+  });
+
+  it('updateAdminUser 404s for a tombstone', async () => {
+    await expect(service.updateAdminUser(orgId, targetId, { name: 'X' } as any)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('updateCareInfo excludes tombstones from its match, so it 404s', async () => {
+    await expect(service.updateCareInfo(orgId, targetId, { pets: { hasPets: true } } as any)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(findOneAndUpdate.mock.calls[0][0]).toMatchObject({
+      organizationId: new Types.ObjectId(orgId),
+      isDeleted: { $ne: true },
+    });
+  });
+});

@@ -14,6 +14,7 @@ import {
   MaxFileSizeValidator,
   FileTypeValidator,
   ForbiddenException,
+  NotFoundException,
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
@@ -140,6 +141,11 @@ export class UsersController {
     @Param("id") id: string,
   ) {
     const user = await this.usersService.findById(id);
+
+    // A deleted account is a tombstone, not a profile.
+    if (user.isDeleted) {
+      throw new NotFoundException("User not found");
+    }
 
     // Validate user belongs to same organization
     if (user.organizationId.toString() !== currentUser.organizationId) {
