@@ -235,6 +235,11 @@ export class User {
   @Prop()
   deletedAt?: Date;
 
+  // Set once every cascade step of the deletion succeeded. A tombstone without
+  // it still has data to clean up: scripts/complete-account-deletion.ts --pending.
+  @Prop()
+  deletionCompletedAt?: Date;
+
   @Prop({ select: false })
   passwordResetToken?: string;
 

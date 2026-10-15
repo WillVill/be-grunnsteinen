@@ -117,6 +117,23 @@ because column names, header offsets and unit-number formats all differ:
 fields only — `isActive`, `tags` and `tenantIds` are written on insert, so admin changes
 made in the UI survive. The extractor aborts if any building has duplicate unit numbers.
 
+### 4. Complete Account Deletion
+
+`DELETE /users/me` writes the anonymised tombstone first and then runs each cascade step
+on its own. If a step fails, the account stays deleted (locked out, no personal data on the
+user document) but `deletionCompletedAt` is not set. Re-run the cascade with:
+
+```bash
+# One tombstoned user
+npx ts-node scripts/complete-account-deletion.ts <userId>
+
+# Every pending deletion ({ isDeleted: true, deletionCompletedAt: null })
+npx ts-node scripts/complete-account-deletion.ts --pending
+```
+
+Only touches users that are already `isDeleted: true`; it never starts a deletion. Prints
+each run's summary and exits with code 2 if any deletion is still incomplete.
+
 ## Prerequisites
 
 - MongoDB connection configured in `.env` file

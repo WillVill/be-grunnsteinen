@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 import * as bcrypt from "bcrypt";
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -94,16 +95,23 @@ export interface AccountDeletionSummary {
   supportConversationsDeleted: number;
   s3ObjectsDeleted: number;
   s3Failures: number;
+  /** Cascade steps that threw; each was logged and skipped. */
+  failedSteps: string[];
+  /** True when every step (and every S3 delete) succeeded. */
+  completed: boolean;
 }
 
 /**
  * Real account deletion for `DELETE /users/me` (Apple 5.1.1(v), GDPR art. 17).
  *
- * The user document becomes an anonymised tombstone (same `_id`, no personal
- * data, `isActive: false`), written first so the user is locked out at once.
- * The cascade then deletes, anonymises or unlinks the user's data collection
- * by collection. Every step matches on the user id and skips what is already
- * done, so running it again (e.g. after a crash) finishes the job.
+ * Invitations to the user's address go first (they need the real email).
+ * Then the user document becomes an anonymised tombstone (same `_id`, no
+ * personal data, `isActive: false`), which locks the user out at once. The
+ * cascade then deletes, anonymises or unlinks the user's data collection by
+ * collection. Each step runs on its own: a failure is logged and counted and
+ * the rest still run, and the call succeeds once the tombstone is written.
+ * `deletionCompletedAt` is set only when nothing failed; every step skips what
+ * is already done, so scripts/complete-account-deletion.ts can finish the job.
  */
 @Injectable()
 export class AccountDeletionService {
@@ -152,11 +160,6 @@ export class AccountDeletionService {
     const originalEmail = user.email;
     const alreadyDeleted = user.isDeleted === true;
 
-    if (!alreadyDeleted) {
-      await this.assertNotLastAdmin(user, orgOid, userOid);
-      await this.writeTombstone(userOid, orgOid);
-    }
-
     const summary: AccountDeletionSummary = {
       tombstoned: !alreadyDeleted,
       invitationsDeleted: 0,
@@ -179,31 +182,56 @@ export class AccountDeletionService {
       supportConversationsDeleted: 0,
       s3ObjectsDeleted: 0,
       s3Failures: 0,
+      failedSteps: [],
+      completed: false,
     };
 
-    // Needs the real address, which the tombstone has just replaced: on a
-    // re-run it matches nothing (see the known limitation in the R2 plan).
     if (!alreadyDeleted) {
+      await this.assertNotLastAdmin(user, orgOid, userOid);
+      // Before the tombstone, which replaces the real address they match on.
       await this.deleteInvitations(originalEmail, orgOid, summary);
+      await this.writeTombstone(userOid, orgOid);
     }
-    await this.unlinkTenancy(userOid, orgOid, summary);
-    await this.deletePostsAndComments(userOid, orgOid, summary);
-    // Pull participation first: the organiser is auto-joined to their own
-    // event, and the cancel path below notifies every remaining participant.
-    await this.handleEvents(userId, userOid, organizationId, orgOid, summary);
-    await this.handleBookings(userId, userOid, organizationId, orgOid, summary);
-    await this.handleGroups(userOid, orgOid, summary);
-    await this.handleSharedItems(userOid, orgOid, summary);
-    await this.handleHelpRequests(userOid, orgOid, summary);
-    await this.handleConversations(userId, userOid, orgOid, summary);
-    await this.deleteS3Prefix(`public/avatars/${userId}/`, summary);
-    // Last, so notifications the cancel paths above addressed to this user go too.
-    // Notifications carry no organisation; the user id is globally unique.
-    await this.notificationService.deleteAllNotifications(userOid);
 
-    this.logger.log(
-      `Account deleted: ${userId} (org ${organizationId}) ${JSON.stringify(summary)}`,
-    );
+    const steps: [string, () => Promise<unknown>][] = [
+      ["tenancy", () => this.unlinkTenancy(userOid, orgOid, summary)],
+      ["posts", () => this.deletePostsAndComments(userOid, orgOid, summary)],
+      // Pulls participation first: the organiser is auto-joined to their own
+      // event, and the cancel path notifies every remaining participant.
+      ["events", () => this.handleEvents(userId, userOid, organizationId, orgOid, summary)],
+      ["bookings", () => this.handleBookings(userId, userOid, organizationId, orgOid, summary)],
+      ["groups", () => this.handleGroups(userOid, orgOid, summary)],
+      ["sharedItems", () => this.handleSharedItems(userOid, orgOid, summary)],
+      ["helpRequests", () => this.handleHelpRequests(userOid, orgOid, summary)],
+      ["conversations", () => this.handleConversations(userId, userOid, orgOid, summary)],
+      ["avatar", () => this.deleteS3Prefix(`public/avatars/${userId}/`, summary)],
+      // Last, so notifications the cancel paths above addressed to this user go
+      // too. Notifications carry no organisation; the user id is globally unique.
+      ["notifications", () => this.notificationService.deleteAllNotifications(userOid)],
+    ];
+    for (const [name, step] of steps) {
+      try {
+        await step();
+      } catch (error) {
+        summary.failedSteps.push(name);
+        this.logger.error(
+          `Account deletion step "${name}" failed for ${userId}`,
+          (error as Error)?.stack ?? String(error),
+        );
+      }
+    }
+
+    summary.completed = summary.failedSteps.length === 0 && summary.s3Failures === 0;
+    if (summary.completed && !user.deletionCompletedAt) {
+      await this.userModel.updateOne(
+        { _id: userOid, organizationId: orgOid },
+        { $set: { deletionCompletedAt: new Date() } },
+      );
+    }
+
+    const log = `Account deletion ${summary.completed ? "completed" : "INCOMPLETE"}: ${userId} (org ${organizationId}) ${JSON.stringify(summary)}`;
+    if (summary.completed) this.logger.log(log);
+    else this.logger.warn(log);
     return summary;
   }
 
@@ -285,7 +313,7 @@ export class AccountDeletionService {
       organizationId: orgOid,
       email: email.toLowerCase(),
     });
-    summary.invitationsDeleted = result.deletedCount ?? 0;
+    summary.invitationsDeleted += result.deletedCount ?? 0;
   }
 
   /** The landlord's tenant register keeps the record; only the account link goes. */
@@ -294,6 +322,21 @@ export class AccountDeletionService {
     orgOid: Types.ObjectId,
     summary: AccountDeletionSummary,
   ): Promise<void> {
+    // The invitations they accepted, found through the register rather than by
+    // email: the address may have changed since.
+    const invitationIds = await this.tenantProfileModel.distinct("invitationId", {
+      organizationId: orgOid,
+      userId: userOid,
+      invitationId: { $exists: true, $ne: null },
+    });
+    if (invitationIds.length > 0) {
+      const invitations = await this.invitationModel.deleteMany({
+        _id: { $in: invitationIds },
+        organizationId: orgOid,
+      });
+      summary.invitationsDeleted += invitations.deletedCount ?? 0;
+    }
+
     const profiles = await this.tenantProfileModel.updateMany(
       { organizationId: orgOid, userId: userOid },
       {
@@ -416,6 +459,14 @@ export class AccountDeletionService {
       .lean()
       .exec();
     for (const event of futureEvents) {
+      // Re-check right before cancelling, so a concurrent DELETE that already
+      // cancelled it doesn't notify the participants twice.
+      const stillOpen = await this.eventModel.exists({
+        _id: event._id,
+        organizationId: orgOid,
+        status: { $ne: EventStatus.CANCELLED },
+      });
+      if (!stillOpen) continue;
       await this.eventsService.cancel(String(event._id), userId, organizationId);
       summary.eventsCancelled++;
     }
@@ -428,26 +479,33 @@ export class AccountDeletionService {
     orgOid: Types.ObjectId,
     summary: AccountDeletionSummary,
   ): Promise<void> {
-    // Future pending/confirmed bookings: cancel through the normal path, which
-    // frees the slot. Past bookings stay for the resource's history.
-    const futureBookings = await this.bookingModel
+    // Pending/confirmed bookings that haven't ended (future or running):
+    // cancel through the normal path, which frees the slot. Past bookings stay
+    // for the resource's history.
+    const now = new Date();
+    const openBookings = await this.bookingModel
       .find({
         organizationId: orgOid,
         userId: userOid,
         status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
-        startDate: { $gt: new Date() },
+        endDate: { $gt: now },
       })
       .select("_id")
       .lean()
       .exec();
-    for (const booking of futureBookings) {
-      await this.bookingsService.cancel(
-        String(booking._id),
-        userId,
-        organizationId,
-        ACCOUNT_DELETED_REASON,
-      );
-      summary.bookingsCancelled++;
+    for (const booking of openBookings) {
+      try {
+        await this.bookingsService.cancel(
+          String(booking._id),
+          userId,
+          organizationId,
+          ACCOUNT_DELETED_REASON,
+        );
+        summary.bookingsCancelled++;
+      } catch (error) {
+        // Already cancelled/completed meanwhile (e.g. a concurrent DELETE).
+        if (!(error instanceof BadRequestException)) throw error;
+      }
     }
 
     const notes = await this.bookingModel.updateMany(
@@ -455,6 +513,16 @@ export class AccountDeletionService {
       { $unset: { notes: "" } },
     );
     summary.bookingNotesCleared = notes.modifiedCount ?? 0;
+
+    await this.bookingModel.updateMany(
+      {
+        organizationId: orgOid,
+        userId: userOid,
+        endDate: { $lte: now },
+        cancellationReason: { $exists: true },
+      },
+      { $unset: { cancellationReason: "" } },
+    );
   }
 
   private async handleGroups(
@@ -525,6 +593,26 @@ export class AccountDeletionService {
     orgOid: Types.ObjectId,
     summary: AccountDeletionSummary,
   ): Promise<void> {
+    // Someone had already said yes to help: tell them it's off.
+    const acceptedByOthers = await this.helpRequestModel
+      .find({
+        organizationId: orgOid,
+        requesterId: userOid,
+        status: HelpRequestStatus.ACCEPTED,
+        helperId: { $exists: true, $ne: null },
+      })
+      .select("_id helperId title")
+      .lean()
+      .exec();
+    for (const request of acceptedByOthers) {
+      await this.notifyUser(
+        request.helperId,
+        orgOid,
+        "Forespørselen er trukket tilbake",
+        `Forespørselen «${request.title}» er trukket tilbake fordi den som spurte har slettet kontoen sin.`,
+      );
+    }
+
     const requested = await this.helpRequestModel.deleteMany({
       organizationId: orgOid,
       requesterId: userOid,
@@ -557,35 +645,45 @@ export class AccountDeletionService {
       );
       if (!result.modifiedCount) continue;
       summary.helpRequestsReopened++;
-      await this.notifyRequesterOfReopen(request, orgOid);
-    }
-  }
-
-  private async notifyRequesterOfReopen(
-    request: { _id: unknown; requesterId: unknown; title?: string },
-    orgOid: Types.ObjectId,
-  ): Promise<void> {
-    const requester = await this.userModel
-      .findOne({ _id: request.requesterId, organizationId: orgOid })
-      .exec();
-    if (!requester || requester.isDeleted) return;
-    await this.notificationService
-      .createNotification(
-        String(requester._id),
-        NotificationType.MESSAGE_RECEIVED,
+      await this.notifyUser(
+        request.requesterId,
+        orgOid,
         "Forespørselen er åpen igjen",
         `Hjelperen på «${request.title}» har slettet kontoen sin, så forespørselen er åpen igjen.`,
         `/sharing/help-requests/${String(request._id)}`,
+      );
+    }
+  }
+
+  /** In-app + email notification to another resident of the org. Never throws. */
+  private async notifyUser(
+    recipientRef: unknown,
+    orgOid: Types.ObjectId,
+    title: string,
+    message: string,
+    linkTo?: string,
+  ): Promise<void> {
+    const recipient = await this.userModel
+      .findOne({ _id: recipientRef, organizationId: orgOid })
+      .exec();
+    if (!recipient || recipient.isDeleted) return;
+    await this.notificationService
+      .createNotification(
+        String(recipient._id),
+        NotificationType.MESSAGE_RECEIVED,
+        title,
+        message,
+        linkTo,
         true,
         {
-          _id: String(requester._id),
-          email: requester.email,
-          firstName: requester.name.split(" ")[0],
-          lastName: requester.name.split(" ").slice(1).join(" ") || "",
+          _id: String(recipient._id),
+          email: recipient.email,
+          firstName: recipient.name.split(" ")[0],
+          lastName: recipient.name.split(" ").slice(1).join(" ") || "",
         },
       )
       .catch((error) => {
-        this.logger.error("Failed to notify requester of reopened help request", error);
+        this.logger.error(`Failed to send "${title}" notification`, error);
       });
   }
 

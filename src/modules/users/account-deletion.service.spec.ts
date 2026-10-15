@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import {
   AccountDeletionService,
@@ -74,6 +74,7 @@ function mockModel(name: string) {
     updateMany: record('updateMany', () => Promise.resolve({ modifiedCount: 0 })),
     deleteMany: record('deleteMany', () => Promise.resolve({ deletedCount: 0 })),
     countDocuments: record('countDocuments', () => Promise.resolve(0)),
+    exists: record('exists', () => Promise.resolve({ _id: new Types.ObjectId() })),
   };
 }
 
@@ -264,7 +265,9 @@ describe('AccountDeletionService', () => {
       await service.deleteAccount(userId, orgId);
 
       expect(calls[0]).toBe('User.findOne');
-      expect(calls[1]).toBe('User.updateOne');
+      // Invitations match on the real address, so they go just before the tombstone.
+      expect(calls[1]).toBe('Invitation.deleteMany');
+      expect(calls[2]).toBe('User.updateOne');
       const tombstoneOrder = models.User.updateOne.mock.invocationCallOrder[0];
       for (const mock of [eventsCancel, bookingsCancel, deletePrefix, deleteAllNotifications, createNotification]) {
         expect(mock.mock.invocationCallOrder[0]).toBeGreaterThan(tombstoneOrder);
@@ -364,7 +367,9 @@ describe('AccountDeletionService', () => {
         userId: userOid,
         status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
       });
-      expect(filter.startDate.$gt).toBeInstanceOf(Date);
+      // endDate, not startDate: a running booking is cancelled too, freeing the slot.
+      expect(filter.endDate.$gt).toBeInstanceOf(Date);
+      expect(filter.startDate).toBeUndefined();
       expect(bookingsCancel).toHaveBeenCalledWith(String(bookingId), userId, orgId, 'Konto slettet');
       expect(models.Booking.updateMany).toHaveBeenCalledWith(
         { organizationId: orgOid, userId: userOid, notes: { $exists: true } },
@@ -518,7 +523,14 @@ describe('AccountDeletionService', () => {
   describe('idempotency', () => {
     it('a second run on the tombstone does not throw and changes nothing', async () => {
       models.User.findOne.mockImplementation(() =>
-        query(activeUser({ isActive: false, isDeleted: true, email: `deleted+${userId}@deleted.invalid` })),
+        query(
+          activeUser({
+            isActive: false,
+            isDeleted: true,
+            email: `deleted+${userId}@deleted.invalid`,
+            deletionCompletedAt: new Date(),
+          }),
+        ),
       );
 
       const summary = await service.deleteAccount(userId, orgId);
@@ -529,17 +541,179 @@ describe('AccountDeletionService', () => {
       expect(eventsCancel).not.toHaveBeenCalled();
       expect(bookingsCancel).not.toHaveBeenCalled();
       expect(createNotification).not.toHaveBeenCalled();
-      const { tombstoned, s3ObjectsDeleted, ...counts } = summary;
+      const { tombstoned, s3ObjectsDeleted, failedSteps, completed, ...counts } = summary;
       expect(tombstoned).toBe(false);
+      expect(failedSteps).toEqual([]);
+      expect(completed).toBe(true);
       expect(Object.values(counts).every((n) => n === 0)).toBe(true);
     });
 
     it('a first run followed by a second run both succeed', async () => {
       seedData();
       await service.deleteAccount(userId, orgId);
-      models.User.findOne.mockImplementation(() => query(activeUser({ isActive: false, isDeleted: true })));
+      models.User.findOne.mockImplementation(() =>
+        query(activeUser({ isActive: false, isDeleted: true, deletionCompletedAt: new Date() })),
+      );
       await expect(service.deleteAccount(userId, orgId)).resolves.toMatchObject({ tombstoned: false });
+      // Tombstone + completion mark from the first run; the second writes neither.
+      expect(models.User.updateOne).toHaveBeenCalledTimes(2);
+    });
+  });
+  describe('resumable cascade', () => {
+    beforeEach(() => seedData());
+
+    it('a step that throws still leaves the tombstone, succeeds, and is not marked complete', async () => {
+      models.Group.updateMany.mockRejectedValue(new Error('Mongo blip'));
+
+      const summary = await service.deleteAccount(userId, orgId);
+
+      expect(summary.failedSteps).toEqual(['groups']);
+      expect(summary.completed).toBe(false);
       expect(models.User.updateOne).toHaveBeenCalledTimes(1);
+      expect(models.User.updateOne.mock.calls[0][1].$set.isDeleted).toBe(true);
+      // The steps after the failing one still ran.
+      expect(models.SharedItem.deleteMany).toHaveBeenCalled();
+      expect(deleteAllNotifications).toHaveBeenCalled();
+      for (const [, update] of models.User.updateOne.mock.calls) {
+        expect(update.$set).not.toHaveProperty('deletionCompletedAt');
+      }
+    });
+
+    it('an S3 failure also leaves the deletion pending', async () => {
+      deletePrefix.mockRejectedValue(new Error('S3 down'));
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(summary.completed).toBe(false);
+      expect(models.User.updateOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('a clean run sets deletionCompletedAt after the cascade', async () => {
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(summary).toMatchObject({ completed: true, failedSteps: [] });
+      expect(models.User.updateOne).toHaveBeenCalledTimes(2);
+      const [filter, update] = models.User.updateOne.mock.calls[1];
+      expect(filter).toEqual({ _id: userOid, organizationId: orgOid });
+      expect(update.$set.deletionCompletedAt).toBeInstanceOf(Date);
+      expect(models.User.updateOne.mock.invocationCallOrder[1]).toBeGreaterThan(
+        deleteAllNotifications.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('a re-run of a pending tombstone finishes and marks it complete, without a new tombstone', async () => {
+      models.User.findOne.mockImplementation((filter: any) => {
+        calls.push('User.findOne');
+        return query(
+          filter._id === userId
+            ? activeUser({ isActive: false, isDeleted: true, email: `deleted+${userId}@deleted.invalid` })
+            : { _id: requesterId, email: 'ola@example.com', name: 'Ola Hansen' },
+        );
+      });
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(summary.tombstoned).toBe(false);
+      expect(models.User.updateOne).toHaveBeenCalledTimes(1);
+      expect(models.User.updateOne.mock.calls[0][1]).toEqual({
+        $set: { deletionCompletedAt: expect.any(Date) },
+      });
+    });
+
+    it('if the invitation cleanup fails, nothing is tombstoned and the error surfaces', async () => {
+      models.Invitation.deleteMany.mockRejectedValue(new Error('Mongo down'));
+      await expect(service.deleteAccount(userId, orgId)).rejects.toThrow('Mongo down');
+      expect(models.User.updateOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('review follow-ups', () => {
+    beforeEach(() => seedData());
+
+    it('deletes invitations linked from their tenant profiles, before unsetting the link', async () => {
+      const linked = new Types.ObjectId();
+      models.TenantProfile.distinct.mockImplementation(() => {
+        calls.push('TenantProfile.distinct');
+        return Promise.resolve([linked]);
+      });
+      await service.deleteAccount(userId, orgId);
+      expect(models.TenantProfile.distinct).toHaveBeenCalledWith('invitationId', {
+        organizationId: orgOid,
+        userId: userOid,
+        invitationId: { $exists: true, $ne: null },
+      });
+      expect(models.Invitation.deleteMany).toHaveBeenCalledWith({ _id: { $in: [linked] }, organizationId: orgOid });
+      expect(calls.indexOf('Invitation.deleteMany', 2)).toBeLessThan(calls.indexOf('TenantProfile.updateMany'));
+    });
+
+    it('notifies the helper of a request they accepted before deleting it', async () => {
+      const helperId = new Types.ObjectId();
+      models.HelpRequest.find.mockImplementation((filter: any) => {
+        calls.push('HelpRequest.find');
+        return query(
+          filter.requesterId
+            ? [{ _id: new Types.ObjectId(), helperId, title: 'Bære sofa' }]
+            : [],
+        );
+      });
+      models.User.findOne.mockImplementation((filter: any) => {
+        calls.push('User.findOne');
+        if (filter._id === userId) return query(activeUser());
+        return query({ _id: helperId, email: 'helper@example.com', name: 'Per Hjelper' });
+      });
+
+      await service.deleteAccount(userId, orgId);
+
+      expect(models.HelpRequest.find).toHaveBeenCalledWith({
+        organizationId: orgOid,
+        requesterId: userOid,
+        status: HelpRequestStatus.ACCEPTED,
+        helperId: { $exists: true, $ne: null },
+      });
+      expect(models.User.findOne).toHaveBeenCalledWith({ _id: helperId, organizationId: orgOid });
+      expect(createNotification).toHaveBeenCalledWith(
+        String(helperId),
+        expect.any(String),
+        expect.any(String),
+        expect.stringContaining('Forespørselen «Bære sofa» er trukket tilbake'),
+        undefined,
+        true,
+        expect.objectContaining({ email: 'helper@example.com' }),
+      );
+      expect(createNotification.mock.invocationCallOrder[0]).toBeLessThan(
+        models.HelpRequest.deleteMany.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('tolerates a booking that was cancelled meanwhile (double DELETE)', async () => {
+      bookingsCancel.mockRejectedValue(new BadRequestException('Booking is already cancelled'));
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(summary.failedSteps).toEqual([]);
+      expect(summary.bookingsCancelled).toBe(0);
+    });
+
+    it('still fails the bookings step on an unexpected error', async () => {
+      bookingsCancel.mockRejectedValue(new Error('boom'));
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(summary.failedSteps).toEqual(['bookings']);
+    });
+
+    it('skips an event that was cancelled meanwhile', async () => {
+      models.Event.exists.mockResolvedValue(null);
+      const summary = await service.deleteAccount(userId, orgId);
+      expect(models.Event.exists).toHaveBeenCalledWith({
+        _id: eventId,
+        organizationId: orgOid,
+        status: { $ne: EventStatus.CANCELLED },
+      });
+      expect(eventsCancel).not.toHaveBeenCalled();
+      expect(summary.failedSteps).toEqual([]);
+    });
+
+    it("clears cancellationReason on the user's past bookings", async () => {
+      await service.deleteAccount(userId, orgId);
+      const call = models.Booking.updateMany.mock.calls.find(([, update]: any[]) => update.$unset?.cancellationReason !== undefined);
+      expect(call[0]).toMatchObject({
+        organizationId: orgOid,
+        userId: userOid,
+        cancellationReason: { $exists: true },
+      });
+      expect(call[0].endDate.$lte).toBeInstanceOf(Date);
     });
   });
 });
