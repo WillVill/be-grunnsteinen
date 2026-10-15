@@ -23,7 +23,7 @@ dotenv.config();
 const MONGODB_URI =
   process.env.DATABASE_URL ||
   process.env.MONGODB_URI ||
-  "mongodb://localhost:27017/heime";
+  "mongodb://localhost:27017/grunnsteinen";
 const DRY_RUN = process.argv.includes("--dry-run");
 const ORG_CODE = (() => {
   const idx = process.argv.indexOf("--org");
