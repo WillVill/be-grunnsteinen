@@ -13,6 +13,7 @@ import {
 } from './schemas/conversation.schema';
 import { Message, MessageDocument } from './schemas/message.schema';
 import { refId } from '../../common/schemas/ref-id';
+import { findInOrg } from '../../common/schemas/tenant';
 import {
   User,
   UserDocument,
@@ -105,11 +106,14 @@ export class MessagesService {
    * Can this user read/reply to the conversation? Participants always can.
    * For support threads, eligible staff can too (admins anywhere; board for the
    * Grunnsteinen channel; host/caretaker for the husvert channel in their building).
+   * A conversation in another organisation is never accessible, whatever the role.
    */
   private async canAccessConversation(
     conversation: ConversationDocument,
     userId: string,
+    orgId: string,
   ): Promise<boolean> {
+    if (refId(conversation.organizationId) !== orgId) return false;
     const isParticipant = conversation.participants.some(
       (p: any) => (p?._id ?? p).toString() === userId,
     );
@@ -309,20 +313,15 @@ export class MessagesService {
 
     // Get or create conversation
     if (dto.conversationId) {
-      conversation = await this.conversationModel.findById(dto.conversationId);
+      conversation = await findInOrg(this.conversationModel, dto.conversationId, orgId, null, 'Conversation');
       if (!conversation) {
         throw new NotFoundException('Conversation not found');
       }
 
       // Participants always allowed; eligible staff allowed on support threads
-      const allowed = await this.canAccessConversation(conversation, userId);
+      const allowed = await this.canAccessConversation(conversation, userId, orgId);
       if (!allowed) {
         throw new ForbiddenException('You are not a participant in this conversation');
-      }
-
-      // Verify conversation belongs to organization
-      if (conversation.organizationId.toString() !== orgId) {
-        throw new ForbiddenException('Conversation does not belong to your organization');
       }
     } else if (dto.recipientId) {
       conversation = await this.getOrCreateConversation(
@@ -504,10 +503,10 @@ export class MessagesService {
   async getConversationById(
     conversationId: string,
     userId: string,
+    orgId: string,
     recentMessagesLimit: number = 10,
   ): Promise<ConversationDocument & { recentMessages: MessageDocument[] }> {
-    const conversation = await this.conversationModel
-      .findById(conversationId)
+    const conversation = await findInOrg(this.conversationModel, conversationId, orgId, null, 'Conversation')
       .populate('participants', 'name avatarUrl avatarColor email')
       .exec();
 
@@ -515,7 +514,7 @@ export class MessagesService {
       throw new NotFoundException('Conversation not found');
     }
 
-    const canAccess = await this.canAccessConversation(conversation, userId);
+    const canAccess = await this.canAccessConversation(conversation, userId, orgId);
     if (!canAccess) {
       throw new ForbiddenException('You are not a participant in this conversation');
     }
@@ -542,15 +541,16 @@ export class MessagesService {
   async getMessages(
     conversationId: string,
     userId: string,
+    orgId: string,
     query: MessageQueryDto,
   ): Promise<PaginatedResponseDto<MessageDocument>> {
-    // Verify conversation exists and user is participant
-    const conversation = await this.conversationModel.findById(conversationId);
+    // Verify conversation exists in the caller's org and user may read it
+    const conversation = await findInOrg(this.conversationModel, conversationId, orgId, null, 'Conversation');
     if (!conversation) {
       throw new NotFoundException('Conversation not found');
     }
 
-    const canAccess = await this.canAccessConversation(conversation, userId);
+    const canAccess = await this.canAccessConversation(conversation, userId, orgId);
     if (!canAccess) {
       throw new ForbiddenException('You are not a participant in this conversation');
     }
@@ -616,13 +616,13 @@ export class MessagesService {
   /**
    * Mark all messages in conversation as read
    */
-  async markAsRead(conversationId: string, userId: string): Promise<void> {
-    const conversation = await this.conversationModel.findById(conversationId);
+  async markAsRead(conversationId: string, userId: string, orgId: string): Promise<void> {
+    const conversation = await findInOrg(this.conversationModel, conversationId, orgId, null, 'Conversation');
     if (!conversation) {
       throw new NotFoundException('Conversation not found');
     }
 
-    const canAccess = await this.canAccessConversation(conversation, userId);
+    const canAccess = await this.canAccessConversation(conversation, userId, orgId);
     if (!canAccess) {
       throw new ForbiddenException('You are not a participant in this conversation');
     }
