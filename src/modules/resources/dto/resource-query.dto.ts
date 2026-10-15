@@ -1,8 +1,8 @@
 import { IsOptional, IsEnum, IsBoolean, IsMongoId } from 'class-validator';
-import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { ResourceType } from '../schemas/resource.schema';
+import { ToBoolean } from '../../../common/decorators/to-boolean.decorator';
 
 export class ResourceQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
@@ -20,11 +20,7 @@ export class ResourceQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   isActive?: boolean;
 
   @ApiPropertyOptional({

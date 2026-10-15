@@ -5,10 +5,11 @@ import {
   IsBoolean,
   IsMongoId,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 import { EventCategory, EventStatus } from '../schemas/event.schema';
+import { ToBoolean } from '../../../common/decorators/to-boolean.decorator';
 
 export class EventQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
@@ -61,11 +62,7 @@ export class EventQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
+  @ToBoolean()
   participating?: boolean;
 
   @ApiPropertyOptional({
