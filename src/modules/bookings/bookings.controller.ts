@@ -30,6 +30,7 @@ import {
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { isBoardOrAbove } from '../users/schemas/user.schema';
 
 @ApiTags('Bookings')
 @ApiBearerAuth('JWT-auth')
@@ -81,7 +82,7 @@ export class BookingsController {
     @CurrentUser() user: CurrentUserData,
     @Query() query: BookingQueryDto,
   ) {
-    const isBoard = ['board', 'admin'].includes(user.role);
+    const isBoard = isBoardOrAbove(user.role);
     return this.bookingsService.findAll(
       user.organizationId,
       user.userId,
@@ -130,7 +131,7 @@ export class BookingsController {
     @CurrentUser() user: CurrentUserData,
     @Param('id') id: string,
   ) {
-    const isBoard = ['board', 'admin'].includes(user.role);
+    const isBoard = isBoardOrAbove(user.role);
     return this.bookingsService.findById(id, user.userId, isBoard, user.organizationId);
   }
 
@@ -155,7 +156,7 @@ export class BookingsController {
     @Param('id') id: string,
     @Body() updateBookingDto: UpdateBookingDto,
   ) {
-    const isBoard = ['board', 'admin'].includes(user.role);
+    const isBoard = isBoardOrAbove(user.role);
     return this.bookingsService.update(id, user.userId, isBoard, user.organizationId, updateBookingDto);
   }
 
