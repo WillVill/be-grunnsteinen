@@ -30,6 +30,11 @@ import {
   OrganizationDocument,
 } from "../organizations/schemas/organization.schema";
 import { EmailService } from "../../shared/services/email.service";
+import {
+  Building,
+  BuildingDocument,
+} from "../buildings/schemas/building.schema";
+import { assertIdsInOrg } from "../../common/schemas/tenant";
 
 @Injectable()
 export class UsersService {
@@ -40,6 +45,8 @@ export class UsersService {
     private readonly userModel: Model<UserDocument>,
     @InjectModel(Organization.name)
     private readonly organizationModel: Model<OrganizationDocument>,
+    @InjectModel(Building.name)
+    private readonly buildingModel: Model<BuildingDocument>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
   ) {}
@@ -348,6 +355,15 @@ export class UsersService {
       throw new ConflictException("A user with this email already exists");
     }
 
+    // buildingIds (and the primaryBuildingId derived from it) drive building-
+    // scoped access, so every one must be a building in the caller's org.
+    await assertIdsInOrg(
+      this.buildingModel,
+      dto.buildingIds,
+      organizationId,
+      "Building",
+    );
+
     const buildingObjectIds = (dto.buildingIds || []).map(
       (id) => new Types.ObjectId(id),
     );
@@ -501,6 +517,12 @@ export class UsersService {
     if (dto.phone !== undefined) updateData.phone = dto.phone;
     if (dto.role !== undefined) updateData.role = dto.role;
     if (dto.buildingIds !== undefined) {
+      await assertIdsInOrg(
+        this.buildingModel,
+        dto.buildingIds,
+        organizationId,
+        "Building",
+      );
       updateData.buildingIds = dto.buildingIds.map(
         (id) => new Types.ObjectId(id),
       );
