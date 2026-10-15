@@ -23,10 +23,15 @@ export class PaginationQueryDto {
   @IsString()
   sortBy?: string;
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  // No initialiser on purpose: with `transform: true` a class default reaches every service and
+  // overrides its own default (e.g. events by startDate asc, users by name asc).
+  @ApiPropertyOptional({
+    enum: ['asc', 'desc'],
+    description: 'Sort direction. The default depends on the endpoint (e.g. newest first for posts, name A–Å for users).',
+  })
   @IsOptional()
   @IsIn(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc' = 'desc';
+  sortOrder?: 'asc' | 'desc';
 
   @ApiPropertyOptional({ description: 'Filter by building ID' })
   @IsOptional()
