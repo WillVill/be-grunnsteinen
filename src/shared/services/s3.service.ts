@@ -4,10 +4,37 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
+
+/**
+ * Key prefixes `deletePrefix` may touch. Everything under them belongs to a
+ * single user or item; `public/gallery/` (curated, shared) is deliberately
+ * absent.
+ */
+export const DELETABLE_PREFIXES = [
+  "public/avatars/",
+  "public/sharing/items/",
+] as const;
+
+/**
+ * Throws unless `prefix` is a scoped folder under one of DELETABLE_PREFIXES:
+ * it must name a sub-folder (non-empty segment after the root, ending in `/`)
+ * so a bare root like `public/avatars/` can never wipe every user's files.
+ */
+export function assertDeletablePrefix(prefix: string): void {
+  const root = DELETABLE_PREFIXES.find(
+    (allowed) => typeof prefix === "string" && prefix.startsWith(allowed),
+  );
+  const rest = root ? prefix.slice(root.length) : "";
+  if (!root || !/^[A-Za-z0-9_-]+\/$/.test(rest)) {
+    throw new BadRequestException(`Refusing to delete S3 prefix: "${prefix}"`);
+  }
+}
 
 @Injectable()
 export class S3Service {
@@ -91,6 +118,52 @@ export class S3Service {
 
     await this.s3Client.send(command);
     this.logger.log(`File deleted: ${key}`);
+  }
+
+  /**
+   * Delete every object under `prefix` (e.g. `public/avatars/<userId>/`).
+   * Only scoped folders under DELETABLE_PREFIXES are accepted. Lists with
+   * ListObjectsV2 and deletes in batches of up to 1000 keys (the S3 maximum).
+   * Returns the number of objects deleted.
+   */
+  async deletePrefix(prefix: string): Promise<number> {
+    assertDeletablePrefix(prefix);
+
+    let deleted = 0;
+    let continuationToken: string | undefined;
+    do {
+      const page = await this.s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          MaxKeys: 1000,
+          ContinuationToken: continuationToken,
+        }),
+      );
+      const keys = (page.Contents ?? [])
+        .map((object) => object.Key)
+        .filter((key): key is string => !!key);
+      if (keys.length > 0) {
+        const result = await this.s3Client.send(
+          new DeleteObjectsCommand({
+            Bucket: this.bucket,
+            Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+          }),
+        );
+        if (result.Errors?.length) {
+          this.logger.error(
+            `Failed to delete ${result.Errors.length} object(s) under ${prefix}`,
+          );
+        }
+        deleted += keys.length - (result.Errors?.length ?? 0);
+      }
+      continuationToken = page.IsTruncated
+        ? page.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    this.logger.log(`Deleted ${deleted} object(s) under ${prefix}`);
+    return deleted;
   }
 
   /**

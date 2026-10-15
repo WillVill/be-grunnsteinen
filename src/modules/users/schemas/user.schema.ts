@@ -219,6 +219,15 @@ export class User {
   @Prop()
   lastLoginAt?: Date;
 
+  // Account deleted by the user (DELETE /users/me). The document is kept as an
+  // anonymised tombstone so references from other collections stay resolvable;
+  // see AccountDeletionService.
+  @Prop({ default: false, index: true })
+  isDeleted: boolean;
+
+  @Prop()
+  deletedAt?: Date;
+
   @Prop({ select: false })
   passwordResetToken?: string;
 
