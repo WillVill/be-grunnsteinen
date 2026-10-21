@@ -374,7 +374,7 @@ describe('UsersService blocking', () => {
     it('adds the target with $addToSet', async () => {
       await service.blockUser(me, targetId, orgId);
       expect(updateOne).toHaveBeenCalledWith(
-        { _id: me },
+        { _id: new Types.ObjectId(me), organizationId: new Types.ObjectId(orgId) },
         { $addToSet: { blockedUserIds: new Types.ObjectId(targetId) } },
       );
     });
@@ -382,12 +382,15 @@ describe('UsersService blocking', () => {
 
   describe('unblockUser', () => {
     it('removes the target with $pull', async () => {
-      await service.unblockUser(me, targetId);
-      expect(updateOne).toHaveBeenCalledWith({ _id: me }, { $pull: { blockedUserIds: new Types.ObjectId(targetId) } });
+      await service.unblockUser(me, targetId, orgId);
+      expect(updateOne).toHaveBeenCalledWith(
+        { _id: new Types.ObjectId(me), organizationId: new Types.ObjectId(orgId) },
+        { $pull: { blockedUserIds: new Types.ObjectId(targetId) } },
+      );
     });
 
     it('404s on a malformed id', async () => {
-      await expect(service.unblockUser(me, 'nope')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.unblockUser(me, 'nope', orgId)).rejects.toBeInstanceOf(NotFoundException);
       expect(updateOne).not.toHaveBeenCalled();
     });
   });

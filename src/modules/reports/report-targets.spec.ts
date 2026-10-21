@@ -72,6 +72,19 @@ describe('resolveReportTarget', () => {
       models.group.findOne.mockReturnValue(query({ _id: groupId, isPrivate: true, members: [reporterOid] }));
       await expect(run(ReportTargetType.POST, String(postId))).resolves.toMatchObject({ excerpt: 'T — C' });
     });
+    it('resolves a post whose group was deleted (matches PostsService read path)', async () => {
+      const groupId = oid();
+      models.post.findOne.mockReturnValue(query({ _id: postId, authorId: ownerOid, title: 'T', content: 'C', groupId }));
+      models.group.findOne.mockReturnValue(query(null));
+      await expect(run(ReportTargetType.POST, String(postId))).resolves.toMatchObject({ excerpt: 'T — C' });
+    });
+    it('cuts the excerpt by code points so an emoji is never split', async () => {
+      models.post.findOne.mockReturnValue(query({ _id: postId, authorId: ownerOid, content: '😀'.repeat(300) }));
+      const { excerpt } = await run(ReportTargetType.POST, String(postId));
+      expect(Array.from(excerpt)).toHaveLength(EXCERPT_MAX);
+      expect(excerpt.endsWith('…')).toBe(true);
+      expect(excerpt).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+    });
     it('cuts a long excerpt to 280 characters ending in an ellipsis', async () => {
       models.post.findOne.mockReturnValue(query({ _id: postId, authorId: ownerOid, title: 'T', content: 'x'.repeat(600) }));
       const { excerpt } = await run(ReportTargetType.POST, String(postId));

@@ -57,14 +57,23 @@ export class ReportsService {
     const existing = await this.reportModel.findOne({ ...key, status: ReportStatus.OPEN }).exec();
     if (existing) return { report: existing, isNew: false };
 
-    const report = await this.reportModel.create({
-      ...key,
-      targetOwnerId: target.ownerId ? new Types.ObjectId(target.ownerId) : undefined,
-      excerpt: target.excerpt,
-      webPath: target.webPath,
-      reason: dto.reason,
-      details: dto.details?.trim() || undefined,
-    });
+    let report: ReportDocument;
+    try {
+      report = await this.reportModel.create({
+        ...key,
+        targetOwnerId: target.ownerId ? new Types.ObjectId(target.ownerId) : undefined,
+        excerpt: target.excerpt,
+        webPath: target.webPath,
+        reason: dto.reason,
+        details: dto.details?.trim() || undefined,
+      });
+    } catch (error: any) {
+      if (error?.code !== 11000) throw error;
+      // Double-tap race: the partial unique index rejected the second insert.
+      const raced = await this.reportModel.findOne({ ...key, status: ReportStatus.OPEN }).exec();
+      if (!raced) throw error;
+      return { report: raced, isNew: false };
+    }
     this.logger.log(`Report ${report.id}: ${dto.targetType} ${dto.targetId} (${dto.reason}) in org ${orgId}`);
     await this.notifyStaff(report, reporter).catch((error) =>
       this.logger.warn(`Report ${report.id}: staff notification failed: ${error?.message ?? error}`),
@@ -83,8 +92,15 @@ export class ReportsService {
         })
         .select('name email')
         .exec()
-    ).filter((s) => s._id.toString() !== reporter.userId);
-    if (!staff.length) return;
+    ).filter((s) => {
+      const id = s._id.toString();
+      // The reported owner must never learn who reported them.
+      return id !== reporter.userId && id !== report.targetOwnerId?.toString();
+    });
+    if (!staff.length) {
+      this.logger.warn(`Report ${report.id}: no staff recipients to notify`);
+      return;
+    }
 
     const message = `${TYPE_LABELS[report.targetType]} rapportert: ${REASON_LABELS[report.reason]}`;
     await this.notificationService

@@ -60,3 +60,8 @@ export class Report {
 export type ReportDocument = HydratedDocument<Report>;
 export const ReportSchema = SchemaFactory.createForClass(Report);
 ReportSchema.index({ reporterId: 1, targetType: 1, targetId: 1, status: 1 });
+// One open report per reporter and target; closes the double-tap race.
+ReportSchema.index(
+  { organizationId: 1, reporterId: 1, targetType: 1, targetId: 1 },
+  { unique: true, partialFilterExpression: { status: 'open' } },
+);

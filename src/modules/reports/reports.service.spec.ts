@@ -152,6 +152,33 @@ describe('ReportsService.create', () => {
     );
   });
 
+  it('does not notify a staff member who owns the reported content', async () => {
+    const ownerAsStaff = { _id: ownerId, email: 'o@example.com', name: 'O' };
+    userModel.find.mockReturnValue(query([staffA, ownerAsStaff, reporterAsStaff]));
+    await service.create(dto, reporter);
+    expect(notificationService.createBulkNotifications.mock.calls[0][0]).toEqual([String(staffA._id)]);
+    expect(emailService.sendContentReport.mock.calls[0][0]).toEqual([{ email: 'a@example.com', name: 'A' }]);
+  });
+
+  it('warns and sends nothing when no recipients remain', async () => {
+    const ownerAsStaff = { _id: ownerId, email: 'o@example.com', name: 'O' };
+    userModel.find.mockReturnValue(query([ownerAsStaff, reporterAsStaff]));
+    await expect(service.create(dto, reporter)).resolves.toMatchObject({ isNew: true });
+    expect(Logger.prototype.warn).toHaveBeenCalledTimes(1);
+    expect(notificationService.createBulkNotifications).not.toHaveBeenCalled();
+    expect(emailService.sendContentReport).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing open report when create hits a duplicate-key race', async () => {
+    const existing = { id: 'old', status: ReportStatus.OPEN };
+    reportModel.findOne.mockReturnValueOnce(query(null)).mockReturnValueOnce(query(existing));
+    reportModel.create.mockRejectedValue({ code: 11000 });
+    await expect(service.create(dto, reporter)).resolves.toEqual({ report: existing, isNew: false });
+    expect(reportModel.findOne).toHaveBeenCalledTimes(2);
+    expect(notificationService.createBulkNotifications).not.toHaveBeenCalled();
+    expect(emailService.sendContentReport).not.toHaveBeenCalled();
+  });
+
   it('still resolves when notification and email fail, logging warnings', async () => {
     notificationService.createBulkNotifications.mockRejectedValue(new Error('push down'));
     emailService.sendContentReport.mockRejectedValue(new Error('smtp down'));

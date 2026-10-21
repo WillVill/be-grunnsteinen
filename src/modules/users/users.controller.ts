@@ -141,8 +141,8 @@ export class UsersController {
   @Delete("me/blocked/:id")
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Unblock a user" })
-  unblock(@Param("id") id: string, @CurrentUser("userId") userId: string) {
-    return this.usersService.unblockUser(userId, id);
+  unblock(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
+    return this.usersService.unblockUser(user.userId, id, user.organizationId);
   }
 
   @Get(":id")

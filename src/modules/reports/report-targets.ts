@@ -34,11 +34,16 @@ export function excerptOf(...parts: (string | undefined | null)[]): string {
     .join(' — ')
     .replace(/\s+/g, ' ')
     .trim();
-  return text.length > EXCERPT_MAX ? `${text.slice(0, EXCERPT_MAX - 1)}…` : text;
+  const chars = Array.from(text);
+  return chars.length > EXCERPT_MAX ? chars.slice(0, EXCERPT_MAX - 1).join('') + '…' : text;
 }
 
 const notFound = () => new NotFoundException('Content not found');
 
+/**
+ * Mirrors `PostsService.assertPostVisible`: a group that no longer exists does not
+ * hide its posts (`allowMissing`), but an existing group the reporter cannot view does.
+ */
 async function assertGroupVisibleTo(models: ReportTargetModels, groupId: unknown, reporter: Reporter, orgId: string) {
   const id = refId(groupId);
   if (!id || !Types.ObjectId.isValid(id)) throw notFound();
@@ -46,7 +51,8 @@ async function assertGroupVisibleTo(models: ReportTargetModels, groupId: unknown
     .findOne({ _id: id, organizationId: new Types.ObjectId(orgId) })
     .lean()
     .exec();
-  if (!group || !canViewGroup(group, reporter.userId, reporter)) throw notFound();
+  if (!group) return undefined;
+  if (!canViewGroup(group, reporter.userId, reporter)) throw notFound();
   return group;
 }
 

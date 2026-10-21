@@ -663,18 +663,18 @@ export class UsersService {
       throw new NotFoundException("User not found");
     }
     await this.userModel.updateOne(
-      { _id: userId },
+      { _id: new Types.ObjectId(userId), organizationId: new Types.ObjectId(orgId) },
       { $addToSet: { blockedUserIds: new Types.ObjectId(targetId) } },
     );
   }
 
   /** Remove a block. Idempotent; a malformed id reads as not found. */
-  async unblockUser(userId: string, targetId: string): Promise<void> {
+  async unblockUser(userId: string, targetId: string, orgId: string): Promise<void> {
     if (!Types.ObjectId.isValid(targetId)) {
       throw new NotFoundException("User not found");
     }
     await this.userModel.updateOne(
-      { _id: userId },
+      { _id: new Types.ObjectId(userId), organizationId: new Types.ObjectId(orgId) },
       { $pull: { blockedUserIds: new Types.ObjectId(targetId) } },
     );
   }
