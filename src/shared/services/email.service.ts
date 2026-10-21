@@ -8,7 +8,9 @@ import {
   renderH1,
   renderInfoBox,
   renderLinkFallback,
+  escapeHtml,
 } from "../email-templates/base-layout";
+import { REASON_LABELS, TYPE_LABELS } from "../../modules/reports/report-labels";
 
 export interface EmailUser {
   _id: string;
@@ -424,6 +426,52 @@ export class EmailService {
     });
 
     await Promise.all(sendPromises);
+  }
+
+  async sendContentReport(
+    staff: { email: string; name?: string }[],
+    report: {
+      targetType: string;
+      reason: string;
+      excerpt?: string;
+      details?: string;
+      webPath?: string;
+    },
+    reporterName: string,
+  ): Promise<void> {
+    const typeLabel = TYPE_LABELS[report.targetType] ?? report.targetType;
+    const reasonLabel = REASON_LABELS[report.reason] ?? report.reason;
+    const subject = `Rapportert innhold: ${typeLabel}`;
+
+    const content = `
+      ${renderH1("Innhold er rapportert")}
+      ${renderInfoBox(`
+        <p style="margin:0 0 8px 0;"><strong>${escapeHtml(typeLabel)}</strong> · ${escapeHtml(reasonLabel)}</p>
+        <p style="margin:0 0 8px 0;">Rapportert av ${escapeHtml(reporterName)}</p>
+        ${report.excerpt ? `<p style="margin:0 0 8px 0;">«${escapeHtml(report.excerpt)}»</p>` : ""}
+        ${report.details ? `<p style="margin:0;">Utdyping: ${escapeHtml(report.details)}</p>` : ""}
+      `)}
+      ${
+        report.webPath
+          ? renderButton("Åpne i Grunnsteinen", `${this.frontendUrl}${report.webPath}`)
+          : `<p>Meldinger mellom naboer kan ikke åpnes av styret. Utdraget over er det som ble rapportert.</p>`
+      }
+      <p>Vurder saken innen 24 timer. Du kan slette innholdet, eller deaktivere brukeren under Admin → Brukere.</p>
+    `;
+    const html = renderEmailLayout(content, {
+      frontendUrl: this.frontendUrl,
+      preheader: `${typeLabel} rapportert: ${reasonLabel}`,
+    });
+
+    await Promise.all(
+      staff.map((recipient) =>
+        this.sendEmail(recipient.email, subject, html).catch((error) => {
+          this.logger.warn(
+            `Failed to send content report to ${recipient.email}: ${error?.message ?? error}`,
+          );
+        }),
+      ),
+    );
   }
 
   private stripHtml(html: string): string {
