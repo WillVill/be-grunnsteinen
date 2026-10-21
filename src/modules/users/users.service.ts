@@ -117,6 +117,7 @@ export class UsersService {
     const filter: QueryFilter<UserDocument> = {
       organizationId: new Types.ObjectId(organizationId),
       isProfilePrivate: { $ne: true },
+      isDeleted: { $ne: true },
     };
 
     const andClauses: Record<string, unknown>[] = [];
@@ -248,6 +249,7 @@ export class UsersService {
         organizationId: new Types.ObjectId(organizationId),
         isHelpfulNeighbor: true,
         isActive: true,
+        isDeleted: { $ne: true },
         isProfilePrivate: { $ne: true },
         // Org-wide staff are linked to every building, so they'd show up everywhere
         role: { $nin: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
@@ -492,7 +494,7 @@ export class UsersService {
       organizationId: new Types.ObjectId(organizationId),
     });
 
-    if (!user) {
+    if (!user || user.isDeleted) {
       throw new NotFoundException("User not found");
     }
 
@@ -564,7 +566,11 @@ export class UsersService {
     }
 
     const updated = await this.userModel.findOneAndUpdate(
-      { _id: userId, organizationId: new Types.ObjectId(organizationId) },
+      {
+        _id: userId,
+        organizationId: new Types.ObjectId(organizationId),
+        isDeleted: { $ne: true },
+      },
       { $set: updateData },
       { new: true, runValidators: true },
     );

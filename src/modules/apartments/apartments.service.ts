@@ -228,7 +228,7 @@ export class ApartmentsService {
       organizationId: new Types.ObjectId(organizationId),
     });
 
-    if (!user) {
+    if (!user || user.isDeleted) {
       throw new NotFoundException(
         `User with ID "${assignTenantDto.userId}" not found`,
       );

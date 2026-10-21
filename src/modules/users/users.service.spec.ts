@@ -226,3 +226,96 @@ describe('UsersService admin invitation flow', () => {
     });
   });
 });
+
+describe('UsersService hides deleted accounts from lists', () => {
+  let service: UsersService;
+  let find: jest.Mock;
+  let countDocuments: jest.Mock;
+
+  beforeEach(async () => {
+    const chain: any = {};
+    for (const m of ['sort', 'skip', 'limit', 'select']) chain[m] = jest.fn(() => chain);
+    chain.exec = jest.fn().mockResolvedValue([]);
+    find = jest.fn(() => chain);
+    countDocuments = jest.fn().mockResolvedValue(0);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: getModelToken(User.name), useValue: { find, countDocuments } },
+        { provide: getModelToken(Organization.name), useValue: {} },
+        { provide: getModelToken(Building.name), useValue: {} },
+        { provide: EmailService, useValue: {} },
+        { provide: ConfigService, useValue: { get: () => 'https://example.com' } },
+      ],
+    }).compile();
+
+    service = module.get<UsersService>(UsersService);
+  });
+
+  it.each([
+    ['the users list', {}],
+    ['the admins list (which also shows pending invites)', { onlyRoles: 'admin,super_admin' }],
+  ])('%s filters out isDeleted', async (_label, query) => {
+    await service.findByOrganization(orgId, { page: 1, limit: 20, ...query } as any);
+    expect(find.mock.calls[0][0]).toMatchObject({
+      organizationId: new Types.ObjectId(orgId),
+      isDeleted: { $ne: true },
+    });
+    expect(countDocuments.mock.calls[0][0]).toMatchObject({ isDeleted: { $ne: true } });
+  });
+
+  it('the helpful-neighbours list filters out isDeleted', async () => {
+    await service.getHelpfulNeighbors(orgId);
+    expect(find.mock.calls[0][0]).toMatchObject({
+      organizationId: new Types.ObjectId(orgId),
+      isActive: true,
+      isDeleted: { $ne: true },
+    });
+  });
+});
+
+describe('UsersService admin edits refuse deleted accounts', () => {
+  let service: UsersService;
+  let findOne: jest.Mock;
+  let findOneAndUpdate: jest.Mock;
+
+  beforeEach(async () => {
+    findOne = jest.fn().mockResolvedValue({
+      _id: new Types.ObjectId(targetId),
+      role: UserRole.ADMIN,
+      isDeleted: true,
+      save: jest.fn(),
+    });
+    findOneAndUpdate = jest.fn().mockResolvedValue(null);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: getModelToken(User.name), useValue: { findOne, findOneAndUpdate } },
+        { provide: getModelToken(Organization.name), useValue: {} },
+        { provide: getModelToken(Building.name), useValue: { countDocuments: jest.fn() } },
+        { provide: EmailService, useValue: {} },
+        { provide: ConfigService, useValue: { get: () => 'https://example.com' } },
+      ],
+    }).compile();
+
+    service = module.get<UsersService>(UsersService);
+  });
+
+  it('updateAdminUser 404s for a tombstone', async () => {
+    await expect(service.updateAdminUser(orgId, targetId, { name: 'X' } as any)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('updateCareInfo excludes tombstones from its match, so it 404s', async () => {
+    await expect(service.updateCareInfo(orgId, targetId, { pets: { hasPets: true } } as any)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(findOneAndUpdate.mock.calls[0][0]).toMatchObject({
+      organizationId: new Types.ObjectId(orgId),
+      isDeleted: { $ne: true },
+    });
+  });
+});

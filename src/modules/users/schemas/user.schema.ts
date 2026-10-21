@@ -18,6 +18,13 @@ export enum UserRole {
 }
 
 /**
+ * Domain of the synthetic address a deleted account's tombstone gets
+ * (`deleted+<id>@deleted.invalid`). `.invalid` can never resolve, and
+ * EmailService refuses to send to it.
+ */
+export const DELETED_EMAIL_DOMAIN = "deleted.invalid";
+
+/**
  * Check if a role has admin-level privileges (ADMIN or SUPER_ADMIN)
  */
 export function isAdminRole(role: string): boolean {
@@ -218,6 +225,25 @@ export class User {
 
   @Prop()
   lastLoginAt?: Date;
+
+  // Account deleted by the user (DELETE /users/me). The document is kept as an
+  // anonymised tombstone so references from other collections stay resolvable;
+  // see AccountDeletionService.
+  @Prop({ default: false, index: true })
+  isDeleted: boolean;
+
+  @Prop()
+  deletedAt?: Date;
+
+  // Set once every cascade step of the deletion succeeded. A tombstone without
+  // it still has data to clean up: scripts/complete-account-deletion.ts --pending.
+  @Prop()
+  deletionCompletedAt?: Date;
+
+  // S3 keys of a deleted account's known files (avatar) whose delete failed;
+  // the tombstone no longer carries avatarUrl, so a re-run needs them here.
+  @Prop({ type: [String], default: undefined, select: false })
+  pendingS3Keys?: string[];
 
   @Prop({ select: false })
   passwordResetToken?: string;

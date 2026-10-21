@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { EventsService } from './events.service';
-import { Event } from './schemas/event.schema';
+import { Event, EventSchema, EventStatus } from './schemas/event.schema';
 import { User, UserRole } from '../users/schemas/user.schema';
 import { Group } from '../groups/schemas/group.schema';
 import { NotificationService } from '../../shared/services/notification.service';
@@ -223,6 +223,53 @@ describe('EventsService organisation and group privacy', () => {
     it('lets the organizer delete their event in their organisation', async () => {
       await expect(service.delete(eventId, outsiderId, orgId)).resolves.toBeUndefined();
       expect(eventDeleteOne).toHaveBeenCalledWith({ _id: eventId });
+    });
+  });
+
+  describe('join', () => {
+    it('refuses a second join when participants come back populated', async () => {
+      const event = { ...groupEvent(), participants: [{ _id: new Types.ObjectId(memberId), name: 'Nabo' }] };
+      eventFindOne.mockReturnValue(query(event));
+      await expect(service.join(eventId, memberId, orgId)).rejects.toThrow('Already participating in this event');
+      expect(event.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cancel', () => {
+    it('saves validating only the modified status, so a legacy event still cancels', async () => {
+      const event = groupEvent();
+      eventFindOne.mockReturnValue(query(event));
+      await service.cancel(eventId, outsiderId, orgId);
+      expect((event as any).status).toBe(EventStatus.CANCELLED);
+      expect(event.save).toHaveBeenCalledWith({ validateModifiedOnly: true });
+    });
+
+    it('notifies participants by id when they come back populated', async () => {
+      const participantId = new Types.ObjectId();
+      const event = { ...groupEvent(), participants: [{ _id: participantId, name: 'Nabo' }] };
+      eventFindOne.mockReturnValue(query(event));
+      userFind.mockReturnValue(query([{ _id: participantId, email: 'n@x', name: 'Nabo' }]));
+      await service.cancel(eventId, outsiderId, orgId);
+      expect(userFind).toHaveBeenCalledWith({ _id: { $in: [String(participantId)] } });
+      expect(createBulkNotifications.mock.calls[0][0]).toEqual([String(participantId)]);
+    });
+
+    it('a legacy event with an empty description fails full validation but passes validateModifiedOnly', async () => {
+      const EventModel = mongoose.models.EventCancelCheck ?? mongoose.model('EventCancelCheck', EventSchema);
+      const legacy = EventModel.hydrate({
+        _id: new Types.ObjectId(),
+        organizationId: new Types.ObjectId(orgId),
+        organizerId: new Types.ObjectId(outsiderId),
+        title: 'Gammelt arrangement',
+        description: '',
+        location: 'Gården',
+        startDate: new Date('2030-01-01'),
+        endDate: new Date('2030-01-02'),
+        status: EventStatus.UPCOMING,
+      });
+      legacy.set('status', EventStatus.CANCELLED);
+      await expect(legacy.validate()).rejects.toThrow(/description/);
+      await expect(legacy.validate({ validateModifiedOnly: true })).resolves.toBeUndefined();
     });
   });
 

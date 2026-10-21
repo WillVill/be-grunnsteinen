@@ -58,7 +58,8 @@ export class MessagesService {
 
     // Verify recipient exists and is in same organization
     const recipient = await this.userModel.findById(recipientId);
-    if (!recipient) {
+    // A deleted account is a tombstone: there is nobody left to talk to.
+    if (!recipient || recipient.isDeleted) {
       throw new NotFoundException('Recipient not found');
     }
 
@@ -322,6 +323,18 @@ export class MessagesService {
       const allowed = await this.canAccessConversation(conversation, userId, orgId);
       if (!allowed) {
         throw new ForbiddenException('You are not a participant in this conversation');
+      }
+
+      // The thread stays readable after the partner deletes their account, but
+      // nothing new can be sent into it.
+      if (conversation.type !== 'support') {
+        const partnerId = conversation.participants.find((p) => p.toString() !== userId);
+        const partner = partnerId
+          ? await this.userModel.findById(partnerId).select('isDeleted')
+          : null;
+        if (partner?.isDeleted) {
+          throw new NotFoundException('Recipient not found');
+        }
       }
     } else if (dto.recipientId) {
       conversation = await this.getOrCreateConversation(

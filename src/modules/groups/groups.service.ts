@@ -415,7 +415,7 @@ export class GroupsService {
     }
 
     const newMember = await this.userModel.findById(dto.userId);
-    if (!newMember || refId(newMember.organizationId) !== orgId) {
+    if (!newMember || newMember.isDeleted || refId(newMember.organizationId) !== orgId) {
       throw new NotFoundException('User to add not found');
     }
 
