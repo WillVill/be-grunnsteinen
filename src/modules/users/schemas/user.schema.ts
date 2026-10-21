@@ -245,6 +245,10 @@ export class User {
   @Prop({ type: [String], default: undefined, select: false })
   pendingS3Keys?: string[];
 
+  /** Users this user has blocked. Never serialised to other users. */
+  @Prop({ type: [{ type: Types.ObjectId, ref: "User" }], default: undefined, select: false })
+  blockedUserIds?: Types.ObjectId[];
+
   @Prop({ select: false })
   passwordResetToken?: string;
 

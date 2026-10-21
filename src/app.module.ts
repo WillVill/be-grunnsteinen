@@ -26,6 +26,7 @@ import { GroupsModule } from './modules/groups/groups.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { TenantProfilesModule } from './modules/tenant-profiles/tenant-profiles.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -62,6 +63,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     InvitationsModule,
     TenantProfilesModule,
     StatsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -216,6 +216,15 @@ export class AccountDeletionService {
         "avatar",
         () => this.deleteAvatar(userId, userOid, orgOid, pendingKeys, summary),
       ],
+      // Nobody keeps a dangling id in their block list.
+      [
+        "blockLists",
+        () =>
+          this.userModel.updateMany(
+            { organizationId: orgOid, blockedUserIds: userOid },
+            { $pull: { blockedUserIds: userOid } },
+          ),
+      ],
       // Last, so notifications the cancel paths above addressed to this user go
       // too. Notifications carry no organisation; the user id is globally unique.
       ["notifications", () => this.notificationService.deleteAllNotifications(userOid)],
@@ -310,6 +319,7 @@ export class AccountDeletionService {
           passwordResetExpires: "",
           setupToken: "",
           setupTokenExpires: "",
+          blockedUserIds: "",
         },
         ...(avatarKeys.length > 0 && {
           $addToSet: { pendingS3Keys: { $each: avatarKeys } },

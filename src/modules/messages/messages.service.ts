@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -14,6 +15,7 @@ import {
 import { Message, MessageDocument } from './schemas/message.schema';
 import { refId } from '../../common/schemas/ref-id';
 import { findInOrg } from '../../common/schemas/tenant';
+import { isBlockedEitherWay } from '../users/blocking';
 import {
   User,
   UserDocument,
@@ -65,6 +67,10 @@ export class MessagesService {
 
     if (recipient.organizationId.toString() !== orgId) {
       throw new ForbiddenException('Recipient is not in your organization');
+    }
+
+    if (await isBlockedEitherWay(this.userModel, userId, recipientId)) {
+      throw new ConflictException('User is blocked');
     }
 
     // Sort participant IDs to ensure consistent ordering
@@ -334,6 +340,9 @@ export class MessagesService {
           : null;
         if (partner?.isDeleted) {
           throw new NotFoundException('Recipient not found');
+        }
+        if (partnerId && (await isBlockedEitherWay(this.userModel, userId, partnerId.toString()))) {
+          throw new ConflictException('User is blocked');
         }
       }
     } else if (dto.recipientId) {

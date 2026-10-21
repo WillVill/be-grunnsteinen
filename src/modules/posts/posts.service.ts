@@ -23,6 +23,7 @@ import { ConceptsService } from '../concepts/concepts.service';
 import { Permission, canModerateInBuilding } from '../../common/permissions/permissions';
 import { refId } from '../../common/schemas/ref-id';
 import { assertGroupVisible, findHiddenGroupIds } from '../groups/group-access';
+import { getBlockedIds } from '../users/blocking';
 
 @Injectable()
 export class PostsService {
@@ -301,6 +302,14 @@ export class PostsService {
       filter.conceptId = scopeConceptId;
     }
 
+    // Hide posts by users the caller has blocked (board announcements stay).
+    // A separate $and clause keeps every existing $or intact.
+    const blockedIds = await getBlockedIds(this.userModel, userId);
+    if (blockedIds.length > 0) {
+      const notBlocked = { $or: [{ authorId: { $nin: blockedIds } }, { isFromBoard: true }] };
+      filter.$and = [...(filter.$and ?? []), notBlocked];
+    }
+
     // Build sort: pinned posts first, then by specified field
     const sort: Record<string, 1 | -1> = {};
     if (sortBy === 'createdAt' && !filter.isPinned) {
@@ -399,8 +408,9 @@ export class PostsService {
     await this.assertPostVisible(post, userId);
 
     // Fetch comments for this post
+    const blockedIds = await getBlockedIds(this.userModel, userId);
     const comments = await this.commentModel
-      .find({ postId: new Types.ObjectId(postId) })
+      .find(this.commentFilter(postId, blockedIds))
       .populate('authorId', 'name avatarUrl avatarColor role')
       .sort({ createdAt: 1 })
       .lean()
@@ -697,19 +707,28 @@ export class PostsService {
   ): Promise<PaginatedResponseDto<CommentDocument>> {
     await this.assertPostVisible(await this.findPostDocument(postId, organizationId), userId);
     const skip = (page - 1) * limit;
+    const commentFilter = this.commentFilter(postId, await getBlockedIds(this.userModel, userId));
 
     const [comments, total] = await Promise.all([
       this.commentModel
-        .find({ postId: new Types.ObjectId(postId) })
+        .find(commentFilter)
         .populate('authorId', 'name avatarUrl avatarColor role')
         .sort({ createdAt: 1 })
         .skip(skip)
         .limit(limit)
         .exec(),
-      this.commentModel.countDocuments({ postId: new Types.ObjectId(postId) }),
+      this.commentModel.countDocuments(commentFilter),
     ]);
 
     return new PaginatedResponseDto(comments, total, page, limit);
   }
-}
 
+  /** Comments of a post, minus those by users the caller has blocked. */
+  private commentFilter(postId: string, blockedIds: Types.ObjectId[]): QueryFilter<CommentDocument> {
+    const filter: QueryFilter<CommentDocument> = { postId: new Types.ObjectId(postId) };
+    if (blockedIds.length > 0) {
+      filter.authorId = { $nin: blockedIds };
+    }
+    return filter;
+  }
+}
