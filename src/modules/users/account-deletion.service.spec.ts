@@ -263,7 +263,7 @@ describe('AccountDeletionService', () => {
       expect(Object.keys(update.$unset).sort()).toEqual(
         [
           'phone', 'avatarUrl', 'avatarColor', 'dateOfBirth', 'unitNumber', 'building', 'primaryBuildingId',
-          'lastLoginAt', 'passwordResetToken', 'passwordResetExpires', 'setupToken', 'setupTokenExpires',
+          'lastLoginAt', 'passwordResetToken', 'passwordResetExpires', 'setupToken', 'setupTokenExpires', 'blockedUserIds',
         ].sort(),
       );
       for (const kept of ['_id', 'organizationId', 'createdAt', 'role']) {
@@ -539,6 +539,17 @@ describe('AccountDeletionService', () => {
       for (const mock of [eventsCancel, bookingsCancel, createNotification, deletePrefix, deleteFile]) {
         expect(Math.max(...mock.mock.invocationCallOrder)).toBeLessThan(last);
       }
+    });
+
+    it('pulls the user from everyone\'s block list, before notifications are deleted', async () => {
+      await service.deleteAccount(userId, orgId);
+      expect(models.User.updateMany).toHaveBeenCalledWith(
+        { organizationId: orgOid, blockedUserIds: userOid },
+        { $pull: { blockedUserIds: userOid } },
+      );
+      expect(models.User.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+        deleteAllNotifications.mock.invocationCallOrder[0],
+      );
     });
 
     it('parks the avatar key in the tombstone write and unparks it once deleted', async () => {

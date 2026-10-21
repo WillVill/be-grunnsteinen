@@ -133,9 +133,11 @@ describe('PostsService group privacy', () => {
       expect(postFind.mock.calls[0][0].groupId).toEqual({ $nin: hidden });
     });
 
-    it('does not look the caller up when no private group is hidden', async () => {
+    it('does not look the caller up for a role when no private group is hidden', async () => {
       await service.findAll(orgId, {} as any, outsiderId);
-      expect(userFindById).not.toHaveBeenCalled();
+      // Only the block-list lookup.
+      expect(userFindById).toHaveBeenCalledTimes(1);
+      expect(userFindById.mock.results[0].value.select).toHaveBeenCalledWith('+blockedUserIds');
       expect(postFind.mock.calls[0][0].groupId).toBeUndefined();
     });
 
@@ -152,6 +154,43 @@ describe('PostsService group privacy', () => {
       userFindById.mockReturnValue(query({ role: UserRole.HOST }));
       await service.findAll(orgId, {} as any, outsiderId);
       expect(postFind.mock.calls[0][0].groupId).toEqual({ $nin: hidden });
+    });
+
+    describe('blocked authors', () => {
+      const blocked = new Types.ObjectId();
+      const blockedQuery = () => query({ role: UserRole.RESIDENT, buildingIds: [], blockedUserIds: [blocked] });
+
+      it('adds no clause when nothing is blocked', async () => {
+        await service.findAll(orgId, {} as any, outsiderId);
+        expect(postFind.mock.calls[0][0].$and).toBeUndefined();
+      });
+
+      it('hides blocked authors except board posts', async () => {
+        userFindById.mockImplementation(blockedQuery);
+        await service.findAll(orgId, {} as any, outsiderId);
+        expect(postFind.mock.calls[0][0].$and).toEqual([
+          { $or: [{ authorId: { $nin: [blocked] } }, { isFromBoard: true }] },
+        ]);
+      });
+
+      it('keeps the existing $or and the new clause together', async () => {
+        userFindById.mockImplementation(blockedQuery);
+        await service.findAll(orgId, { excludeGroupPosts: true } as any, outsiderId);
+        const filter = postFind.mock.calls[0][0];
+        expect(filter.$or).toEqual([{ groupId: { $exists: false } }, { groupId: null }]);
+        expect(filter.$and).toHaveLength(1);
+      });
+
+      it('appends to the $and that the building scope creates', async () => {
+        userFindById.mockImplementation(blockedQuery);
+        const buildingId = new Types.ObjectId().toString();
+        const conceptId = new Types.ObjectId().toString();
+        await service.findAll(orgId, { excludeGroupPosts: true, buildingId, conceptId } as any, outsiderId);
+        const filter = postFind.mock.calls[0][0];
+        expect(filter.$or).toBeUndefined();
+        expect(filter.$and).toHaveLength(3);
+        expect(filter.$and[2]).toEqual({ $or: [{ authorId: { $nin: [blocked] } }, { isFromBoard: true }] });
+      });
     });
 
     it('skips the private-group lookup when group posts are excluded anyway', async () => {
@@ -175,6 +214,39 @@ describe('PostsService group privacy', () => {
     it('allows reading a post whose group no longer exists', async () => {
       groupFindOne.mockReturnValue(query(null));
       await expect(service.findById(postId, outsiderId, orgId)).resolves.toBeDefined();
+    });
+  });
+
+  describe('blocked comment authors', () => {
+    const blocked = new Types.ObjectId();
+    const publicPost = { ...groupPost, groupId: undefined };
+
+    beforeEach(() => {
+      postFindOne.mockImplementation(inOrg(publicPost));
+      userFindById.mockImplementation(() => query({ role: UserRole.RESIDENT, buildingIds: [], blockedUserIds: [blocked] }));
+    });
+
+    it('filters them from the comments list and its count', async () => {
+      const countDocuments = jest.fn().mockResolvedValue(0);
+      (service as any).commentModel.countDocuments = countDocuments;
+      await service.getComments(postId, memberId, orgId);
+      const expected = { postId: new Types.ObjectId(postId), authorId: { $nin: [blocked] } };
+      expect(commentFind.mock.calls[0][0]).toEqual(expected);
+      expect(countDocuments).toHaveBeenCalledWith(expected);
+    });
+
+    it('filters them from the comments loaded with the post', async () => {
+      await service.findById(postId, memberId, orgId);
+      expect(commentFind.mock.calls[0][0]).toEqual({
+        postId: new Types.ObjectId(postId),
+        authorId: { $nin: [blocked] },
+      });
+    });
+
+    it('adds no authorId clause when nothing is blocked', async () => {
+      userFindById.mockImplementation(() => query({ role: UserRole.RESIDENT, buildingIds: [] }));
+      await service.getComments(postId, memberId, orgId);
+      expect(commentFind.mock.calls[0][0]).toEqual({ postId: new Types.ObjectId(postId) });
     });
   });
 

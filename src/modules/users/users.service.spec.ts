@@ -319,3 +319,80 @@ describe('UsersService admin edits refuse deleted accounts', () => {
     });
   });
 });
+
+describe('UsersService blocking', () => {
+  let service: UsersService;
+  let findOne: jest.Mock;
+  let updateOne: jest.Mock;
+  let findById: jest.Mock;
+  const me = '507f1f77bcf86cd799439021';
+
+  beforeEach(async () => {
+    findOne = jest.fn().mockResolvedValue({ _id: new Types.ObjectId(targetId), isDeleted: false });
+    updateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+    const q: any = {};
+    q.select = jest.fn().mockReturnValue(q);
+    q.lean = jest.fn().mockReturnValue(q);
+    q.exec = jest.fn().mockResolvedValue({ blockedUserIds: [new Types.ObjectId(targetId)] });
+    findById = jest.fn().mockReturnValue(q);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: getModelToken(User.name), useValue: { findOne, updateOne, findById } },
+        { provide: getModelToken(Organization.name), useValue: {} },
+        { provide: getModelToken(Building.name), useValue: {} },
+        { provide: EmailService, useValue: {} },
+        { provide: ConfigService, useValue: { get: () => 'https://example.com' } },
+      ],
+    }).compile();
+    service = module.get<UsersService>(UsersService);
+  });
+
+  describe('blockUser', () => {
+    it('refuses to block yourself', async () => {
+      await expect(service.blockUser(me, me, orgId)).rejects.toBeInstanceOf(BadRequestException);
+      expect(updateOne).not.toHaveBeenCalled();
+    });
+
+    it('404s for a user outside the org', async () => {
+      findOne.mockResolvedValue(null);
+      await expect(service.blockUser(me, targetId, orgId)).rejects.toBeInstanceOf(NotFoundException);
+      expect(findOne.mock.calls[0][0]).toMatchObject({
+        _id: targetId,
+        organizationId: new Types.ObjectId(orgId),
+      });
+      expect(updateOne).not.toHaveBeenCalled();
+    });
+
+    it('404s for a deleted user', async () => {
+      findOne.mockResolvedValue({ _id: new Types.ObjectId(targetId), isDeleted: true });
+      await expect(service.blockUser(me, targetId, orgId)).rejects.toBeInstanceOf(NotFoundException);
+      expect(updateOne).not.toHaveBeenCalled();
+    });
+
+    it('adds the target with $addToSet', async () => {
+      await service.blockUser(me, targetId, orgId);
+      expect(updateOne).toHaveBeenCalledWith(
+        { _id: me },
+        { $addToSet: { blockedUserIds: new Types.ObjectId(targetId) } },
+      );
+    });
+  });
+
+  describe('unblockUser', () => {
+    it('removes the target with $pull', async () => {
+      await service.unblockUser(me, targetId);
+      expect(updateOne).toHaveBeenCalledWith({ _id: me }, { $pull: { blockedUserIds: new Types.ObjectId(targetId) } });
+    });
+
+    it('404s on a malformed id', async () => {
+      await expect(service.unblockUser(me, 'nope')).rejects.toBeInstanceOf(NotFoundException);
+      expect(updateOne).not.toHaveBeenCalled();
+    });
+  });
+
+  it('getBlockedUserIds returns strings', async () => {
+    expect(await service.getBlockedUserIds(me)).toEqual([targetId]);
+  });
+});

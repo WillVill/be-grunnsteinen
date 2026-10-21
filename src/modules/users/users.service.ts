@@ -34,7 +34,8 @@ import {
   Building,
   BuildingDocument,
 } from "../buildings/schemas/building.schema";
-import { assertIdsInOrg } from "../../common/schemas/tenant";
+import { assertIdsInOrg, findInOrg } from "../../common/schemas/tenant";
+import { getBlockedIds } from "./blocking";
 
 @Injectable()
 export class UsersService {
@@ -644,5 +645,37 @@ export class UsersService {
     user.isActive = false;
     await user.save();
     this.logger.log(`User deactivated by admin: ${user.email}`);
+  }
+
+  /** Ids of the users `userId` has blocked. */
+  async getBlockedUserIds(userId: string): Promise<string[]> {
+    const ids = await getBlockedIds(this.userModel, userId);
+    return ids.map((id) => id.toString());
+  }
+
+  /** Block a neighbour in the caller's organisation. Idempotent. */
+  async blockUser(userId: string, targetId: string, orgId: string): Promise<void> {
+    if (userId === targetId) {
+      throw new BadRequestException("You cannot block yourself");
+    }
+    const target = await findInOrg(this.userModel, targetId, orgId, "_id isDeleted", "User");
+    if (!target || target.isDeleted) {
+      throw new NotFoundException("User not found");
+    }
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $addToSet: { blockedUserIds: new Types.ObjectId(targetId) } },
+    );
+  }
+
+  /** Remove a block. Idempotent; a malformed id reads as not found. */
+  async unblockUser(userId: string, targetId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(targetId)) {
+      throw new NotFoundException("User not found");
+    }
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $pull: { blockedUserIds: new Types.ObjectId(targetId) } },
+    );
   }
 }

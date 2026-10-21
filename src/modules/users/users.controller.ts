@@ -125,6 +125,26 @@ export class UsersController {
     return this.usersService.findById(userId);
   }
 
+  @Get("me/blocked")
+  @ApiOperation({ summary: "Ids of users the current user has blocked" })
+  getBlocked(@CurrentUser("userId") userId: string) {
+    return this.usersService.getBlockedUserIds(userId);
+  }
+
+  @Post("me/blocked/:id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Block a user" })
+  block(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
+    return this.usersService.blockUser(user.userId, id, user.organizationId);
+  }
+
+  @Delete("me/blocked/:id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Unblock a user" })
+  unblock(@Param("id") id: string, @CurrentUser("userId") userId: string) {
+    return this.usersService.unblockUser(userId, id);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Get user by ID" })
   @ApiResponse({

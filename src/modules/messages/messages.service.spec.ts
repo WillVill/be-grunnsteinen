@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { MessagesService } from './messages.service';
 import { Conversation } from './schemas/conversation.schema';
@@ -169,5 +169,92 @@ describe('MessagesService and deleted accounts', () => {
       service.sendMessage(senderId, orgId, { conversationId, content: 'hei' } as any),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(messageCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('MessagesService and blocked users', () => {
+  const senderId = new Types.ObjectId().toString();
+  const partnerId = new Types.ObjectId().toString();
+  let service: MessagesService;
+  let userCountDocuments: jest.Mock;
+  let messageCreate: jest.Mock;
+  let conversationFindOne: jest.Mock;
+  let conversationFindOneAndUpdate: jest.Mock;
+  let direct: any;
+  let appendMessage: jest.SpyInstance;
+
+  beforeEach(async () => {
+    direct = {
+      _id: new Types.ObjectId(conversationId),
+      organizationId: new Types.ObjectId(orgId),
+      type: 'direct',
+      participants: [new Types.ObjectId(senderId), new Types.ObjectId(partnerId)],
+      unreadCount: new Map<string, number>(),
+      save: jest.fn(),
+    };
+    conversationFindOne = jest.fn(() => query(direct));
+    conversationFindOneAndUpdate = jest.fn(() => query(direct));
+    messageCreate = jest.fn().mockResolvedValue({ _id: new Types.ObjectId() });
+    userCountDocuments = jest.fn().mockResolvedValue(0);
+    const userFindById = jest.fn((id: unknown) =>
+      query({ _id: new Types.ObjectId(String(id)), organizationId: new Types.ObjectId(orgId), role: UserRole.RESIDENT, isDeleted: false }),
+    );
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        {
+          provide: getModelToken(Conversation.name),
+          useValue: { findOne: conversationFindOne, findOneAndUpdate: conversationFindOneAndUpdate, create: jest.fn() },
+        },
+        { provide: getModelToken(Message.name), useValue: { create: messageCreate } },
+        { provide: getModelToken(User.name), useValue: { findById: userFindById, countDocuments: userCountDocuments } },
+        { provide: NotificationService, useValue: { createNotification: jest.fn() } },
+        { provide: EmailService, useValue: {} },
+      ],
+    }).compile();
+
+    service = module.get(MessagesService);
+    appendMessage = jest.spyOn(service as any, 'appendMessage').mockResolvedValue({ _id: 'm' });
+  });
+
+  it('refuses to start a conversation when either user blocked the other (409)', async () => {
+    userCountDocuments.mockResolvedValue(1);
+    await expect(service.getOrCreateConversation(senderId, partnerId, orgId)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    const filter = userCountDocuments.mock.calls[0][0];
+    expect(filter.$or).toHaveLength(2);
+    expect(conversationFindOne).not.toHaveBeenCalled();
+  });
+
+  it('refuses a message by recipientId when blocked (409)', async () => {
+    userCountDocuments.mockResolvedValue(1);
+    await expect(
+      service.sendMessage(senderId, orgId, { recipientId: partnerId, content: 'hei' } as any),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(appendMessage).not.toHaveBeenCalled();
+  });
+
+  it('refuses a message into an existing thread when blocked (409)', async () => {
+    userCountDocuments.mockResolvedValue(1);
+    await expect(
+      service.sendMessage(senderId, orgId, { conversationId, content: 'hei' } as any),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(appendMessage).not.toHaveBeenCalled();
+  });
+
+  it('lets a message into an existing thread through when nobody is blocked', async () => {
+    await expect(
+      service.sendMessage(senderId, orgId, { conversationId, content: 'hei' } as any),
+    ).resolves.toBeDefined();
+    expect(appendMessage).toHaveBeenCalled();
+  });
+
+  it('leaves support threads alone', async () => {
+    direct.type = 'support';
+    userCountDocuments.mockResolvedValue(1);
+    await service.sendMessage(senderId, orgId, { conversationId, content: 'hei' } as any);
+    expect(userCountDocuments).not.toHaveBeenCalled();
   });
 });
