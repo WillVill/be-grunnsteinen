@@ -678,4 +678,22 @@ export class UsersService {
       { $pull: { blockedUserIds: new Types.ObjectId(targetId) } },
     );
   }
+
+  /** Register a device token. It moves to this user if another account had it. */
+  async addPushToken(userId: string, token: string): Promise<void> {
+    const userOid = new Types.ObjectId(userId);
+    await this.userModel.updateMany(
+      { _id: { $ne: userOid }, pushTokens: token },
+      { $pull: { pushTokens: token } },
+    );
+    await this.userModel.updateOne({ _id: userOid }, { $addToSet: { pushTokens: token } });
+  }
+
+  /** Remove a device token from this user only. Idempotent. */
+  async removePushToken(userId: string, token: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      { $pull: { pushTokens: token } },
+    );
+  }
 }

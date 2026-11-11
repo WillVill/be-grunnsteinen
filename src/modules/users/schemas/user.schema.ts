@@ -249,6 +249,10 @@ export class User {
   @Prop({ type: [{ type: Types.ObjectId, ref: "User" }], default: undefined, select: false })
   blockedUserIds?: Types.ObjectId[];
 
+  /** Expo push tokens of this user's devices. A token belongs to one user at a time. */
+  @Prop({ type: [String], default: undefined, select: false })
+  pushTokens?: string[];
+
   @Prop({ select: false })
   passwordResetToken?: string;
 

@@ -399,3 +399,49 @@ describe('UsersService blocking', () => {
     expect(await service.getBlockedUserIds(me)).toEqual([targetId]);
   });
 });
+
+describe('UsersService push tokens', () => {
+  let service: UsersService;
+  let updateOne: jest.Mock;
+  let updateMany: jest.Mock;
+  const me = '507f1f77bcf86cd799439021';
+  const token = 'ExponentPushToken[abc123]';
+
+  beforeEach(async () => {
+    updateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+    updateMany = jest.fn().mockResolvedValue({ modifiedCount: 0 });
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: getModelToken(User.name), useValue: { updateOne, updateMany } },
+        { provide: getModelToken(Organization.name), useValue: {} },
+        { provide: getModelToken(Building.name), useValue: {} },
+        { provide: EmailService, useValue: {} },
+        { provide: ConfigService, useValue: { get: () => 'https://example.com' } },
+      ],
+    }).compile();
+    service = module.get<UsersService>(UsersService);
+  });
+
+  it('addPushToken pulls the token from other users, then adds it to this user', async () => {
+    await service.addPushToken(me, token);
+    expect(updateMany).toHaveBeenCalledWith(
+      { _id: { $ne: new Types.ObjectId(me) }, pushTokens: token },
+      { $pull: { pushTokens: token } },
+    );
+    expect(updateOne).toHaveBeenCalledWith(
+      { _id: new Types.ObjectId(me) },
+      { $addToSet: { pushTokens: token } },
+    );
+    expect(updateMany.mock.invocationCallOrder[0]).toBeLessThan(updateOne.mock.invocationCallOrder[0]);
+  });
+
+  it('removePushToken pulls the token from this user only', async () => {
+    await service.removePushToken(me, token);
+    expect(updateOne).toHaveBeenCalledWith(
+      { _id: new Types.ObjectId(me) },
+      { $pull: { pushTokens: token } },
+    );
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+});

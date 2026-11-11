@@ -263,7 +263,7 @@ describe('AccountDeletionService', () => {
       expect(Object.keys(update.$unset).sort()).toEqual(
         [
           'phone', 'avatarUrl', 'avatarColor', 'dateOfBirth', 'unitNumber', 'building', 'primaryBuildingId',
-          'lastLoginAt', 'passwordResetToken', 'passwordResetExpires', 'setupToken', 'setupTokenExpires', 'blockedUserIds',
+          'lastLoginAt', 'passwordResetToken', 'passwordResetExpires', 'setupToken', 'setupTokenExpires', 'blockedUserIds', 'pushTokens',
         ].sort(),
       );
       for (const kept of ['_id', 'organizationId', 'createdAt', 'role']) {

@@ -37,6 +37,8 @@ import {
   UpdateAdminUserDto,
   UpdateRoleDto,
   UpdateCareInfoDto,
+  PushTokenDto,
+  PushTokenParamDto,
 } from "./dto";
 import {
   CurrentUser,
@@ -143,6 +145,20 @@ export class UsersController {
   @ApiOperation({ summary: "Unblock a user" })
   unblock(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
     return this.usersService.unblockUser(user.userId, id, user.organizationId);
+  }
+
+  @Post("me/push-tokens")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Register an Expo push token for the current user" })
+  addPushToken(@Body() dto: PushTokenDto, @CurrentUser("userId") userId: string) {
+    return this.usersService.addPushToken(userId, dto.token);
+  }
+
+  @Delete("me/push-tokens/:token")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Remove an Expo push token (URL-encoded) from the current user" })
+  removePushToken(@Param() params: PushTokenParamDto, @CurrentUser("userId") userId: string) {
+    return this.usersService.removePushToken(userId, params.token);
   }
 
   @Get(":id")

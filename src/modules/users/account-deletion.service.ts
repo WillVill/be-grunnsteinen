@@ -320,6 +320,7 @@ export class AccountDeletionService {
           setupToken: "",
           setupTokenExpires: "",
           blockedUserIds: "",
+          pushTokens: "",
         },
         ...(avatarKeys.length > 0 && {
           $addToSet: { pendingS3Keys: { $each: avatarKeys } },

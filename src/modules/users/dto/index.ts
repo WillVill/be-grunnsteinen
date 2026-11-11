@@ -7,3 +7,4 @@ export * from './update-admin-user.dto';
 export * from './update-role.dto';
 export * from './update-care-info.dto';
 
+export * from './push-token.dto';
