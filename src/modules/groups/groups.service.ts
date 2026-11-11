@@ -429,8 +429,8 @@ export class GroupsService {
       .createNotification(
         dto.userId,
         NotificationType.GROUP_INVITATION,
-        'Added to group',
-        `${inviter?.name ?? 'Someone'} added you to the group "${group.name}"`,
+        'Lagt til i gruppe',
+        `${inviter?.name ?? 'Noen'} la deg til i gruppen «${group.name}»`,
         `/groups/${groupId}`,
         true,
         {

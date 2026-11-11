@@ -466,7 +466,7 @@ export class MessagesService {
         .createNotification(
           recipientId,
           NotificationType.MESSAGE_RECEIVED,
-          `New message from ${sender.name}`,
+          `Ny melding fra ${sender.name}`,
           preview,
           `/messages/${conversation._id}`,
           true,

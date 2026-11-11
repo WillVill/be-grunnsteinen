@@ -165,7 +165,7 @@ export class EventsService {
         .createBulkNotifications(
           uniqueRecipientIds,
           NotificationType.EVENT_CREATED,
-          "New event",
+          "Ny aktivitet",
           `"${event.title}" - ${event.location}, ${startDateStr}`,
           `/events/${event._id}`,
           true,
@@ -443,8 +443,8 @@ export class EventsService {
         .createBulkNotifications(
           participantIds,
           NotificationType.EVENT_UPDATED,
-          "Event date changed",
-          `The event "${event.title}" has been updated`,
+          "Aktiviteten er endret",
+          `Aktiviteten «${event.title}» er oppdatert`,
           `/events/${eventId}`,
           true,
           participants.map((p) => ({
@@ -490,8 +490,8 @@ export class EventsService {
         .createBulkNotifications(
           participantIds,
           NotificationType.EVENT_CANCELLED,
-          "Event cancelled",
-          `The event "${event.title}" has been cancelled`,
+          "Aktivitet avlyst",
+          `Aktiviteten «${event.title}» er avlyst`,
           `/events`,
           true,
           participants.map((p) => ({
@@ -545,8 +545,8 @@ export class EventsService {
         .createBulkNotifications(
           participantIds,
           NotificationType.EVENT_CANCELLED,
-          "Event cancelled",
-          `The event "${event.title}" has been cancelled`,
+          "Aktivitet avlyst",
+          `Aktiviteten «${event.title}» er avlyst`,
           `/events/${eventId}`,
           true,
           participants.map((p) => ({
@@ -613,8 +613,8 @@ export class EventsService {
         .createNotification(
           userId,
           NotificationType.EVENT_CREATED,
-          "Event registration confirmed",
-          `You've successfully registered for "${event.title}"`,
+          "Påmelding bekreftet",
+          `Du er påmeldt «${event.title}»`,
           `/events/${eventId}`,
           true,
           {
@@ -793,8 +793,8 @@ export class EventsService {
         .createBulkNotifications(
           participantIds,
           NotificationType.EVENT_REMINDER,
-          "Event reminder",
-          `Reminder: "${event.title}" starts tomorrow`,
+          "Påminnelse om aktivitet",
+          `«${event.title}» starter i morgen`,
           `/events/${event._id}`,
           true,
           eventParticipants.map((p) => ({

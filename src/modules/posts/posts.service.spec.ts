@@ -378,7 +378,7 @@ describe('PostsService group privacy', () => {
       expect(createNotification).toHaveBeenCalledTimes(1);
       const [recipientId, , , message, , sendEmail, emailUser] = createNotification.mock.calls[0];
       expect(recipientId).toBe(authorId);
-      expect(message).toBe('Kari Kommentar commented on your post');
+      expect(message).toBe('Kari Kommentar kommenterte oppslaget ditt');
       expect(sendEmail).toBe(true);
       expect(emailUser).toEqual({ _id: authorId, email: 'author@example.com', firstName: 'Post', lastName: 'Author' });
     });

@@ -155,8 +155,8 @@ export class PostsService {
     const uniqueRecipientIds = [...new Set(recipientIds)];
     if (uniqueRecipientIds.length > 0) {
       const preview = (post.title || post.content).slice(0, 80);
-      const title = 'New post';
-      const message = `${user.name} posted: ${preview}${(post.title || post.content).length > 80 ? '…' : ''}`;
+      const title = 'Nytt oppslag';
+      const message = `${user.name} har lagt ut: ${preview}${(post.title || post.content).length > 80 ? '…' : ''}`;
 
       // Build emailUsers so SendGrid actually fires (createBulkNotifications only
       // emails when a non-empty emailUsers array is passed). Email delivery still
@@ -620,8 +620,8 @@ export class PostsService {
         await this.notificationService.createNotification(
           postAuthorIdStr,
           NotificationType.POST_COMMENT,
-          'New comment on your post',
-          `${commentAuthor.name} commented on your post`,
+          'Ny kommentar på oppslaget ditt',
+          `${commentAuthor.name} kommenterte oppslaget ditt`,
           `/posts/${postId}`,
           true, // Send email
           {

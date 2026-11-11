@@ -243,8 +243,8 @@ export class SharingService {
         .createNotification(
           refId(helpRequest.requesterId),
           NotificationType.MESSAGE_RECEIVED,
-          'Help request accepted',
-          `${helper.name} has accepted your help request: "${helpRequest.title}"`,
+          'Hjelpeforespørsel godtatt',
+          `${helper.name} vil hjelpe deg med «${helpRequest.title}»`,
           `/sharing/help-requests/${requestId}`,
           true,
           emailUser,
@@ -310,8 +310,8 @@ export class SharingService {
         .createNotification(
           otherUserId!,
           NotificationType.MESSAGE_RECEIVED,
-          'Help request completed',
-          `${currentUser.name} has marked the help request "${helpRequest.title}" as completed`,
+          'Hjelpeforespørsel fullført',
+          `${currentUser.name} har markert hjelpeforespørselen «${helpRequest.title}» som fullført`,
           `/sharing/help-requests/${requestId}`,
           false,
           emailUser,
@@ -379,8 +379,8 @@ export class SharingService {
           .createNotification(
             refId(helpRequest.helperId),
             NotificationType.MESSAGE_RECEIVED,
-            'Help request cancelled',
-            `The help request "${helpRequest.title}" has been cancelled`,
+            'Hjelpeforespørsel avlyst',
+            `Hjelpeforespørselen «${helpRequest.title}» er avlyst`,
             `/sharing/help-requests`,
             false,
             emailUser,
@@ -673,8 +673,8 @@ export class SharingService {
         .createNotification(
           refId(sharedItem.ownerId),
           NotificationType.MESSAGE_RECEIVED,
-          'Borrow request',
-          `${requester.name} wants to borrow your "${sharedItem.name}"`,
+          'Låneforespørsel',
+          `${requester.name} vil låne «${sharedItem.name}»`,
           `/sharing/items/${itemId}`,
           true,
           emailUser,
