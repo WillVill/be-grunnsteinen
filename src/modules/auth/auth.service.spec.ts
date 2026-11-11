@@ -53,7 +53,7 @@ describe('AuthService admin setup flow', () => {
         { provide: getModelToken(Building.name), useValue: { findById: jest.fn().mockResolvedValue(null) } },
         { provide: JwtService, useValue: { sign: () => 'token-xyz', verify: jest.fn() } },
         { provide: ConfigService, useValue: { get: () => 'secret' } },
-        { provide: EmailService, useValue: { sendEmail: jest.fn(), sendWelcomeEmail: jest.fn(), sendPasswordResetEmail: jest.fn() } },
+        { provide: EmailService, useValue: { sendEmail: jest.fn(), sendWelcomeEmail: jest.fn(), sendPasswordResetEmail: jest.fn(), sendPasswordChangedEmail: jest.fn().mockResolvedValue(undefined) } },
         { provide: InvitationsService, useValue: { validate: jest.fn(), markAccepted: jest.fn() } },
         { provide: TenantProfilesService, useValue: { markRegistered: jest.fn() } },
       ],

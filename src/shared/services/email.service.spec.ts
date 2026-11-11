@@ -69,3 +69,27 @@ describe('EmailService.sendContentReport', () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('EmailService.sendPasswordChangedEmail', () => {
+  const send = sgMail.send as unknown as jest.Mock;
+
+  it('sends Norwegian copy and escapes the name', async () => {
+    send.mockReset().mockResolvedValue([{ statusCode: 202, headers: {} }]);
+    const config = { get: (key: string) => (key === 'sendgrid.apiKey' ? 'SG.test' : 'x') } as unknown as ConfigService;
+    const service = new EmailService(config);
+
+    await service.sendPasswordChangedEmail({
+      _id: '507f1f77bcf86cd799439011',
+      email: 'kari@example.com',
+      firstName: 'Kari<b>',
+      lastName: 'Nordmann',
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const msg = send.mock.calls[0][0];
+    expect(msg.subject).toBe('Passordet ditt er endret');
+    expect(msg.html).toContain('Hei Kari&lt;b&gt;,');
+    expect(msg.html).toContain('/forgot-password');
+    expect(msg.html).not.toContain('Password');
+  });
+});

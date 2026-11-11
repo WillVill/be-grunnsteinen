@@ -350,16 +350,12 @@ export class AuthService {
 
     // Send confirmation email (async)
     this.emailService
-      .sendEmail(
-        user.email,
-        'Password Changed Successfully',
-        `
-          <h1>Password Changed</h1>
-          <p>Hi ${user.name.split(' ')[0]},</p>
-          <p>Your password has been successfully changed.</p>
-          <p>If you didn't make this change, please contact support immediately.</p>
-        `,
-      )
+      .sendPasswordChangedEmail({
+        _id: user._id.toString(),
+        email: user.email,
+        firstName: user.name.split(' ')[0],
+        lastName: user.name.split(' ').slice(1).join(' '),
+      })
       .catch((error) => {
         this.logger.error('Failed to send password change confirmation', error);
       });
