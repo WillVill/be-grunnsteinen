@@ -30,6 +30,11 @@ export default () => ({
     fromName: process.env.SENDGRID_FROM_NAME,
   },
 
+  // Expo Push (access token optional)
+  expo: {
+    accessToken: process.env.EXPO_ACCESS_TOKEN,
+  },
+
   // Twilio (SMS)
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID,

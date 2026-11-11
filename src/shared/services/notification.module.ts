@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationService } from './notification.service';
 import { Notification, NotificationSchema } from './notification.schema';
+import { ExpoPushService } from './expo-push.service';
 import { EmailModule } from './email.module';
 import { User, UserSchema } from '../../modules/users/schemas/user.schema';
 
@@ -13,8 +14,8 @@ import { User, UserSchema } from '../../modules/users/schemas/user.schema';
     ]),
     EmailModule,
   ],
-  providers: [NotificationService],
-  exports: [NotificationService],
+  providers: [NotificationService, ExpoPushService],
+  exports: [NotificationService, ExpoPushService],
 })
 export class NotificationModule {}
 

@@ -37,7 +37,7 @@ cd fe_grunnsteinen && yarn dev         # Frontend (Turbopack)
 
 ## Environment Variables
 
-**Backend (`.env`):** `NODE_ENV`, `PORT`, `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRATION`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`, `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `FRONTEND_URL`
+**Backend (`.env`):** `NODE_ENV`, `PORT`, `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRATION`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`, `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `EXPO_ACCESS_TOKEN` (optional), `FRONTEND_URL`
 
 **Frontend (`.env.local`):** `NEXT_PUBLIC_API_URL`
 
