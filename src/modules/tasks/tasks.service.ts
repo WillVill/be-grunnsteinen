@@ -11,7 +11,6 @@ import {
 import {
   Notification,
   NotificationDocument,
-  NotificationType,
 } from '../notifications/schemas/notification.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import {
@@ -163,17 +162,15 @@ export class TasksService {
         if (!requester) continue;
 
         // Send reminder notification
-        await this.notificationModel
-          .create({
-            userId: request.requesterId,
-            type: NotificationType.HELP_REQUEST,
-            title: "Påminnelse om hjelpeforespørsel",
-            message: `Hjelpeforespørselen din "${request.title}" har vært åpen i over 30 dager. Vurder å oppdatere eller lukke den.`,
-            linkTo: `/sharing/help-requests/${request._id}`,
-            relatedId: request._id,
-            relatedType: 'help-request',
-            isRead: false,
-          })
+        await this.notificationService
+          .createNotification(
+            request.requesterId,
+            SharedNotificationType.HELP_REQUEST,
+            "Påminnelse om hjelpeforespørsel",
+            `Hjelpeforespørselen din "${request.title}" har vært åpen i over 30 dager. Vurder å oppdatere eller lukke den.`,
+            `/sharing/help-requests/${request._id}`,
+            false,
+          )
           .catch((error) => {
             this.logger.error(
               `Failed to create reminder for help request ${request._id}`,

@@ -113,7 +113,11 @@ describe('NotificationService push fan-out', () => {
       query(
         filter.isDeleted === true
           ? users.filter((u) => u.isDeleted)
-          : users.filter((u) => !u.isDeleted),
+          : users.filter(
+              (u) =>
+                !u.isDeleted &&
+                !(filter.isActive?.$ne === false && u.isActive === false),
+            ),
       ),
     );
 
@@ -169,13 +173,31 @@ describe('NotificationService push fan-out', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it('sends nothing to a deactivated user', async () => {
+    users = [{ ...user(liveId, ['ExponentPushToken[moved]']), isActive: false }];
+    await service.createNotification(liveId, NotificationType.SYSTEM, 'T', 'M');
+    await flush();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('sends a help-request notification unless push.helpRequests is false', async () => {
+    const other = new Types.ObjectId().toString();
+    users = [
+      user(liveId, ['ExponentPushToken[on]']),
+      user(other, ['ExponentPushToken[off]'], { helpRequests: false }),
+    ];
+    await service.createBulkNotifications([liveId, other], NotificationType.HELP_REQUEST, 'T', 'M');
+    await flush();
+    expect(send.mock.calls[0][0].map((m: any) => m.to)).toEqual(['ExponentPushToken[on]']);
+  });
+
   it('pulls dead tokens returned by send', async () => {
     users = [user(liveId, ['ExponentPushToken[dead]'])];
     send.mockResolvedValue(['ExponentPushToken[dead]']);
     await service.createNotification(liveId, NotificationType.SYSTEM, 'T', 'M');
     await flush();
     expect(updateMany).toHaveBeenCalledWith(
-      {},
+      { pushTokens: { $in: ['ExponentPushToken[dead]'] } },
       { $pull: { pushTokens: { $in: ['ExponentPushToken[dead]'] } } },
     );
   });

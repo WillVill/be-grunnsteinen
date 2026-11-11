@@ -70,6 +70,7 @@ role: RESIDENT | BOARD | ADMIN | SUPER_ADMIN
 interests[], isHelpfulNeighbor, helpfulSkills[], isProfilePrivate
 notificationPreferences { email: {posts,comments,events,bookings,messages,helpRequests,boardAnnouncements}, push: {same} }
 isActive, lastLoginAt, passwordResetToken (select:false), passwordResetExpires (select:false)
+pushTokens (select:false, Expo push tokens)
 ```
 
 #### `organizations`

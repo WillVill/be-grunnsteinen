@@ -22,6 +22,7 @@ describe('UsersService admin invitation flow', () => {
   let sendAdminSetupEmail: jest.Mock;
   let buildingCountDocuments: jest.Mock;
   let userModelFindByIdAndUpdate: jest.Mock;
+  let userModelUpdateOne: jest.Mock;
 
   const buildModule = async (existingUser: any = null) => {
     saveMock = jest.fn().mockResolvedValue(undefined);
@@ -42,6 +43,8 @@ describe('UsersService admin invitation flow', () => {
     userModelCtor.findById = userModelFindById;
     userModelCtor.deleteOne = deleteOneMock;
     userModelCtor.findByIdAndUpdate = userModelFindByIdAndUpdate;
+    userModelUpdateOne = jest.fn().mockResolvedValue({});
+    userModelCtor.updateOne = userModelUpdateOne;
 
     // Default findOne returns `existingUser` for email-duplicate check
     userModelFindOne.mockImplementation((query: any) => {
@@ -178,6 +181,24 @@ describe('UsersService admin invitation flow', () => {
       expect(deleteOneMock).not.toHaveBeenCalled();
       expect(activeUser.isActive).toBe(false);
       expect(activeUser.save).toHaveBeenCalled();
+    });
+
+    it('clears the push tokens of a deactivated user', async () => {
+      const activeUser: any = {
+        _id: new Types.ObjectId(targetId),
+        email: 'active@example.com',
+        isActive: true,
+        setupTokenExpires: undefined,
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      await buildModule(activeUser);
+
+      await service.deactivateUser(orgId, targetId);
+
+      expect(userModelUpdateOne).toHaveBeenCalledWith(
+        { _id: activeUser._id },
+        { $unset: { pushTokens: '' } },
+      );
     });
   });
 

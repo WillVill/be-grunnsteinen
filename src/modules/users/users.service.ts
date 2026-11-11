@@ -644,6 +644,8 @@ export class UsersService {
 
     user.isActive = false;
     await user.save();
+    // A moved-out resident must stop receiving pushes on their devices.
+    await this.userModel.updateOne({ _id: user._id }, { $unset: { pushTokens: "" } });
     this.logger.log(`User deactivated by admin: ${user.email}`);
   }
 

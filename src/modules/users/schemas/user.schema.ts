@@ -250,7 +250,7 @@ export class User {
   blockedUserIds?: Types.ObjectId[];
 
   /** Expo push tokens of this user's devices. A token belongs to one user at a time. */
-  @Prop({ type: [String], default: undefined, select: false })
+  @Prop({ type: [String], default: undefined, select: false, index: true, sparse: true })
   pushTokens?: string[];
 
   @Prop({ select: false })

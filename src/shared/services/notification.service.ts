@@ -28,6 +28,7 @@ export enum NotificationType {
   DOCUMENT_SHARED = 'document_shared',
   GROUP_INVITATION = 'group_invitation',
   ANNOUNCEMENT = 'announcement',
+  HELP_REQUEST = 'help-request',
   SYSTEM = 'system',
 }
 
@@ -62,6 +63,7 @@ const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   [NotificationType.DOCUMENT_SHARED]: 'boardAnnouncements',
   [NotificationType.GROUP_INVITATION]: 'boardAnnouncements',
   [NotificationType.ANNOUNCEMENT]: 'boardAnnouncements',
+  [NotificationType.HELP_REQUEST]: 'helpRequests',
   [NotificationType.SYSTEM]: 'boardAnnouncements',
 };
 
@@ -322,7 +324,7 @@ export class NotificationService {
 
   /**
    * Send a push to every device of the given users who allow push for this type.
-   * Missing preferences mean allowed; deleted users are skipped; dead tokens are pruned.
+   * Missing preferences mean allowed; deleted and deactivated users are skipped; dead tokens are pruned.
    */
   private async pushToUsers(
     userIds: string[],
@@ -333,7 +335,7 @@ export class NotificationService {
   ): Promise<void> {
     const key = NOTIFICATION_TYPE_TO_PREFERENCE[type];
     const users = await this.userModel
-      .find({ _id: { $in: userIds }, isDeleted: { $ne: true } })
+      .find({ _id: { $in: userIds }, isDeleted: { $ne: true }, isActive: { $ne: false } })
       .select('+pushTokens notificationPreferences')
       .lean()
       .exec();
@@ -349,7 +351,10 @@ export class NotificationService {
 
     const dead = await this.expoPushService.send(messages);
     if (dead?.length) {
-      await this.userModel.updateMany({}, { $pull: { pushTokens: { $in: dead } } });
+      await this.userModel.updateMany(
+        { pushTokens: { $in: dead } },
+        { $pull: { pushTokens: { $in: dead } } },
+      );
     }
   }
 
@@ -432,6 +437,7 @@ export class NotificationService {
       [NotificationType.DOCUMENT_SHARED]: '📄 Dokument delt',
       [NotificationType.GROUP_INVITATION]: '👥 Gruppeinvitasjon',
       [NotificationType.ANNOUNCEMENT]: '📢 Kunngjøring',
+      [NotificationType.HELP_REQUEST]: '🤝 Hjelpeforespørsel',
       [NotificationType.SYSTEM]: 'ℹ️ Systemvarsling',
     };
 
