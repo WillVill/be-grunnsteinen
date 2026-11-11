@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { EmailService, EmailUser } from './email.service';
+import { PushMessage, ExpoPushService } from './expo-push.service';
 import {
   renderButton,
   renderEmailLayout,
@@ -76,6 +77,7 @@ export class NotificationService {
     @InjectModel('User')
     private readonly userModel: Model<UserDocument>,
     private readonly emailService: EmailService,
+    private readonly expoPushService: ExpoPushService,
     private readonly configService: ConfigService,
   ) {
     this.frontendUrl = this.configService.get<string>('frontendUrl');
@@ -111,6 +113,8 @@ export class NotificationService {
     });
 
     this.logger.log(`Notification created for user ${userId}: ${title}`);
+
+    this.firePush([userId.toString()], type, title, message, linkTo);
 
     if (sendEmail && emailUser) {
       const preferenceKey = NOTIFICATION_TYPE_TO_PREFERENCE[type];
@@ -166,6 +170,14 @@ export class NotificationService {
 
     this.logger.log(
       `Bulk notifications created for ${userIds.length} users: ${title}`,
+    );
+
+    this.firePush(
+      userIds.map((id) => id.toString()),
+      type,
+      title,
+      message,
+      linkTo,
     );
 
     if (sendEmail && emailUsers?.length) {
@@ -293,6 +305,52 @@ export class NotificationService {
     });
 
     this.logger.log(`All notifications deleted for user ${userId}`);
+  }
+
+  /** Fire-and-forget: a push failure must never fail or slow the request. */
+  private firePush(
+    userIds: string[],
+    type: NotificationType,
+    title: string,
+    message: string,
+    linkTo?: string,
+  ): void {
+    void this.pushToUsers(userIds, type, title, message, linkTo).catch((error) => {
+      this.logger.error(`Failed to send push notification: ${title}`, error);
+    });
+  }
+
+  /**
+   * Send a push to every device of the given users who allow push for this type.
+   * Missing preferences mean allowed; deleted users are skipped; dead tokens are pruned.
+   */
+  private async pushToUsers(
+    userIds: string[],
+    type: NotificationType,
+    title: string,
+    message: string,
+    linkTo?: string,
+  ): Promise<void> {
+    const key = NOTIFICATION_TYPE_TO_PREFERENCE[type];
+    const users = await this.userModel
+      .find({ _id: { $in: userIds }, isDeleted: { $ne: true } })
+      .select('+pushTokens notificationPreferences')
+      .lean()
+      .exec();
+
+    const messages: PushMessage[] = [];
+    for (const user of users) {
+      if (user.notificationPreferences?.push?.[key] === false) continue;
+      for (const token of user.pushTokens ?? []) {
+        messages.push({ to: token, title, body: message, data: { linkTo } });
+      }
+    }
+    if (messages.length === 0) return;
+
+    const dead = await this.expoPushService.send(messages);
+    if (dead?.length) {
+      await this.userModel.updateMany({}, { $pull: { pushTokens: { $in: dead } } });
+    }
   }
 
   /**
