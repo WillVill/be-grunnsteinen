@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ExpoPushService, PushMessage } from './expo-push.service';
 
@@ -21,12 +22,18 @@ describe('ExpoPushService', () => {
   const originalFetch = global.fetch;
   let fetchMock: jest.Mock;
 
+  let ticketModel: { insertMany: jest.Mock };
+
   const build = (accessToken?: string) =>
-    new ExpoPushService({
-      get: jest.fn((key: string) => (key === 'expo.accessToken' ? accessToken : undefined)),
-    } as unknown as ConfigService);
+    new ExpoPushService(
+      {
+        get: jest.fn((key: string) => (key === 'expo.accessToken' ? accessToken : undefined)),
+      } as unknown as ConfigService,
+      ticketModel as any,
+    );
 
   beforeEach(() => {
+    ticketModel = { insertMany: jest.fn().mockResolvedValue([]) };
     fetchMock = jest.fn();
     global.fetch = fetchMock as any;
   });
@@ -78,5 +85,32 @@ describe('ExpoPushService', () => {
 
     await build('secret').send(makeMessages(1));
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer secret');
+  });
+
+  it('stores the ticket id and token of every accepted message for the receipt check', async () => {
+    const messages = makeMessages(3);
+    fetchMock.mockResolvedValue(
+      okResponse(3, { 1: { status: 'error', details: { error: 'DeviceNotRegistered' } } }),
+    );
+    await build().send(messages);
+
+    expect(ticketModel.insertMany).toHaveBeenCalledWith(
+      [
+        { ticketId: 't0', token: messages[0].to },
+        { ticketId: 't2', token: messages[2].to },
+      ],
+      { ordered: false },
+    );
+  });
+
+  it('still returns dead tokens when storing tickets fails', async () => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    ticketModel.insertMany.mockRejectedValue(new Error('db down'));
+    const messages = makeMessages(2);
+    fetchMock.mockResolvedValue(
+      okResponse(2, { 0: { status: 'error', details: { error: 'DeviceNotRegistered' } } }),
+    );
+    await expect(build().send(messages)).resolves.toEqual([messages[0].to]);
+    jest.restoreAllMocks();
   });
 });

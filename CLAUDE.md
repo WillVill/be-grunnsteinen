@@ -187,6 +187,17 @@ title, message, linkTo, relatedId, relatedType, isRead, readAt
 TTL: auto-delete after 90 days
 ```
 
+#### `pushtickets`
+```
+ticketId (unique, Expo push ticket id), token (Expo push token), createdAt
+TTL: auto-delete after 24 hours (Expo keeps receipts that long)
+```
+
+Written by `ExpoPushService.send` for every accepted push. `PushReceiptsService` runs every
+15 minutes, asks Expo for receipts of tickets at least 15 minutes old, removes tokens whose
+receipt says `DeviceNotRegistered` (app uninstalled) from `users.pushTokens`, and deletes the
+tickets that got a receipt.
+
 #### `shareditems`
 ```
 organizationId → organizations, ownerId → users, buildingId → buildings?, isOrganizationWide
