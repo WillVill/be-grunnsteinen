@@ -26,6 +26,7 @@ export class Notification {
       'document_shared',
       'group_invitation',
       'announcement',
+      'help-request',
       'system',
     ],
   })
