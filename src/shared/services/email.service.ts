@@ -231,6 +231,27 @@ export class EmailService {
     );
   }
 
+  async sendPasswordChangedEmail(user: EmailUser): Promise<void> {
+    const subject = "Passordet ditt er endret";
+    const content = `
+      ${renderH1("Passordet er endret")}
+      <p>Hei ${escapeHtml(user.firstName)},</p>
+      <p>Passordet til Grunnsteinen-kontoen din ble nettopp endret.</p>
+      <p>Var det ikke deg? Tilbakestill passordet med en gang og ta kontakt med administratorene i nabolaget ditt.</p>
+      ${renderButton("Tilbakestill passord", `${this.frontendUrl}/forgot-password`)}
+    `;
+
+    await this.sendEmail(
+      user.email,
+      subject,
+      renderEmailLayout(content, {
+        frontendUrl: this.frontendUrl,
+        userId: user._id,
+        preheader: "Passordet til kontoen din ble endret.",
+      }),
+    );
+  }
+
   async sendBookingConfirmation(
     user: EmailUser,
     booking: EmailBooking,
