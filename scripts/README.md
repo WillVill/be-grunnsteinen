@@ -17,9 +17,12 @@ common room, a document folder with a PDF in S3, a conversation and notification
 yarn seed:review-demo            # refuses if the demo org already exists
 yarn seed:review-demo --reset    # deletes the demo org's data and recreates it
 DEMO_PASSWORD='...' yarn seed:review-demo --reset   # choose the reviewer password
+DEMO_MODERATOR_EMAIL='you@company.no' yarn seed:review-demo --reset  # add a moderator who gets every report
 ```
 
-Passwords are generated per run and printed once. Writes go straight to the models, so no push or
+Reports never go to the author of the reported content, and Per Hansen authors the board posts and
+events, so set `DEMO_MODERATOR_EMAIL` to a real inbox: it adds a board account «Styret – moderering»
+that authors nothing and receives every report. Passwords are generated per run and printed once. Writes go straight to the models, so no push or
 email goes out; email notifications are off for the demo users. Only data in the demo org is deleted.
 Event dates are relative to the run date (8 and 12 weeks ahead, to outlast a long review), so re-run
 with `--reset` before a new submission if the events have passed. Keep the reviewer password unchanged while a review is in progress.

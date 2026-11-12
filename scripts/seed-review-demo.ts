@@ -12,6 +12,7 @@
  *
  * Passwords are generated per run and printed once, at the end. Set DEMO_PASSWORD to choose the
  * reviewer's password yourself (it must meet the app's rules: 8+ chars, a digit, upper and lower).
+ * Set DEMO_MODERATOR_EMAIL to a real inbox to add a board account that receives every report.
  *
  * Writes go straight to the models, not the services, so no push, email or in-app notification
  * fan-out reaches anyone. Email notifications are switched off for all three demo users.
@@ -99,6 +100,7 @@ function husordensreglerPdf(): Buffer {
 async function main() {
   const reset = process.argv.includes('--reset');
   const reviewerPassword = process.env.DEMO_PASSWORD || password();
+  const moderatorEmail = process.env.DEMO_MODERATOR_EMAIL?.trim().toLowerCase() || undefined;
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   const db = app.get<Connection>(getConnectionToken()).db;
@@ -116,7 +118,7 @@ async function main() {
     // Refuse to collide with a real account that happens to use one of the demo emails.
     const taken = await db
       .collection('users')
-      .find({ email: { $in: Object.values(USERS).map((u) => u.email) } })
+      .find({ email: { $in: [...Object.values(USERS).map((u) => u.email), ...(moderatorEmail ? [moderatorEmail] : [])] } })
       .project({ email: 1 })
       .toArray();
     if (taken.length) {
@@ -175,6 +177,24 @@ async function main() {
         entrance: 'A',
         apartmentType: '3-room',
         tenantIds: [ids[key]],
+      });
+    }
+
+    // Reports never reach the author of the reported content, and Per writes the board posts and
+    // events. A staff account that authors nothing makes sure every report reaches a real person.
+    if (moderatorEmail) {
+      passwords.moderator = password();
+      await model('User').create({
+        email: moderatorEmail,
+        password: passwords.moderator,
+        name: 'Styret – moderering',
+        role: 'board',
+        organizationId: orgId,
+        buildingIds: [buildingId],
+        primaryBuildingId: buildingId,
+        isActive: true,
+        // Report emails ignore these; everything else stays quiet.
+        notificationPreferences: { email: off },
       });
     }
 
@@ -322,6 +342,12 @@ async function main() {
     console.log('  Other demo users (not needed by Apple):');
     console.log(`    ${USERS.neighbour.email}  ${passwords.neighbour}`);
     console.log(`    ${USERS.board.email}  ${passwords.board}\n`);
+    if (moderatorEmail) {
+      console.log('  Moderator (receives every report by email and in the app):');
+      console.log(`    ${moderatorEmail}  ${passwords.moderator}\n`);
+    } else {
+      console.log('  No DEMO_MODERATOR_EMAIL set: reports on Per Hansen\'s posts and events reach nobody.\n');
+    }
   } finally {
     await app.close();
   }
