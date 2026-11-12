@@ -28,6 +28,12 @@ import { S3Service } from '../src/shared/services/s3.service';
 export const DEMO_ORG_CODE = 'DEMO-APPREVIEW';
 const DEMO_DOC_KEY = 'private/documents/demo-appreview/husordensregler.pdf';
 
+/**
+ * Days from the run date to the two demo events. An App Store review can take 2–4 weeks, plus a
+ * possible resubmission, and the events must still be upcoming the whole time.
+ */
+const EVENT_DAYS_AHEAD = [56, 84] as const;
+
 const USERS = {
   reviewer: { email: 'appreview@example.com', name: 'Ola Nordmann', role: 'resident', unit: 'H0101' },
   neighbour: { email: 'kari.demo@example.com', name: 'Kari Nordmann', role: 'resident', unit: 'H0102' },
@@ -217,8 +223,8 @@ async function main() {
       title: 'Dugnad i bakgården',
       description: 'Vi rydder bakgården, planter blomster og griller pølser etterpå. Alle er velkomne!',
       location: 'Bakgården',
-      startDate: daysFromNow(10, 11),
-      endDate: daysFromNow(10, 15),
+      startDate: daysFromNow(EVENT_DAYS_AHEAD[0], 11),
+      endDate: daysFromNow(EVENT_DAYS_AHEAD[0], 15),
       category: 'social',
       participants: [ids.board, ids.neighbour],
       participantsCount: 2,
@@ -229,8 +235,8 @@ async function main() {
       title: 'Strikkekveld i fellesrommet',
       description: 'Ta med strikketøyet ditt, så koker vi kaffe. Nybegynnere er hjertelig velkomne.',
       location: 'Fellesrommet',
-      startDate: daysFromNow(24, 18),
-      endDate: daysFromNow(24, 20, 30),
+      startDate: daysFromNow(EVENT_DAYS_AHEAD[1], 18),
+      endDate: daysFromNow(EVENT_DAYS_AHEAD[1], 20, 30),
       category: 'cultural',
       participants: [ids.neighbour],
       participantsCount: 1,

@@ -21,8 +21,8 @@ DEMO_PASSWORD='...' yarn seed:review-demo --reset   # choose the reviewer passwo
 
 Passwords are generated per run and printed once. Writes go straight to the models, so no push or
 email goes out; email notifications are off for the demo users. Only data in the demo org is deleted.
-Event dates are relative to the run date, so re-run with `--reset` before a new submission if the
-events have passed. Keep the reviewer password unchanged while a review is in progress.
+Event dates are relative to the run date (8 and 12 weeks ahead, to outlast a long review), so re-run
+with `--reset` before a new submission if the events have passed. Keep the reviewer password unchanged while a review is in progress.
 
 
 ### 1. Setup Base Organization
