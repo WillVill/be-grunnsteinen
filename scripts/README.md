@@ -4,6 +4,27 @@ This directory contains utility scripts for database operations, migrations, and
 
 ## Available Scripts
 
+### App Store review demo
+
+**File:** `seed-review-demo.ts`
+
+Creates the "Demo Borettslag" organisation (code `DEMO-APPREVIEW`) that Apple's reviewer signs in to:
+one building (Solsiden), three demo residents (reviewer Ola Nordmann `appreview@example.com`,
+Kari Nordmann, board member Per Hansen), posts with comments, two upcoming events, a bookable
+common room, a document folder with a PDF in S3, a conversation and notifications.
+
+```bash
+yarn seed:review-demo            # refuses if the demo org already exists
+yarn seed:review-demo --reset    # deletes the demo org's data and recreates it
+DEMO_PASSWORD='...' yarn seed:review-demo --reset   # choose the reviewer password
+```
+
+Passwords are generated per run and printed once. Writes go straight to the models, so no push or
+email goes out; email notifications are off for the demo users. Only data in the demo org is deleted.
+Event dates are relative to the run date, so re-run with `--reset` before a new submission if the
+events have passed. Keep the reviewer password unchanged while a review is in progress.
+
+
 ### 1. Setup Base Organization
 
 **File:** `setup-base-organization.ts`

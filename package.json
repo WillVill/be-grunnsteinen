@@ -22,7 +22,8 @@
     "setup:customer": "ts-node scripts/setup-customer-grunnsteinen.ts",
     "migrate:concepts": "ts-node scripts/migrate-concepts.ts",
     "extract:apartments": "python3 scripts/extract-apartments.py",
-    "import:apartments": "ts-node scripts/import-apartments.ts"
+    "import:apartments": "ts-node scripts/import-apartments.ts",
+    "seed:review-demo": "ts-node scripts/seed-review-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
